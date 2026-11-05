@@ -146,7 +146,7 @@ GATEWAY_RULES = {
     "IDEMPOTENCY_TTL_HOURS": 24,
     "AUTH_EXPIRY_DAYS": 7,  # uncaptured authorisations are cancelled by the worker
     "VERIFICATION_CODE_TTL_MINUTES": 10,
-    "VERIFICATION_MAX_ATTEMPTS": 3,  # requirements FR CP-6; see docs/MVP-SCOPE.md open point 1
+    "VERIFICATION_MAX_ATTEMPTS": 3,  # requirements FR CP-6, confirmed 5 Nov 2026
     "CHECKOUT_SESSION_TTL_MINUTES": 60,
     "GUEST_STATUS_LINK_TTL_DAYS": 30,
     "SCREENING_TARGET_P95_MS": 200,

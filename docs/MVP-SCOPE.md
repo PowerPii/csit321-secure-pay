@@ -25,7 +25,7 @@ If the demo shows that path end to end, plus the three failure stories below, th
 
 | Area | What we build | Requirement IDs (Ch. 4.3) | Screens |
 | --- | --- | --- | --- |
-| Checkout & payment | Hosted checkout, card tokenised in the vault, amount bound server-side, screening, verification code, simulator call, unique payment reference, idempotent retry, Unresolved handling, result pages, emailed receipt with guest status link | CP 1 to 15 | C3 to C7, C9 |
+| Checkout & payment | Hosted checkout, card tokenised in the vault, amount bound server-side, screening, verification code, simulator call, unique payment reference, idempotent retry, Unresolved handling, result pages, emailed receipt with guest status link | CP 1 to 15 (verification: 3 attempts, then Blocked, as Fifa decided on 5 Nov 2026) | C3 to C7, C9 |
 | Merchant API | `POST /v1/payments`, `GET /v1/payments/{id}`, capture, cancel, refunds, signed responses, API key auth (digest stored, shown once) | MM 3, TL 4 to 10 | none (API) |
 | Webhooks | Outbox in the same transaction as the state change, HMAC-signed events, retries with backoff, approved HTTPS endpoints only | TL 6, 7, AS 13 | none |
 | Reconciliation | Worker sweeps Unresolved payments with the original operation ID, escalates after max checks; 7-day auto-cancel of uncaptured authorisations | TL 11, 12 | D3 filter |
@@ -80,6 +80,6 @@ The research track (IEEE-CIS experiment in `research/`) runs alongside and hands
 
 ## 6. Open points to confirm with the team
 
-1. **Verification code attempts.** The 20 October architecture decision says one wrong code ends the attempt as Blocked. The current requirements document (Checkout & Payment FR 6) says block after 3 failed entries and allow a new code. The skeleton follows the requirements document (`VERIFICATION_MAX_ATTEMPTS = 3`); change one setting if the team prefers the stricter rule.
+1. **Guest status access.** Fifa chose (5 Nov 2026) that guests check status with a one-time code rather than only a long-lived link. The MVP keeps the emailed link from the architecture as the entry point and adds the code check when the guest opens it (`checkout/status/<token>`). Confirm the exact flow before building C9.
 2. **Amount check against the merchant's order record (CP FR 3).** The architecture fixes the amount when the merchant creates the payment, so there is no second record to compare. The MVP treats the server-side payment record as that order record. Confirm this reading.
 3. **Signed transaction responses (TL FR 8).** The MVP signs API responses with the merchant's webhook secret in a `SecurePay-Signature` header, the same scheme as webhooks.
