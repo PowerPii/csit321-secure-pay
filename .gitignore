@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+staticfiles/
+
+# Node
+node_modules/
+dist/
+
+# Secrets: only *.example templates are committed
+deploy/secrets/*
+!deploy/secrets/*.example
+!deploy/secrets/README.md
+.env
+
+# Research data and models
+research/data/*
+!research/data/.gitkeep
+research/artifacts/*
+!research/artifacts/.gitkeep
+gateway/apps/risk/model_artifacts/*
+!gateway/apps/risk/model_artifacts/README.md
+*.csv
+*.parquet
+*.joblib
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
+*.egg-info/
+build/

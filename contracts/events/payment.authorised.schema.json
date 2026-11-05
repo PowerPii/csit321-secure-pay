@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "payment.authorised",
+  "type": "object",
+  "required": ["id", "type", "created", "sequence", "data"],
+  "properties": {
+    "id": { "type": "string", "description": "Event ID, used by the merchant for deduplication" },
+    "type": { "const": "payment.authorised" },
+    "created": { "type": "string", "format": "date-time" },
+    "sequence": { "type": "integer", "minimum": 1, "description": "Per-payment order; merchants ignore older events" },
+    "data": {
+      "type": "object",
+      "required": ["payment_id", "status", "amount", "currency"],
+      "properties": {
+        "payment_id": { "type": "string" },
+        "status": { "const": "authorised" },
+        "amount": { "type": "integer", "description": "Minor units" },
+        "currency": { "type": "string", "pattern": "^[A-Z]{3}$" }
+      }
+    }
+  }
+}

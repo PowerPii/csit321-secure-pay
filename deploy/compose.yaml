@@ -1,0 +1,139 @@
+# Local / demo stack. One VM, one container per part, Caddy in front of everything.
+#   docker compose -f deploy/compose.yaml up --build
+# Before the first run: copy each secrets/*.example to the same name without .example.
+
+x-django: &django
+  restart: unless-stopped
+  depends_on:
+    db:
+      condition: service_healthy
+  environment: &django-env
+    DJANGO_DEBUG: "1"
+    POSTGRES_HOST: db
+    SECRETS_DIR: /run/secrets
+
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets: [postgres_password, gateway_db_password, vault_db_password, simulator_db_password, merchant_db_password]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    networks: [data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      retries: 10
+
+  gateway:
+    <<: *django
+    build: ../gateway
+    environment:
+      <<: *django-env
+      POSTGRES_DB: gateway
+      POSTGRES_USER: gateway
+      DJANGO_ALLOWED_HOSTS: gateway.localhost,gateway
+    secrets:
+      - source: gateway_django_secret_key
+        target: django_secret_key
+      - source: gateway_db_password
+        target: db_password
+      - vault_db_password
+      - vault_encryption_key
+      - card_fingerprint_key
+    networks: [data, gateway, edge]
+
+  gateway-worker:
+    <<: *django
+    build: ../gateway
+    command: ["python", "manage.py", "run_worker"]
+    environment:
+      <<: *django-env
+      POSTGRES_DB: gateway
+      POSTGRES_USER: gateway
+    secrets:
+      - source: gateway_django_secret_key
+        target: django_secret_key
+      - source: gateway_db_password
+        target: db_password
+    networks: [data, gateway, edge]
+
+  simulator:
+    <<: *django
+    build: ../simulator
+    environment:
+      <<: *django-env
+      POSTGRES_DB: simulator
+      POSTGRES_USER: simulator
+      DJANGO_ALLOWED_HOSTS: simulator.localhost,simulator
+    secrets:
+      - source: simulator_django_secret_key
+        target: django_secret_key
+      - source: simulator_db_password
+        target: db_password
+    networks: [data, simulator]
+
+  merchant:
+    <<: *django
+    build: ../merchant
+    environment:
+      <<: *django-env
+      POSTGRES_DB: merchant
+      POSTGRES_USER: merchant
+      DJANGO_ALLOWED_HOSTS: shop.localhost,merchant
+    secrets:
+      - source: merchant_django_secret_key
+        target: django_secret_key
+      - source: merchant_db_password
+        target: db_password
+    networks: [data, merchant, edge]
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ../frontend/checkout/dist:/srv/checkout:ro
+      - ../frontend/dashboard/dist:/srv/dashboard:ro
+      - caddy_data:/data
+    # Services call each other by public name through Caddy, so every hop is HTTPS.
+    networks:
+      edge:
+        aliases: [gateway.localhost, shop.localhost]
+      gateway:
+        aliases: [simulator.localhost, shop.localhost, gateway.localhost]
+      simulator: {}
+      merchant:
+        aliases: [gateway.localhost]
+
+  mailpit:
+    image: axllent/mailpit
+    restart: unless-stopped
+    networks: [gateway, edge]
+
+networks:
+  edge: {}
+  data: { internal: true }
+  gateway: { internal: true }
+  simulator: { internal: true }
+  merchant: { internal: true }
+
+volumes:
+  pgdata: {}
+  caddy_data: {}
+
+secrets:
+  postgres_password: { file: ./secrets/postgres_password }
+  gateway_django_secret_key: { file: ./secrets/gateway_django_secret_key }
+  gateway_db_password: { file: ./secrets/gateway_db_password }
+  vault_db_password: { file: ./secrets/vault_db_password }
+  vault_encryption_key: { file: ./secrets/vault_encryption_key }
+  card_fingerprint_key: { file: ./secrets/card_fingerprint_key }
+  simulator_django_secret_key: { file: ./secrets/simulator_django_secret_key }
+  simulator_db_password: { file: ./secrets/simulator_db_password }
+  merchant_django_secret_key: { file: ./secrets/merchant_django_secret_key }
+  merchant_db_password: { file: ./secrets/merchant_db_password }

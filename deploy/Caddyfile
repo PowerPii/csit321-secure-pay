@@ -1,0 +1,37 @@
+# Local CA in development; every hop is HTTPS, including service-to-service calls.
+{
+	local_certs
+}
+
+gateway.localhost {
+	handle_path /checkout-app/* {
+		root * /srv/checkout
+		file_server
+	}
+	handle_path /dashboard/* {
+		root * /srv/dashboard
+		try_files {path} /index.html
+		file_server
+	}
+	handle {
+		reverse_proxy gateway:8000
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy same-origin
+	}
+}
+
+# Reached only by the gateway and worker (TLS via Caddy's local CA).
+simulator.localhost {
+	reverse_proxy simulator:8001
+}
+
+shop.localhost {
+	reverse_proxy merchant:8002
+}
+
+mail.localhost {
+	reverse_proxy mailpit:8025
+}
