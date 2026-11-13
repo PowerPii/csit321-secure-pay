@@ -1,5 +1,5 @@
 {
-  "id": "pay_3fK9sLq2Vx7RmT1bN8cWd4Ye",
+  "id": "pay_EXAMPLE00000000000000001",
   "object": "payment",
   "reference": "SP-7KQ4-M2XD",
   "order_reference": "ORD-10042",
@@ -15,7 +15,7 @@
   "pending_operation": null,
   "sequence": 1,
   "return_url": "https://shop.localhost/orders/ORD-10042/return",
-  "checkout_url": "https://localhost:8443/pay/cs_Q8w2Er5Ty7Ui9Op1As3Df6Gh",
+  "checkout_url": "https://localhost:8443/pay/cs_EXAMPLE00000000000000003",
   "checkout_expires_at": "2026-11-13T05:30:00Z",
   "authorisation_expires_at": null,
   "created_at": "2026-11-13T04:30:00Z",

@@ -4,6 +4,6 @@
     "code": "refund_exceeds_refundable",
     "message": "The refund is larger than the remaining refundable amount (S$30.90).",
     "param": "amount",
-    "request_id": "req_Ab3Cd5Ef7Gh9Ij1Kl3Mn5Op7"
+    "request_id": "req_EXAMPLE00000000000000006"
   }
 }

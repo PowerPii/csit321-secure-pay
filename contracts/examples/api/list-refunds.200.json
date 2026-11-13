@@ -1,13 +1,13 @@
 {
   "object": "list",
-  "payment_id": "pay_3fK9sLq2Vx7RmT1bN8cWd4Ye",
+  "payment_id": "pay_EXAMPLE00000000000000001",
   "refundable_amount": 3090,
   "data": [
     {
-      "id": "rfd_Aa1Bb2Cc3Dd4Ee5Ff6Gg7Hh8",
+      "id": "rfd_EXAMPLE00000000000000004",
       "object": "refund",
       "reference": "RF-9TQ2-K4WZ",
-      "payment_id": "pay_3fK9sLq2Vx7RmT1bN8cWd4Ye",
+      "payment_id": "pay_EXAMPLE00000000000000001",
       "payment_reference": "SP-7KQ4-M2XD",
       "amount": 1500,
       "currency": "SGD",

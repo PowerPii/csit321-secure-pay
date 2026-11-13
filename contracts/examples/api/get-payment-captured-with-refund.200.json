@@ -1,5 +1,5 @@
 {
-  "id": "pay_3fK9sLq2Vx7RmT1bN8cWd4Ye",
+  "id": "pay_EXAMPLE00000000000000001",
   "object": "payment",
   "reference": "SP-7KQ4-M2XD",
   "order_reference": "ORD-10042",
@@ -10,7 +10,7 @@
   "refunded_amount": 0,
   "refund_reserved_amount": 1500,
   "card": {
-    "token": "tok_Zx8Cv6Bn4Mm2Ll0Kk9Jj7Hh5",
+    "token": "tok_EXAMPLE00000000000000002",
     "brand": "visa",
     "last4": "4242"
   },
