@@ -40,17 +40,22 @@ services:
       SIMULATOR_URL: https://simulator.localhost
       SIMULATOR_CA_BUNDLE: &caddy-root /caddy-ca/root.crt
       # Screening: client IP from Caddy's X-Forwarded-For; verification codes to Mailpit
-      # (https://mail.localhost). Set RISK_MODEL_VERSION once a trained model is installed
-      # (gateway/apps/risk/model_artifacts/README.md); empty = stub model, rules decide.
+      # (https://mail.localhost). The fraud model: copy its folder into
+      # gateway/apps/risk/model_artifacts/ and put RISK_MODEL_VERSION=<folder name> in
+      # deploy/.env (gateway/apps/risk/model_artifacts/README.md). Unset = stub model, rules
+      # decide. Set but missing or failing its checks = every payment blocked as
+      # screening_unavailable, so a broken install shows at once.
       TRUSTED_PROXY_HOPS: "1"
       EMAIL_HOST: mailpit
       EMAIL_PORT: "1025"
-      RISK_MODEL_VERSION: ""
+      RISK_MODEL_VERSION: ${RISK_MODEL_VERSION:-}
+      RISK_MODEL_SHA256: ${RISK_MODEL_SHA256:-}
     # Apply migrations (the vault's on its own role and schema), seed the demo block and
     # review lists, then serve.
     command: ["sh", "-c", "python manage.py migrate --noinput && python manage.py migrate --database=vault --noinput && python manage.py seed_risk_lists && exec gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 30"]
     volumes:
       - caddy_ca:/caddy-ca:ro  # Caddy's local root certificate (public part only), to verify https://simulator.localhost
+      - ../gateway/apps/risk/model_artifacts:/app/apps/risk/model_artifacts:ro  # trained models (git-ignored)
     secrets:
       - source: gateway_django_secret_key
         target: django_secret_key

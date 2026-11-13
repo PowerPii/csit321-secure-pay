@@ -74,7 +74,7 @@ Every endpoint is routed but returns `501 Not Implemented` until someone builds 
 | 4 | Risk pipeline with rules + stub model; verification code via Mailpit; decision record | S2, S3 pass (done 13 Nov 2026; analyst view is the Django admin until sprint 6) |
 | 5 | Reconciliation sweep, refunds with reservations | S4, S6 pass (done 13 Nov 2026; escalated operations and the admin re-check are in the Django admin until sprint 6) |
 | 6 | Dashboard D1 to D6b on top of the APIs; TOTP and lockout | Staff can do every demo step from the UI (done 13 Nov 2026; plus merchant approval and the audit log for administrators) |
-| 7 | Swap stub model for trained HistGradientBoosting artefact; parity test; latency check at 20 req/s | p95 screening <= 200 ms |
+| 7 | Swap stub model for trained HistGradientBoosting artefact; parity test; latency check at 20 req/s | p95 screening <= 200 ms (done 13 Nov 2026: `hgb-fs02-2026-11-13` on feature schema fs-0.2, parity test against `research/features/gateway_schema.py`, p95 21.6 ms at 20/s; see `research/evaluation/hgb-fs02-2026-11-13.md`) |
 
 The research track (IEEE-CIS experiment in `research/`) runs alongside and hands over a versioned model artefact by sprint 7.
 

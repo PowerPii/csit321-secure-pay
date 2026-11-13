@@ -88,6 +88,25 @@ def test_wrong_artefacts_are_refused(artefact, override, problem):
         scoring.load_artifact(artefact(**override))
 
 
+def test_artefact_from_the_older_schema_still_loads(artefact):
+    """fs-0.2 only added features, so an fs-0.1 model gets the same inputs as before."""
+    model = scoring.load_artifact(artefact(feature_schema_version="fs-0.1"))
+    assert model.score(features(card_attempts_1h=9)) > 0.4
+
+
+def test_shipped_model_folder_loads_if_present(settings):
+    """The sprint 7 model, when it is installed in model_artifacts/ (it is not in git)."""
+    from pathlib import Path
+
+    folder = Path(settings.RISK_MODEL_DIR) / "hgb-fs02-2026-11-13"
+    if not folder.is_dir():
+        pytest.skip("hgb-fs02-2026-11-13 is not installed here")
+    model = scoring.load_artifact(folder)
+    assert model.policy.version == "policy-hgb-fs02-2026-11-13"
+    fresh = model.score(features(amount_cents=4500, card_seconds_since_last=-1))
+    assert 0 <= fresh < model.policy.verify_threshold  # a first purchase is allowed
+
+
 def test_pinned_hash_must_match_too(artefact):
     with pytest.raises(scoring.ArtifactError, match="RISK_MODEL_SHA256"):
         scoring.load_artifact(artefact(), expected_sha256="f" * 64)

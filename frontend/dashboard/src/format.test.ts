@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { cardLabel, money, parseMoney, riskLabel, shortDate, statusLabel } from "./format";
+import {
+  cardLabel, featureValue, money, orderedFeatures, parseMoney, riskLabel, shortDate, statusLabel,
+} from "./format";
 
 describe("format", () => {
   it("formats SGD cents", () => {
@@ -32,5 +34,16 @@ describe("format", () => {
 
   it("shows Singapore time", () => {
     expect(shortDate("2026-11-02T06:52:00Z")).toMatch(/2 Nov.*14:52/);
+  });
+
+  it("shows screening features as an analyst reads them, in schema order", () => {
+    expect(featureValue("card_seconds_since_last", -1)).toBe("No attempt in 30 days");
+    expect(featureValue("card_seconds_since_last", 8.06)).toBe("8 s");
+    expect(featureValue("card_seconds_since_last", 900)).toBe("15 min");
+    expect(featureValue("card_mean_amount_30d", 3780)).toBe("S$ 37.80");
+    expect(featureValue("amount_to_card_mean_30d", 0.791)).toBe("x 0.79");
+    expect(featureValue("card_attempts_1h", 3)).toBe("3");
+    expect(orderedFeatures({ zz_new: 1, card_attempts_1h: 2, amount_cents: 5 }).map(([k]) => k))
+      .toEqual(["amount_cents", "card_attempts_1h", "zz_new"]);
   });
 });

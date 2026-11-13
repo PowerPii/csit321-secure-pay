@@ -4,7 +4,7 @@ Runs synchronously when the customer pays, before anything reaches the simulator
 uses information available at that moment. Every stage is swappable for tests and for the
 trained model:
 
-    features  apps.risk.features.SqlFeatures   prior-activity counts (fs-0.1)
+    features  apps.risk.features.SqlFeatures   prior-activity counts and card history (fs-0.2)
     lists     DbRiskLists                      seeded block / review lists
     rules     Rules                            deterministic, versioned (rules-0.1)
     model     apps.risk.scoring.active_model() StubModel until an artefact is installed

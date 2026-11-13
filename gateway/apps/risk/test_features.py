@@ -1,4 +1,4 @@
-"""Prior-activity features over ScreeningEvent rows (fs-0.1)."""
+"""Prior-activity features over ScreeningEvent rows (fs-0.2)."""
 from datetime import timedelta
 
 import pytest
@@ -39,7 +39,9 @@ def test_first_attempt_has_only_the_amount():
     f = build()
     assert set(f) == set(FEATURE_NAMES)
     assert f["amount_cents"] == 4590
-    assert all(v == 0 for k, v in f.items() if k != "amount_cents")
+    assert f["card_seconds_since_last"] == -1  # no earlier attempt
+    assert all(v == 0 for k, v in f.items()
+               if k not in ("amount_cents", "card_seconds_since_last"))
 
 
 def test_counts_use_their_windows(history):
@@ -87,4 +89,14 @@ def test_benchmark_command_reports_and_leaves_nothing_behind(capsys):
     call_command("benchmark_screening", payments=30, history=60)
     out = capsys.readouterr().out
     assert "30 screenings over 60 earlier events" in out and "p95" in out
+    assert not ScreeningEvent.objects.exists() and not Payment.objects.exists()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_load_test_command_reports_and_cleans_up(capsys):
+    from django.core.management import call_command
+
+    call_command("loadtest_screening", rate=20, seconds=1, workers=4, history=40)
+    out = capsys.readouterr().out
+    assert "20 screenings at 20/s" in out and "NFR-PER-02" in out
     assert not ScreeningEvent.objects.exists() and not Payment.objects.exists()

@@ -2,7 +2,7 @@
 import { Box, Divider, Stack, Typography } from "@mui/material";
 import type { Screening } from "../api/client";
 import { Badge, Row, Section } from "../components/ui";
-import { FEATURE_LABELS, reasonLabel } from "../format";
+import { FEATURE_LABELS, featureValue, orderedFeatures, reasonLabel } from "../format";
 
 function Scale({ score, thresholds }: { score: number | null; thresholds: Screening["thresholds"] }) {
   if (!thresholds) return null;
@@ -62,8 +62,8 @@ export function FraudDecision({ screening, badge, showFeatures = true }: {
           <Divider sx={{ my: 1.5 }} />
           <Typography fontWeight={600} variant="body2" mb={0.5}>Features at screening</Typography>
           <Stack>
-            {Object.entries(s.features).map(([k, v]) => (
-              <Row key={k} label={FEATURE_LABELS[k] ?? k} value={v} />
+            {orderedFeatures(s.features).map(([k, v]) => (
+              <Row key={k} label={FEATURE_LABELS[k] ?? k} value={featureValue(k, v)} />
             ))}
           </Stack>
         </>
