@@ -69,10 +69,11 @@ def _request(method: str, path: str, **kwargs) -> Reply:
 
 
 def create_payment(*, idempotency_key: str, amount: int, order_reference: str,
-                   return_url: str, customer_email: str, description: str) -> Reply:
+                   return_url: str, customer_email: str, description: str,
+                   line_items: list[dict]) -> Reply:
     body = {"amount": amount, "currency": "SGD", "order_reference": order_reference,
             "return_url": return_url, "customer_email": customer_email,
-            "description": description}
+            "description": description, "line_items": line_items}
     return _request("POST", "/v1/payments", json=body,
                     headers={"Idempotency-Key": idempotency_key})
 

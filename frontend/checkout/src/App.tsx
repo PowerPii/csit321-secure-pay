@@ -103,11 +103,18 @@ function OrderSummary({ session }: { session: Session }) {
           Order {session.order_reference} · {session.currency}
         </p>
         <dl className="lines">
-          {session.description && (
-            <div className="row">
-              <dt>{session.description}</dt>
-            </div>
-          )}
+          {session.line_items
+            ? session.line_items.map((item, i) => (
+                <div className="row" key={i}>
+                  <dt>{item.name} × {item.quantity}</dt>
+                  <dd>{money(item.unit_amount * item.quantity)}</dd>
+                </div>
+              ))
+            : session.description && (
+                <div className="row">
+                  <dt>{session.description}</dt>
+                </div>
+              )}
           <div className="row total">
             <dt>Total</dt>
             <dd>{money(session.amount)}</dd>

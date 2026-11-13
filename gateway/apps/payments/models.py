@@ -57,6 +57,8 @@ class Payment(models.Model):
     return_url = models.URLField(max_length=2048)
     customer_email = models.EmailField(max_length=254, blank=True)
     description = models.CharField(max_length=200, blank=True)
+    # [{name, quantity, unit_amount}] as the merchant sent them; they add up to `amount`.
+    line_items = models.JSONField(null=True, blank=True)
 
     # Hosted checkout session (FR-CHK-19): the ID is the only thing in the checkout URL.
     checkout_session_id = models.CharField(max_length=32, unique=True, editable=False)

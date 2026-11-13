@@ -38,11 +38,11 @@ services:
       DJANGO_ALLOWED_HOSTS: gateway.localhost,gateway
       CHECKOUT_BASE_URL: https://gateway.localhost/pay
       SIMULATOR_URL: https://simulator.localhost
-      SIMULATOR_CA_BUNDLE: &caddy-root /caddy-data/caddy/pki/authorities/local/root.crt
+      SIMULATOR_CA_BUNDLE: &caddy-root /caddy-ca/root.crt
     # Apply migrations (the vault's on its own role and schema), then serve.
     command: ["sh", "-c", "python manage.py migrate --noinput && python manage.py migrate --database=vault --noinput && exec gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 30"]
     volumes:
-      - caddy_data:/caddy-data:ro  # Caddy's local root CA, to verify https://simulator.localhost
+      - caddy_ca:/caddy-ca:ro  # Caddy's local root certificate (public part only), to verify https://simulator.localhost
     secrets:
       - source: gateway_django_secret_key
         target: django_secret_key
@@ -103,7 +103,7 @@ services:
       SHOP_BASE_URL: https://shop.localhost
     command: ["sh", "-c", "python manage.py migrate --noinput && exec gunicorn config.wsgi:application --bind 0.0.0.0:8002 --workers 3 --timeout 30"]
     volumes:
-      - caddy_data:/caddy-data:ro
+      - caddy_ca:/caddy-ca:ro
     # The shop's SecurePay API key and signing secret, from `create_merchant` (README).
     secrets:
       - source: merchant_django_secret_key
@@ -123,6 +123,23 @@ services:
       - ../frontend/checkout/dist:/srv/checkout:ro
       - ../frontend/dashboard/dist:/srv/dashboard:ro
       - caddy_data:/data
+      - caddy_ca:/ca
+    # Caddy keeps its local CA under /data with owner-only permissions, so the app
+    # containers (not root) cannot read it there. Once Caddy has made the root
+    # certificate, copy only that public file, world-readable, into caddy_ca.
+    # The CA's private key never leaves caddy_data.
+    command:
+      - sh
+      - -c
+      - |
+        caddy run --config /etc/caddy/Caddyfile --adapter caddyfile &
+        pid=$$!
+        trap 'kill -TERM $$pid' TERM INT
+        root=/data/caddy/pki/authorities/local/root.crt
+        until [ -s "$$root" ]; do sleep 1; done
+        install -m 0644 "$$root" /ca/root.crt
+        wait $$pid
+        wait $$pid
     # Services call each other by public name through Caddy, so every hop is HTTPS.
     networks:
       edge:
@@ -148,6 +165,7 @@ networks:
 volumes:
   pgdata: {}
   caddy_data: {}
+  caddy_ca: {}
 
 secrets:
   postgres_password: { file: ./secrets/postgres_password }

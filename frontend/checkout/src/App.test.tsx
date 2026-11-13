@@ -8,7 +8,7 @@ const SID = "cs_" + "A".repeat(24);
 function session(over: Partial<Session> = {}): Session {
   return {
     session_id: SID, status: "created", result: "open", merchant: { name: "Demo Shop" },
-    amount: 8990, currency: "SGD", order_reference: "ORD-1042", description: "Wireless mouse × 1",
+    amount: 8990, currency: "SGD", order_reference: "ORD-1042", description: "Wireless mouse × 1", line_items: null,
     reference: null, email_required: false, customer_email_masked: "a•••@example.com", card: null,
     expires_at: new Date(Date.now() + 3600_000).toISOString(), submitted_at: null, authorised_at: null,
     return_url: "https://shop.localhost/orders/1042/return?payment_id=pay_x", ...over,
@@ -39,6 +39,17 @@ describe("checkout page", () => {
     expect(await screen.findByText("Paying Demo Shop")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Pay S$ 89.90" })).toBeTruthy();
     expect(screen.getByText("Receipt to a•••@example.com")).toBeTruthy();
+    expect(screen.getByText("Wireless mouse × 1")).toBeTruthy();
+  });
+
+  it("lists the line items with their amounts when the shop sent them", async () => {
+    mockFetch({ [SID]: () => json(session({ line_items: [
+      { name: "Wireless mouse", quantity: 1, unit_amount: 2990 },
+      { name: "USB-C hub", quantity: 2, unit_amount: 3000 },
+    ] })) });
+    render(<App path={`/pay/${SID}`} />);
+    expect(await screen.findByText("USB-C hub × 2")).toBeTruthy();
+    expect(screen.getByText("S$ 60.00")).toBeTruthy();
   });
 
   it("checks the card locally before sending anything", async () => {

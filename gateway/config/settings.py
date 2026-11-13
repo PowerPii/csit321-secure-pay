@@ -182,7 +182,7 @@ GATEWAY_RULES = {
         60, 300, 900, 1800, 3600, 7200, 14400, 28800, 43200, 43200, 43200, 43200,
     ),
     "RECONCILIATION_MAX_CHECKS": 6,
-    # Simulator call timeouts (SIMULATOR-CONTRACT.md proposal S1, awaiting team confirmation):
+    # Simulator call timeouts (SIMULATOR-CONTRACT.md S1, confirmed by Fifa 13 Nov 2026):
     # no reply in time -> the payment is Unresolved and reconciliation asks about the same ID.
     "SIMULATOR_CONNECT_TIMEOUT_SECONDS": 2,
     "SIMULATOR_TIMEOUT_SECONDS": 10,

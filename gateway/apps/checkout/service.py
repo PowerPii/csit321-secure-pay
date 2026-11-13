@@ -125,6 +125,7 @@ def to_dict(payment: Payment) -> dict:
         "currency": payment.currency,
         "order_reference": payment.order_reference,
         "description": payment.description or None,
+        "line_items": payment.line_items or None,
         "reference": payment.reference if submitted else None,
         "email_required": not payment.customer_email,
         "customer_email_masked": mask_email(payment.customer_email),

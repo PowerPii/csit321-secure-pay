@@ -39,6 +39,9 @@ paths:
               order_reference: ORD-10042
               return_url: https://shop.localhost/orders/ORD-10042/return
               customer_email: alex@example.com
+              line_items:
+                - { name: Wireless mouse, quantity: 1, unit_amount: 2990 }
+                - { name: Cable tie (pack), quantity: 2, unit_amount: 800 }
       responses:
         '201':
           description: Payment created in status `created`, with a checkout session valid for 1 hour.
@@ -349,6 +352,19 @@ components:
           type: string
           maxLength: 200
           description: Optional. Shown on the checkout page and receipt.
+        line_items:
+          type: array
+          minItems: 1
+          maxItems: 50
+          description: Optional. What the order contains, shown on the checkout page (wireframe C3). The sum of quantity x unit_amount must equal `amount`, otherwise 400 `line_items_total_mismatch`. Fixed at creation like the amount (FR-CHK-03).
+          items:
+            type: object
+            additionalProperties: false
+            required: [name, quantity, unit_amount]
+            properties:
+              name: { type: string, minLength: 1, maxLength: 100 }
+              quantity: { type: integer, minimum: 1, maximum: 999 }
+              unit_amount: { type: integer, minimum: 0, maximum: 1000000, description: SGD cents for one unit. }
     CapturePaymentRequest:
       type: object
       additionalProperties: false
@@ -367,7 +383,7 @@ components:
         reason: { type: string, maxLength: 200 }
   responses:
     InvalidRequest:
-      description: 'Malformed body or a field out of range. Codes: invalid_json, missing_field, invalid_field, amount_too_small, amount_too_large, currency_not_supported, return_url_not_https, card_data_not_allowed, idempotency_key_missing, idempotency_key_invalid.'
+      description: 'Malformed body or a field out of range. Codes: invalid_json, missing_field, invalid_field, amount_too_small, amount_too_large, currency_not_supported, line_items_total_mismatch, return_url_not_https, card_data_not_allowed, idempotency_key_missing, idempotency_key_invalid.'
       headers:
         SecurePay-Signature: { $ref: '#/components/headers/Signature' }
         SecurePay-Request-Id: { $ref: '#/components/headers/RequestId' }

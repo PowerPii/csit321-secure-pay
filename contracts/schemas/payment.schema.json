@@ -56,6 +56,22 @@
     "currency": {
       "const": "SGD"
     },
+    "line_items": {
+      "description": "What the order contains, as the merchant sent it when creating the payment (shown on the hosted checkout page). quantity x unit_amount summed over all items equals amount. null if the merchant sent none.",
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 50,
+          "items": {
+            "$ref": "#/$defs/LineItem"
+          }
+        }
+      ]
+    },
     "captured_amount": {
       "type": "integer",
       "minimum": 0,
@@ -292,6 +308,34 @@
         "authorisation_expired"
       ],
       "description": "The first six are BlockReason in states.py. card_declined: the simulated bank said no. not_processed: reconciliation found no record at the simulator (UC-29). checkout_expired: no card submitted within 1 hour. merchant_cancelled / authorisation_expired: the two ways an authorisation is cancelled."
+    },
+    "LineItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "quantity",
+        "unit_amount"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "description": "What the customer is buying, as shown on the checkout page."
+        },
+        "quantity": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 999
+        },
+        "unit_amount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000,
+          "description": "SGD cents for one unit."
+        }
+      }
     }
   }
 }
