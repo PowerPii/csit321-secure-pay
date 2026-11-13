@@ -75,6 +75,7 @@ EXAMPLES = {
     "api/list-refunds.200.json": ref(MERCHANT, LIST_REFUNDS),
     "api/error-idempotency-key-reused.409.json": ref("schemas/error.schema.json"),
     "api/error-refund-exceeds.422.json": ref("schemas/error.schema.json"),
+    "api/error-processor-rejected.409.json": ref("schemas/error.schema.json"),
     "events/payment.authorised.json": ref("events/payment.authorised.schema.json"),
     "events/payment.blocked.json": ref("events/payment.blocked.schema.json"),
     "events/refund.unresolved.json": ref("events/refund.unresolved.schema.json"),
