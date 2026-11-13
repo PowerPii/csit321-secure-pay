@@ -57,7 +57,7 @@ same-origin JSON API under `/checkout/`:
 
 | Where | What |
 | --- | --- |
-| `apps/vault/service.py` | `tokenise` / `take` (decrypt and delete on submit) / `discard`; Fernet with `VAULT_ENCRYPTION_KEY`, own DB alias |
+| `apps/vault/service.py` | `tokenise` / `take` (decrypt and delete on submit) / `discard`; AES-256-GCM with `VAULT_ENCRYPTION_KEY`, own DB alias |
 | `apps/checkout/service.py` | The checkout flow and the customer-facing result (no fraud reasons) |
 | `apps/payments/processor.py` | Simulator client: bearer key, 2 s / 10 s timeouts (proposal S1), only signed replies count |
 | `apps/payments/processing.py` | Applies an answer (approved, declined, no_record, none) to the operation and payment, with outbox event and audit. Reconciliation reuses it in sprint 5 |

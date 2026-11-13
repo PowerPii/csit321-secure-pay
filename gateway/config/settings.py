@@ -252,7 +252,8 @@ FIELD_ENCRYPTION_KEY = secret(
     "field_encryption_key",
     base64.urlsafe_b64encode(b"dev-only-field-encryption-key!!!").decode() if DEBUG else None,
 )
-# Fernet key for card data in the vault; only apps.vault reads it.
+# AES-256-GCM key for card data in the vault (32 bytes, URL-safe base64; a Fernet key has the
+# same format, so existing secrets still work). Only apps.vault reads it.
 VAULT_ENCRYPTION_KEY = secret(
     "vault_encryption_key",
     base64.urlsafe_b64encode(b"dev-only-vault-encryption-key!!!"[:32]).decode() if DEBUG else None,

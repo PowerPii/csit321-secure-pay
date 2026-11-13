@@ -5,7 +5,8 @@ Compose mounts each file here at `/run/secrets/<name>`. Only the `.example` file
 ```bash
 cd deploy/secrets
 for f in *.example; do python3 -c "import secrets; print(secrets.token_urlsafe(48))" > "${f%.example}"; done
-# vault_encryption_key and field_encryption_key must be Fernet keys instead:
+# vault_encryption_key (AES-256-GCM, 32 bytes) and field_encryption_key (Fernet) both use
+# a URL-safe base64 32-byte key, which Fernet.generate_key() produces:
 for f in vault_encryption_key field_encryption_key; do
   python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())" > "$f"
 done
