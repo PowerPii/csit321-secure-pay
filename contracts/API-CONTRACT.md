@@ -58,6 +58,10 @@ Statuses mirror `gateway/apps/payments/states.py` (URS Figure 2.2.2.1).
 
 **No answer from the simulator on capture or cancel.** The reply is `202` with the payment still `authorised` and `pending_operation: {type, status: "unresolved"}`. Reconciliation (UC-29) then settles it with the original operation ID: on success the payment becomes `captured` or `cancelled` and the event is sent; if the simulator has no record, the operation is retired and `pending_operation` is cleared, so the merchant may try again with a new Idempotency-Key. While an operation is pending, another capture or cancel gets `409 operation_in_progress`. The 7-day auto-cancel waits for a pending capture to settle.
 
+**The processor refuses a capture or cancel the gateway allowed.** The gateway checks the rules first, so this means the gateway's and the simulator's records disagree (`SIMULATOR-CONTRACT.md` section 7). The reply is `409 processor_rejected`; the payment is unchanged and stays `authorised`, no event is sent, and the disagreement is logged and audited for staff. Do not retry with a new key; check the payment with `GET` and contact support. Added 13 November 2026, confirmed by Fifa (decision P4).
+
+**A retried capture or cancel the processor never received.** If a request with the same Idempotency-Key is retried after reconciliation found that the simulator has no record of the original call, the reply is `409 operation_not_processed`: nothing changed, and the merchant may try again with a new Idempotency-Key.
+
 **Refunds** (`POST /v1/payments/{id}/refunds`, UC-24). Body: `amount` (cents) and optional `reason`. Only on `captured` payments (`409 payment_not_captured` otherwise). The gateway locks the payment row, checks `completed + reserved + amount <= captured_amount` and reserves the amount in the same transaction (FR-TXN-02, FR-TXN-03). Too much: `422 refund_exceeds_refundable`, and no refund object is created (the attempt still appears as "rejected" in the dashboard history, FR-TXN-14). Reply `201` with the Refund, whose status is `completed`, `failed` or `unresolved`. An unresolved refund keeps its reservation until reconciliation. `GET /v1/payments/{id}/refunds` lists them with the current `refundable_amount`; `GET /v1/refunds/{id}` reads one.
 
 ## 4. Errors
@@ -86,6 +90,8 @@ Merchants branch on `code`, never on `message`.
 | 409 | conflict | `idempotency_request_in_progress` | Same key while the first request is still running; has `Retry-After` (FR-CHK-10) |
 | 409 | conflict | `payment_not_authorised`, `payment_already_captured`, `payment_already_cancelled`, `authorisation_expired` | Capture or cancel from the wrong status |
 | 409 | conflict | `operation_in_progress` | A capture or cancel is still unresolved |
+| 409 | conflict | `processor_rejected` | The processor refused a capture or cancel the gateway allowed; payment unchanged (P4) |
+| 409 | conflict | `operation_not_processed` | Retry of a capture or cancel the processor never received; use a new Idempotency-Key |
 | 409 | conflict | `payment_not_captured` | Refund on a payment that is not captured |
 | 422 | business_rule | `amount_above_merchant_limit` | Above the merchant's own limit set by an administrator (FR-ADM-07) |
 | 422 | business_rule | `capture_exceeds_authorised` | Capture amount larger than the authorised amount |
@@ -195,13 +201,14 @@ Rules: the token is 32 random bytes, sent only in the link and stored as a SHA-2
 
 ## 10. Decisions taken for this contract
 
-All three were confirmed by Fifa on 13 November 2026 and are in `GATEWAY_RULES`.
+P1 to P3 were confirmed by Fifa on 13 November 2026 and are in `GATEWAY_RULES`. P4 was confirmed by Fifa on 13 November 2026 after the sprint 3 build.
 
 | # | Decision | Value | Settings |
 | --- | --- | --- | --- |
 | P1 | Webhook retry window, schedule in section 7 | 72 h | `WEBHOOK_RETRY_WINDOW_HOURS`, `WEBHOOK_RETRY_DELAYS_SECONDS`, `WEBHOOK_TIMEOUT_SECONDS` (replaces `WEBHOOK_MAX_ATTEMPTS`) |
 | P2 | Password reset link, single use | 30 min | `PASSWORD_RESET_LINK_TTL_MINUTES` |
 | P3 | Guest status: receipt link is not a credential; view session; code request limits | 15 min; 3 per pair and 10 per IP per 15 min | `GUEST_STATUS_*` |
+| P4 | Processor refuses a capture or cancel the gateway allowed (records disagree) | `409 processor_rejected`, payment unchanged | none (`apps/payments/settlement.py`) |
 
 ## 11. Readings of the URS (settled 13 November 2026)
 

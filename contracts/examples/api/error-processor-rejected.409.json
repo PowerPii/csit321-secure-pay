@@ -1,0 +1,9 @@
+{
+  "error": {
+    "type": "conflict",
+    "code": "processor_rejected",
+    "message": "The processor refused the capture. Nothing changed; check the payment and contact support if it persists.",
+    "param": null,
+    "request_id": "req_EXAMPLE00000000000000007"
+  }
+}

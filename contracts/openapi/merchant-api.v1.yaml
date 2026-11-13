@@ -414,7 +414,7 @@ components:
         application/json:
           schema: { $ref: '../schemas/error.schema.json' }
     Conflict:
-      description: 'Codes: idempotency_key_reused, idempotency_request_in_progress (with Retry-After), payment_not_authorised, payment_already_captured, payment_already_cancelled, authorisation_expired, operation_in_progress, payment_not_captured.'
+      description: 'Codes: idempotency_key_reused, idempotency_request_in_progress (with Retry-After), payment_not_authorised, payment_already_captured, payment_already_cancelled, authorisation_expired, operation_in_progress, processor_rejected, operation_not_processed, payment_not_captured.'
       headers:
         SecurePay-Signature: { $ref: '#/components/headers/Signature' }
         SecurePay-Request-Id: { $ref: '#/components/headers/RequestId' }
