@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.securepay.local/events/payment.unresolved.schema.json",
+  "title": "payment.unresolved",
+  "description": "The simulator did not answer. The payment will not be submitted again; reconciliation will send payment.authorised or payment.declined. Do not ship.",
+  "allOf": [
+    {
+      "$ref": "../schemas/event.schema.json"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "payment.unresolved"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "object": {
+              "$ref": "../schemas/payment.schema.json",
+              "properties": {
+                "status": {
+                  "const": "unresolved"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

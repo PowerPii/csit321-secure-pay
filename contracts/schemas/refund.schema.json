@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.securepay.local/schemas/refund.schema.json",
+  "title": "Refund",
+  "description": "A full or partial refund of a captured payment, with its own reference (FR-TXN-01, FR-TXN-14).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "object", "reference", "payment_id", "payment_reference", "amount", "currency", "status", "failure_reason", "created_at", "updated_at"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^rfd_[0-9A-Za-z]{24}$" },
+    "object": { "const": "refund" },
+    "reference": { "type": "string", "pattern": "^RF-[0-9A-Z]{4}-[0-9A-Z]{4}$" },
+    "payment_id": { "type": "string", "pattern": "^pay_[0-9A-Za-z]{24}$" },
+    "payment_reference": { "type": "string", "pattern": "^SP-[0-9A-Z]{4}-[0-9A-Z]{4}$" },
+    "amount": { "type": "integer", "minimum": 1, "maximum": 1000000 },
+    "currency": { "const": "SGD" },
+    "status": {
+      "enum": ["reserved", "submitted", "completed", "failed", "unresolved"],
+      "description": "reserved: amount held, not yet sent. submitted: sent to the simulator. unresolved: no answer; the amount stays reserved until reconciliation (FR-TXN-02). completed and failed are final. The URS states 'requested' and 'rejected' exist only in the dashboard: a rejected request is answered with an error and creates no refund object."
+    },
+    "reason": { "type": ["string", "null"], "maxLength": 200, "description": "Free text from the merchant. Must not contain card data." },
+    "failure_reason": {
+      "description": "Set only when status is failed.",
+      "oneOf": [{ "type": "null" }, { "enum": ["declined_by_processor", "not_processed"] }]
+    },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" },
+    "completed_at": { "type": ["string", "null"], "format": "date-time" }
+  }
+}

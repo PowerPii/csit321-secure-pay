@@ -1,0 +1,5 @@
+{
+  "challenge_id": "gsc_EXAMPLE00000000000000012",
+  "message": "If the details match a payment, we have emailed a 6-digit code to that address. It is valid for 10 minutes.",
+  "expires_in_seconds": 600
+}

@@ -1,0 +1,176 @@
+openapi: 3.1.0
+info:
+  title: SecurePay guest status API
+  version: 1.0.0-draft
+  summary: Browser API behind screen C9. A guest checks one payment with its reference, checkout email and an emailed one-time code.
+  description: |
+    Implements FR-ACC-05, FR-ACC-06 and UC-08, and closes open point 1 in docs/MVP-SCOPE.md.
+    Used only by `frontend/checkout` (same origin as the gateway, CSRF token required on POST).
+    Flow and rules are in `contracts/API-CONTRACT.md` section 8.
+
+    The receipt link (`/guest/status?ref=SP-XXXX-XXXX`) only pre-fills the reference. It is not
+    a credential: the 30-day status token in the architecture is replaced by this flow.
+servers:
+  - url: https://localhost:8443
+paths:
+  /guest/status/code:
+    post:
+      operationId: requestGuestStatusCode
+      summary: Ask for a one-time code (UC-08 steps 2 and 3)
+      description: |
+        Always answers 202 with the same message and a challenge ID, whether or not the
+        reference and email match a guest payment, so the response never reveals which
+        payments exist (FR-ACC-06). The email, if any, is sent from the outbox, so response
+        time does not depend on a match. A new code replaces any earlier one for the same
+        reference and email. While the pair is locked, no email is sent but the reply is the
+        same.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [reference, email]
+              properties:
+                reference: { type: string, maxLength: 32, description: 'Payment reference, case-insensitive, spaces and dashes ignored.' }
+                email: { type: string, format: email, maxLength: 254, description: Compared case-insensitively with the checkout email. }
+            example: { reference: SP-7KQ4-M2XD, email: alex@example.com }
+      responses:
+        '202':
+          description: Same reply in every case.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CodeRequested' }
+        '400':
+          description: Malformed body (invalid_json, missing_field, invalid_field).
+          content:
+            application/json:
+              schema: { $ref: '../schemas/error.schema.json' }
+        '429':
+          description: 'Too many code requests from this browser or IP address (code rate_limited), with Retry-After. Limits in API-CONTRACT.md section 8.'
+          headers:
+            Retry-After: { schema: { type: integer, minimum: 1 } }
+          content:
+            application/json:
+              schema: { $ref: '../schemas/error.schema.json' }
+  /guest/status/verify:
+    post:
+      operationId: verifyGuestStatusCode
+      summary: Enter the code (UC-08 step 4)
+      description: |
+        On success, sets the `sp_guest_status` cookie (HttpOnly, Secure, SameSite=Strict,
+        Path=/guest/status, 15 minutes) bound to that one payment, and returns the status view.
+        The code is single use. A challenge that did not match a payment behaves exactly like
+        a real one: every code is wrong, it expires after 10 minutes, and it locks after 3 tries.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [challenge_id, code]
+              properties:
+                challenge_id: { type: string, pattern: '^gsc_[0-9A-Za-z]{24}$' }
+                code: { type: string, pattern: '^[0-9]{6}$' }
+      responses:
+        '200':
+          description: Code correct. Cookie set.
+          headers:
+            Set-Cookie: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GuestPaymentView' }
+        '400':
+          description: |
+            `code_incorrect` (with attempts_remaining 2 or 1) or `code_expired` (10 minutes
+            passed, or a newer code replaced it). Uses the Error body plus attempts_remaining.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CodeError' }
+        '429':
+          description: '`status_check_locked`: 3 wrong codes for this reference and email; locked for 15 minutes (Retry-After in seconds).'
+          headers:
+            Retry-After: { schema: { type: integer, minimum: 1 } }
+          content:
+            application/json:
+              schema: { $ref: '../schemas/error.schema.json' }
+  /guest/status/payment:
+    get:
+      operationId: getGuestPayment
+      summary: Read the unlocked payment again (refresh while the cookie is valid)
+      responses:
+        '200':
+          description: The payment the cookie is bound to.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GuestPaymentView' }
+        '401':
+          description: No valid cookie (`status_session_missing` or `status_session_expired`). Start again with a new code.
+          content:
+            application/json:
+              schema: { $ref: '../schemas/error.schema.json' }
+  /guest/status/sign-out:
+    post:
+      operationId: endGuestStatusSession
+      summary: Forget the unlocked payment on this browser
+      responses:
+        '204': { description: Cookie cleared and server-side session ended. }
+components:
+  schemas:
+    CodeRequested:
+      type: object
+      additionalProperties: false
+      required: [challenge_id, message, expires_in_seconds]
+      properties:
+        challenge_id: { type: string, pattern: '^gsc_[0-9A-Za-z]{24}$' }
+        message: { const: 'If the details match a payment, we have emailed a 6-digit code to that address. It is valid for 10 minutes.' }
+        expires_in_seconds: { const: 600 }
+    CodeError:
+      type: object
+      additionalProperties: false
+      required: [error, attempts_remaining]
+      properties:
+        error: { $ref: '../schemas/error.schema.json#/properties/error' }
+        attempts_remaining: { type: integer, minimum: 0, maximum: 2 }
+    GuestPaymentView:
+      type: object
+      additionalProperties: false
+      description: Read-only view of one payment. No order contents, no customer data beyond the masked card, no fraud detail.
+      required: [reference, merchant_name, amount, currency, status, status_label, card, created_at, timeline]
+      properties:
+        reference: { type: string }
+        merchant_name: { type: string }
+        amount: { type: integer }
+        currency: { const: SGD }
+        status:
+          description: Payment status (same values as the merchant API).
+          $ref: '../schemas/payment.schema.json#/$defs/PaymentStatus'
+        status_label:
+          description: |
+            Customer wording (FR-CHK-12, NFR-USE-04): "Paid" (authorised or captured), "Not charged"
+            (declined, blocked, cancelled, expired), "Being checked - do not pay again"
+            (unresolved), "In progress" (any earlier state).
+          enum: [Paid, Not charged, Being checked - do not pay again, In progress]
+        card:
+          oneOf:
+            - type: 'null'
+            - type: object
+              additionalProperties: false
+              required: [brand, last4]
+              properties:
+                brand: { type: string }
+                last4: { type: string, pattern: '^[0-9]{4}$' }
+        refunded_amount: { type: integer, minimum: 0 }
+        created_at: { type: string, format: date-time }
+        timeline:
+          type: array
+          description: Customer-visible status changes, oldest first. Screening and verification steps appear only as "Checked" without reasons.
+          items:
+            type: object
+            additionalProperties: false
+            required: [at, label]
+            properties:
+              at: { type: string, format: date-time }
+              label: { type: string }

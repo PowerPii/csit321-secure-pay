@@ -1,0 +1,156 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.securepay.local/schemas/payment.schema.json",
+  "title": "Payment",
+  "description": "A card payment as the merchant sees it. Returned by the merchant API and carried in payment.* webhook events. Never contains a card number or security code (FR-TXN-09, NFR-CON-02).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id", "object", "reference", "order_reference", "status", "amount", "currency",
+    "refundable_amount", "refunded_amount", "refund_reserved_amount", "card", "screening",
+    "outcome", "pending_operation", "sequence", "checkout_expires_at", "authorisation_expires_at",
+    "created_at", "updated_at"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^pay_[0-9A-Za-z]{24}$",
+      "description": "Gateway identifier used in API paths."
+    },
+    "object": { "const": "payment" },
+    "reference": {
+      "type": "string",
+      "pattern": "^SP-[0-9A-Z]{4}-[0-9A-Z]{4}$",
+      "description": "Unique payment reference shown to the customer on receipts and used for the guest status check (FR-CHK-08)."
+    },
+    "order_reference": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "description": "The merchant's own order reference, as sent when the payment was created."
+    },
+    "status": { "$ref": "#/$defs/PaymentStatus" },
+    "amount": { "$ref": "#/$defs/AmountCents" },
+    "currency": { "const": "SGD" },
+    "refundable_amount": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Captured amount less completed and reserved refunds (UC-59). 0 unless status is captured."
+    },
+    "refunded_amount": { "type": "integer", "minimum": 0, "description": "Sum of completed refunds." },
+    "refund_reserved_amount": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Sum of refunds that are reserved, submitted or unresolved (FR-TXN-02)."
+    },
+    "card": {
+      "description": "Present once the customer has entered a card; null before that.",
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["token", "brand", "last4"],
+          "properties": {
+            "token": { "type": "string", "pattern": "^tok_[0-9A-Za-z]{24}$" },
+            "brand": { "enum": ["visa", "mastercard", "amex", "unknown"] },
+            "last4": { "type": "string", "pattern": "^[0-9]{4}$" }
+          }
+        }
+      ]
+    },
+    "screening": {
+      "description": "Fraud screening decision. null until screening has run. Scores and rule details stay in the dashboard.",
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["decision"],
+          "properties": {
+            "decision": {
+              "enum": ["allow", "verify", "block", "not_screened"],
+              "description": "not_screened means screening was unavailable and the attempt was blocked (FR-FRD-04)."
+            }
+          }
+        }
+      ]
+    },
+    "outcome": {
+      "description": "Why the payment did not go ahead, and what the merchant can do next (FR-MER-07). null while the payment is in progress or succeeded.",
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["reason", "message"],
+          "properties": {
+            "reason": { "$ref": "#/$defs/OutcomeReason" },
+            "message": { "type": "string", "description": "Plain-language explanation with the next step. Safe to show to staff, not tuned for customers." }
+          }
+        }
+      ]
+    },
+    "pending_operation": {
+      "description": "A capture or cancel that was sent to the processing simulator without an answer yet. The payment keeps its previous status until reconciliation settles it (UC-25, UC-29). null otherwise.",
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "status", "requested_at"],
+          "properties": {
+            "type": { "enum": ["capture", "cancel"] },
+            "status": { "const": "unresolved" },
+            "requested_at": { "type": "string", "format": "date-time" }
+          }
+        }
+      ]
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Increases by 1 on every change the merchant is notified about, including refund changes. Matches the sequence of the latest event for this payment, so the merchant can ignore older events."
+    },
+    "return_url": { "type": "string", "format": "uri" },
+    "checkout_url": {
+      "type": ["string", "null"],
+      "format": "uri",
+      "description": "Hosted checkout address. Only while status is created and the session has not expired; null afterwards."
+    },
+    "checkout_expires_at": { "type": "string", "format": "date-time", "description": "created_at + 1 hour (FR-CHK-19)." },
+    "authorisation_expires_at": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "When an uncaptured authorisation is cancelled automatically: authorised_at + 7 days (FR-TXN-05). null unless status is authorised."
+    },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" },
+    "authorised_at": { "type": ["string", "null"], "format": "date-time" },
+    "captured_at": { "type": ["string", "null"], "format": "date-time" },
+    "cancelled_at": { "type": ["string", "null"], "format": "date-time" }
+  },
+  "$defs": {
+    "AmountCents": {
+      "type": "integer",
+      "minimum": 50,
+      "maximum": 1000000,
+      "description": "Singapore dollars in cents: S$0.50 to S$10,000 (GATEWAY_RULES MIN/MAX_AMOUNT_CENTS)."
+    },
+    "PaymentStatus": {
+      "description": "Mirrors gateway/apps/payments/states.py (Figure 2.2.2.1).",
+      "enum": [
+        "created", "screening", "verification_required", "processing", "authorised", "captured",
+        "declined", "blocked", "unresolved", "cancelled", "expired"
+      ]
+    },
+    "OutcomeReason": {
+      "enum": [
+        "fraud_rule", "fraud_model", "verification_failed", "verification_expired",
+        "screening_unavailable", "amount_limit", "card_declined", "not_processed",
+        "checkout_expired", "merchant_cancelled", "authorisation_expired"
+      ],
+      "description": "The first six are BlockReason in states.py. card_declined: the simulated bank said no. not_processed: reconciliation found no record at the simulator (UC-29). checkout_expired: no card submitted within 1 hour. merchant_cancelled / authorisation_expired: the two ways an authorisation is cancelled."
+    }
+  }
+}

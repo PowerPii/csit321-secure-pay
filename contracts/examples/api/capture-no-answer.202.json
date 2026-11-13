@@ -1,0 +1,36 @@
+{
+  "id": "pay_EXAMPLE00000000000000001",
+  "object": "payment",
+  "reference": "SP-7KQ4-M2XD",
+  "order_reference": "ORD-10042",
+  "status": "authorised",
+  "amount": 4590,
+  "currency": "SGD",
+  "refundable_amount": 0,
+  "refunded_amount": 0,
+  "refund_reserved_amount": 0,
+  "card": {
+    "token": "tok_EXAMPLE00000000000000002",
+    "brand": "visa",
+    "last4": "4242"
+  },
+  "screening": {
+    "decision": "allow"
+  },
+  "outcome": null,
+  "pending_operation": {
+    "type": "capture",
+    "status": "unresolved",
+    "requested_at": "2026-11-14T02:00:00Z"
+  },
+  "sequence": 2,
+  "return_url": "https://shop.localhost/orders/ORD-10042/return",
+  "checkout_url": null,
+  "checkout_expires_at": "2026-11-13T05:30:00Z",
+  "authorisation_expires_at": "2026-11-20T04:31:12Z",
+  "created_at": "2026-11-13T04:30:00Z",
+  "updated_at": "2026-11-14T02:00:05Z",
+  "authorised_at": "2026-11-13T04:31:12Z",
+  "captured_at": null,
+  "cancelled_at": null
+}

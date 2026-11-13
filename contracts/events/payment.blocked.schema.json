@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.securepay.local/events/payment.blocked.schema.json",
+  "title": "payment.blocked",
+  "description": "The gateway stopped the attempt before any financial effect: fraud rule or model, failed or expired verification, screening unavailable, or amount limit. See outcome.reason.",
+  "allOf": [
+    {
+      "$ref": "../schemas/event.schema.json"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "payment.blocked"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "object": {
+              "$ref": "../schemas/payment.schema.json",
+              "properties": {
+                "status": {
+                  "const": "blocked"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

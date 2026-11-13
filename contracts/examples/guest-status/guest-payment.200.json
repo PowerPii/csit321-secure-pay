@@ -1,0 +1,32 @@
+{
+  "reference": "SP-7KQ4-M2XD",
+  "merchant_name": "Demo Store",
+  "amount": 4590,
+  "currency": "SGD",
+  "status": "captured",
+  "status_label": "Paid",
+  "card": {
+    "brand": "visa",
+    "last4": "4242"
+  },
+  "refunded_amount": 0,
+  "created_at": "2026-11-13T04:30:00Z",
+  "timeline": [
+    {
+      "at": "2026-11-13T04:30:00Z",
+      "label": "Payment started"
+    },
+    {
+      "at": "2026-11-13T04:31:00Z",
+      "label": "Checked"
+    },
+    {
+      "at": "2026-11-13T04:31:12Z",
+      "label": "Approved by the bank"
+    },
+    {
+      "at": "2026-11-14T02:00:01Z",
+      "label": "Charged"
+    }
+  ]
+}

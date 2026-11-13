@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.securepay.local/events/refund.failed.schema.json",
+  "title": "refund.failed",
+  "description": "The refund failed (declined_by_processor or not_processed); its reserved amount is released.",
+  "allOf": [
+    {
+      "$ref": "../schemas/event.schema.json"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "refund.failed"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "object": {
+              "$ref": "../schemas/refund.schema.json",
+              "properties": {
+                "status": {
+                  "const": "failed"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}
