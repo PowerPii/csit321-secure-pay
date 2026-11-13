@@ -20,6 +20,9 @@ import {
 export { sessionIdFromPath };
 
 const AUTO_RETURN_SECONDS = 5;
+// While the bank's answer is unknown the gateway checks with it (30 s, then 1, 2, 5 ... min);
+// the page asks the gateway again on this interval so it shows the result once it is known.
+const PENDING_POLL_MS = 10_000;
 
 type View =
   | { kind: "loading" }
@@ -36,6 +39,17 @@ export default function App({ path = window.location.pathname }: { path?: string
       .then((session) => setView({ kind: "session", session, checking: false }))
       .catch(() => setView({ kind: "missing" }));
   }, [sessionId]);
+
+  const pending = view.kind === "session" && view.session.result === "pending";
+  useEffect(() => {
+    if (!sessionId || !pending) return;
+    const t = window.setInterval(() => {
+      getSession(sessionId)
+        .then((s) => setView((v) => (v.kind === "session" ? { ...v, session: s } : v)))
+        .catch(() => undefined);
+    }, PENDING_POLL_MS);
+    return () => window.clearInterval(t);
+  }, [sessionId, pending]);
 
   if (view.kind === "loading") {
     return <Shell status="Secure checkout"><p className="muted center">Loading…</p></Shell>;
@@ -436,7 +450,7 @@ const NOT_COMPLETED: Record<string, { icon: "cross" | "warn" | "clock"; title: s
   pending: {
     icon: "clock",
     title: "We're confirming your payment",
-    text: (m) => `We didn't hear back from the bank in time. Please don't pay again: ${m} will confirm the result once we know it.`,
+    text: (m) => `We didn't hear back from the bank in time. Please don't pay again. This page updates as soon as we know the result, and ${m} will confirm it too.`,
     button: (m) => `Return to ${m}`,
     badge: "Awaiting bank confirmation",
   },

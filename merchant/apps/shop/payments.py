@@ -113,3 +113,16 @@ def _settled(attempt: PaymentAttempt, reply) -> str:
         attempt.refresh_from_db()
         return attempt.status if reply.status == 200 else "pending"
     raise SettleError(reply.data.get("error", {}).get("code", f"HTTP {reply.status}"))
+
+
+def refund(attempt: PaymentAttempt, amount: int, idempotency_key: str, reason: str = "") -> dict:
+    """Refund part of the order's captured payment (demo story S6). Returns the Refund.
+
+    Its status is completed, failed or unresolved; the refund.* webhook follows either way.
+    """
+    reply = securepay.refund_payment(attempt.payment_id, idempotency_key=idempotency_key,
+                                     amount=amount, reason=reason)
+    if reply.status != 201:
+        raise SettleError(reply.data.get("error", {}).get("code", f"HTTP {reply.status}"))
+    refresh(attempt)
+    return reply.data

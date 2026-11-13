@@ -1,10 +1,9 @@
 from django.urls import path
 
-from apps.common.views import todo
+from apps.refunds.views import PaymentRefundsView, RefundDetailView
 
 urlpatterns = [
-    path("payments/<str:payment_id>/refunds",
-         todo("create full/partial refund; reserve under SELECT FOR UPDATE on the payment"),
+    path("payments/<str:payment_id>/refunds", PaymentRefundsView.as_view(),
          name="refund-create"),
-    path("refunds/<str:refund_id>", todo("get refund status"), name="refund-detail"),
+    path("refunds/<str:refund_id>", RefundDetailView.as_view(), name="refund-detail"),
 ]

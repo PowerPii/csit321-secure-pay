@@ -62,6 +62,15 @@ class FakeGateway:
                 self.by_key[key] = self.payment(body)
                 self.payments[self.by_key[key]["id"]] = (body, self.by_key[key])
             return self.reply(201, self.by_key[key])
+        if request.method == "POST" and request.url.path.endswith("/refunds"):
+            pid = request.url.path.split("/")[3]
+            created = self.payments[pid][1]
+            return self.reply(201, {"id": "rfd_" + "R" * 24, "object": "refund",
+                                    "reference": "RF-AAAA-0001", "payment_id": pid,
+                                    "payment_reference": created["reference"],
+                                    "amount": body["amount"], "currency": "SGD",
+                                    "status": "completed", "reason": body.get("reason"),
+                                    "failure_reason": None})
         if request.method == "POST":  # /v1/payments/{id}/capture or /cancel
             _, _, _, pid, action = request.url.path.split("/")
             key = (action, request.headers["Idempotency-Key"])

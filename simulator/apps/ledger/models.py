@@ -62,3 +62,15 @@ def post_release(operation_id: str, authorisation_id: str, amount: int) -> None:
                     kind="release", account=LedgerEntry.Account.CARDHOLDER_AVAILABLE,
                     amount=amount),
     ])
+
+
+def post_refund(operation_id: str, authorisation_id: str, amount: int) -> None:
+    """A refund moves `amount` from the merchant back to the cardholder."""
+    LedgerEntry.objects.bulk_create([
+        LedgerEntry(operation_id=operation_id, authorisation_id=authorisation_id,
+                    kind="refund", account=LedgerEntry.Account.MERCHANT_SETTLEMENT,
+                    amount=-amount),
+        LedgerEntry(operation_id=operation_id, authorisation_id=authorisation_id,
+                    kind="refund", account=LedgerEntry.Account.CARDHOLDER_AVAILABLE,
+                    amount=amount),
+    ])

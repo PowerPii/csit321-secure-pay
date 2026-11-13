@@ -56,6 +56,14 @@ docker compose -f deploy/compose.yaml exec merchant python manage.py settle_orde
 
 (or select the payment in the shop's Django admin and use the Capture / Cancel actions).
 
+Refunds (demo story S6): each refund reserves its amount under a lock on the payment, so refunds that together exceed the captured amount cannot both go through, even at the same moment.
+
+```bash
+docker compose -f deploy/compose.yaml exec merchant python manage.py settle_order refund ORD-1001 --amount 500 --reason "One item returned"
+```
+
+Lost answers (demo story S4): pay with 4000 0000 0000 0119 (the bank approves but the answer is lost) or 4000 0000 0000 0127 (the answer comes too late). After 10 seconds the checkout page says "We're confirming your payment" and the payment is Unresolved. The gateway worker then asks the simulator about the same operation ID, 30 seconds later and then at 1, 2, 5, 10 and 20 minutes; the first check finds the approval, the payment becomes Authorised without a second charge, and the page updates itself. Card 4000 0000 0000 0135 loses the request instead: the check finds no record, retires the ID, and the payment ends Declined (`not_processed`). An operation still without an answer after the sixth check is escalated; administrators find it in the gateway's Django admin under Payments -> Operations (filter "escalated") and can re-check it with the simulator. Nobody can set an outcome by hand.
+
 For day-to-day work on one service, see that service's README (venv + `runserver`).
 
 ## Rules that shape the code

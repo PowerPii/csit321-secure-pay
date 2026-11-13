@@ -3,6 +3,7 @@
 Rule: one financial effect per logical operation. Every call to the simulator is an
 Operation whose ID the gateway creates and stores before it calls; a retry reuses the ID.
 """
+import secrets
 from datetime import timedelta
 
 from django.conf import settings
@@ -190,14 +191,20 @@ class Operation(models.Model):
     request_key = models.CharField(max_length=255, blank=True)
     # For cancel: why (merchant_cancelled, or authorisation_expired for the 7-day job).
     reason = models.CharField(max_length=32, blank=True)
+    # Reconciliation (SIMULATOR-CONTRACT.md section 7, S2): status checks done so far, when
+    # the next one is due, and when the operation was handed to administrators (UC-43).
     reconciliation_checks = models.PositiveSmallIntegerField(default=0)
     last_checked_at = models.DateTimeField(null=True, blank=True)
+    next_check_at = models.DateTimeField(null=True, blank=True)
+    escalated_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     completed_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        indexes = [models.Index(fields=["status", "last_checked_at"])]
+        indexes = [models.Index(fields=["status", "last_checked_at"]),
+                   models.Index(fields=["next_check_at"], condition=Q(status="unresolved"),
+                                name="operation_check_due_idx")]
         constraints = [
             # A payment is authorised once; a retry of the same attempt reuses the operation.
             models.UniqueConstraint(
@@ -220,6 +227,25 @@ class Operation(models.Model):
         if not self.public_id:
             self.public_id = new_id("op")
         super().save(*args, **kwargs)
+
+    def mark_unresolved(self) -> None:
+        """No usable answer: reconciliation owns it from now on. Schedules the first status
+        check (30 s, SIMULATOR-CONTRACT.md S2) unless one is already scheduled."""
+        self.status = Operation.Status.UNRESOLVED
+        if self.next_check_at is None and self.escalated_at is None:
+            self.next_check_at = timezone.now() + check_delay(0)
+        self.save(update_fields=["status", "next_check_at", "updated_at"])
+
+
+_random = secrets.SystemRandom()
+
+
+def check_delay(checks_done: int) -> timedelta:
+    """Wait before status check number `checks_done + 1`: RECONCILIATION_DELAYS_SECONDS with
+    +/-10% jitter, so a burst of timeouts is not checked all at once."""
+    delays = settings.GATEWAY_RULES["RECONCILIATION_DELAYS_SECONDS"]
+    base = delays[min(checks_done, len(delays) - 1)]
+    return timedelta(seconds=base * _random.uniform(0.9, 1.1))
 
 
 class IdempotencyRecord(models.Model):

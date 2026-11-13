@@ -189,6 +189,10 @@ GATEWAY_RULES = {
     # Status checks on an unresolved operation, after the timeout (+/-10% jitter); after the
     # last one it is escalated (SIMULATOR-CONTRACT.md S2, confirmed by Fifa 13 Nov 2026).
     "RECONCILIATION_DELAYS_SECONDS": (30, 60, 120, 300, 600, 1200),
+    # Restart sweep (FR-TXN-15): an operation still "pending" this long after it was committed
+    # was never answered (the process died mid-call), so it is marked unresolved and checked.
+    # Longer than any call can take (2 s connect + 10 s reply).
+    "RECONCILIATION_PENDING_STALE_SECONDS": 60,
     # Simulator call timeouts (SIMULATOR-CONTRACT.md S1, confirmed by Fifa 13 Nov 2026):
     # no reply in time -> the payment is Unresolved and reconciliation asks about the same ID.
     "SIMULATOR_CONNECT_TIMEOUT_SECONDS": 2,

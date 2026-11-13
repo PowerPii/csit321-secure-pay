@@ -152,3 +152,16 @@ def test_pending_capture_waits_for_the_webhook(client, gateway, ordered):
                "pending_operation": {"type": "capture", "status": "unresolved"}}
     gateway.settle_reply = (202, pending)
     assert payments.capture(attempt) == "pending"
+
+
+def test_refund_command_sends_a_new_key_each_time(client, gateway, ordered, capsys):
+    order, attempt = ordered
+    deliver(client, event(attempt))
+    call_command("settle_order", "refund", order.reference, "--amount", "500",
+                 "--reason", "One item returned")
+    call_command("settle_order", "refund", order.reference, "--amount", "500")
+    sent = [(b, h["idempotency-key"]) for m, p, b, h in gateway.calls if p.endswith("/refunds")]
+    assert [b for b, _ in sent] == [{"amount": 500, "reason": "One item returned"},
+                                    {"amount": 500}]
+    assert sent[0][1] != sent[1][1]
+    assert "RF-AAAA-0001 500 completed" in capsys.readouterr().out

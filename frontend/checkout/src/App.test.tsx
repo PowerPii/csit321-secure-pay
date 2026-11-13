@@ -93,6 +93,28 @@ describe("checkout page", () => {
     expect(await screen.findByText("We're confirming your payment")).toBeTruthy();
   });
 
+  it("shows the result once reconciliation settles a pending payment", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      let checks = 0;
+      mockFetch({
+        [SID]: () => {
+          checks += 1;
+          return checks < 2
+            ? json(session({ status: "unresolved", result: "pending", reference: "SP-AAAA-BBBB" }))
+            : json(session({ status: "authorised", result: "approved", reference: "SP-AAAA-BBBB",
+                card: { brand: "visa", last4: "0119" }, authorised_at: new Date().toISOString() }));
+        },
+      });
+      render(<App path={`/pay/${SID}`} />);
+      expect(await screen.findByText("We're confirming your payment")).toBeTruthy();
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(await screen.findByText("Payment successful")).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("asks for the emailed code, shows a wrong code, then pays (C5)", async () => {
     const waiting = (attempts: number) => session({
       status: "verification_required", result: "verification_required", reference: "SP-AAAA-BBBB",

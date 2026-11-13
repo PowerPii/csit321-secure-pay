@@ -76,7 +76,10 @@ def _settle(request, parse, op_type):
     request_fingerprint = service.fingerprint(body)
     try:
         service.check_existing(body["operation_id"], request_fingerprint)
-        record = service.record_settlement(body, op_type, request_fingerprint)
+        if op_type == OperationRecord.Type.REFUND:
+            record = service.record_refund(body, request_fingerprint)
+        else:
+            record = service.record_settlement(body, op_type, request_fingerprint)
     except service.Existing as exc:
         return _existing_reply(request, exc)
     return json_reply(service.to_dict(record), signed=True)
@@ -94,3 +97,10 @@ def capture(request):
 @gateway_only
 def cancel(request):
     return _settle(request, service.parse_cancel, OperationRecord.Type.CANCEL)
+
+
+@csrf_exempt
+@require_POST
+@gateway_only
+def refund(request):
+    return _settle(request, service.parse_refund, OperationRecord.Type.REFUND)

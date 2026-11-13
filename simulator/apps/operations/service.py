@@ -9,7 +9,7 @@ from django.utils import timezone
 
 from apps.common.http import ApiError, rfc3339
 from apps.common.ids import new_id
-from apps.ledger.models import post_capture, post_hold, post_release
+from apps.ledger.models import post_capture, post_hold, post_refund, post_release
 from apps.operations.models import Authorisation, OperationRecord
 from apps.operations.test_cards import Behaviour, brand_for, digits_only, luhn_ok
 
@@ -201,6 +201,8 @@ def status_query(operation_id: str, op_type: str | None) -> OperationRecord:
 
 CAPTURE_FIELDS = {"operation_id", "authorisation_id", "amount"}
 CANCEL_FIELDS = {"operation_id", "authorisation_id"}
+REFUND_FIELDS = {"operation_id", "authorisation_id", "refund_id", "amount"}
+REFUND_ID = re.compile(r"^rfd_[0-9A-Za-z]{24}$")
 
 
 def _parse_object(raw: bytes, fields: set[str]) -> dict:
@@ -234,6 +236,14 @@ def parse_capture(raw: bytes) -> dict:
 
 def parse_cancel(raw: bytes) -> dict:
     return _parse_object(raw, CANCEL_FIELDS)
+
+
+def parse_refund(raw: bytes) -> dict:
+    body = _parse_object(raw, REFUND_FIELDS)
+    if not isinstance(body["refund_id"], str) or not REFUND_ID.match(body["refund_id"]):
+        raise _bad("invalid_field", "'refund_id' must be rfd_ + 24 base62 characters.",
+                   "refund_id")
+    return body
 
 
 def record_settlement(body: dict, op_type: str, request_fingerprint: str) -> OperationRecord:
@@ -283,6 +293,53 @@ def record_settlement(body: dict, op_type: str, request_fingerprint: str) -> Ope
                 auth.state = Authorisation.State.CANCELLED
                 auth.save(update_fields=["state", "updated_at"])
                 post_release(record.operation_id, auth.operation_id, auth.authorised_amount)
+            record.save(force_insert=True)
+    except IntegrityError:
+        check_existing(body["operation_id"], request_fingerprint)
+        raise
+    return record
+
+
+def record_refund(body: dict, request_fingerprint: str) -> OperationRecord:
+    """Record a refund against a captured authorisation (SIMULATOR-CONTRACT.md section 4).
+
+    The simulator's own check, independent of the gateway's reservation: approved refunds
+    plus this amount must stay within the captured amount. The authorisation row is locked,
+    so two refunds at once are checked one after the other. A rule failure is a decline.
+    """
+    try:
+        with transaction.atomic():
+            auth = (Authorisation.objects.select_for_update()
+                    .filter(operation_id=body["authorisation_id"]).first())
+            decline_reason = ""
+            if auth is None:
+                decline_reason = "authorisation_not_found"
+            elif auth.state != Authorisation.State.CAPTURED:
+                decline_reason = "authorisation_not_captured"
+            elif auth.refunded_amount + body["amount"] > auth.captured_amount:
+                decline_reason = "refund_exceeds_captured"
+            approved = not decline_reason
+            record = OperationRecord(
+                operation_id=body["operation_id"],
+                type=OperationRecord.Type.REFUND,
+                status=(OperationRecord.Status.APPROVED if approved
+                        else OperationRecord.Status.DECLINED),
+                decline_reason=decline_reason,
+                merchant_id=auth.merchant_id if auth else None,
+                payment_id=auth.payment_id if auth else None,
+                refund_id=body["refund_id"],
+                authorisation_ref=body["authorisation_id"],
+                authorisation=auth,
+                amount=body["amount"],
+                currency="SGD",
+                simulator_reference=new_id("sim"),
+                request_fingerprint=request_fingerprint,
+                recorded_at=timezone.now(),
+            )
+            if approved:
+                auth.refunded_amount += body["amount"]
+                auth.save(update_fields=["refunded_amount", "updated_at"])
+                post_refund(record.operation_id, auth.operation_id, body["amount"])
             record.save(force_insert=True)
     except IntegrityError:
         check_existing(body["operation_id"], request_fingerprint)

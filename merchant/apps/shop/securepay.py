@@ -93,3 +93,14 @@ def cancel_payment(payment_id: str, *, idempotency_key: str) -> Reply:
     """Void an authorised payment; nothing is charged."""
     return _request("POST", f"/v1/payments/{payment_id}/cancel", json={},
                     headers={"Idempotency-Key": idempotency_key})
+
+
+def refund_payment(payment_id: str, *, idempotency_key: str, amount: int,
+                   reason: str = "") -> Reply:
+    """Refund all or part of a captured payment (UC-24). A new key per refund; reuse it only
+    to retry the same refund."""
+    body = {"amount": amount}
+    if reason:
+        body["reason"] = reason
+    return _request("POST", f"/v1/payments/{payment_id}/refunds", json=body,
+                    headers={"Idempotency-Key": idempotency_key})
