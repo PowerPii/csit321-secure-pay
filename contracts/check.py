@@ -63,6 +63,8 @@ def ref(rel: str, pointer: str = "") -> dict:
 
 MERCHANT = "openapi/merchant-api.v1.yaml"
 GUEST = "openapi/guest-status.v1.yaml"
+SIM = "openapi/simulator.yaml"
+SIM_OP = "schemas/simulator-operation.schema.json"
 LIST_REFUNDS = "/paths/~1v1~1payments~1{payment_id}~1refunds/get/responses/200/content/application~1json/schema"
 EXAMPLES = {
     "api/create-payment.201.json": ref("schemas/payment.schema.json"),
@@ -79,6 +81,12 @@ EXAMPLES = {
     "guest-status/code-requested.202.json": ref(GUEST, "/components/schemas/CodeRequested"),
     "guest-status/code-incorrect.400.json": ref(GUEST, "/components/schemas/CodeError"),
     "guest-status/guest-payment.200.json": ref(GUEST, "/components/schemas/GuestPaymentView"),
+    "simulator/authorise-approved.200.json": ref(SIM_OP),
+    "simulator/authorise-declined.200.json": ref(SIM_OP),
+    "simulator/capture-partial-approved.200.json": ref(SIM_OP),
+    "simulator/status-no-record.200.json": ref(SIM_OP),
+    "simulator/error-operation-retired.409.json": ref(SIM, "/components/schemas/ConflictError"),
+    "simulator/notification.operation-recorded.json": ref(SIM, "/components/schemas/Notification"),
 }
 
 found = {p.relative_to(ROOT / "examples").as_posix() for p in (ROOT / "examples").rglob("*.json")}
@@ -93,6 +101,15 @@ for name, schema in EXAMPLES.items():
 wrong = load(ROOT / "examples/events/payment.authorised.json")
 if Draft202012Validator(ref("events/payment.blocked.schema.json"), registry=registry).is_valid(wrong):
     errors.append("events/payment.blocked.schema.json accepts a payment.authorised event")
+
+# A no_record entry must not carry an outcome, and a decline must carry a reason.
+sim_op = Draft202012Validator(ref(SIM_OP), registry=registry)
+bad_no_record = {**load(ROOT / "examples/simulator/status-no-record.200.json"), "amount": 4590}
+if sim_op.is_valid(bad_no_record):
+    errors.append("simulator-operation.schema.json accepts a no_record entry with an amount")
+bad_decline = {**load(ROOT / "examples/simulator/authorise-declined.200.json"), "decline_reason": None}
+if sim_op.is_valid(bad_decline):
+    errors.append("simulator-operation.schema.json accepts a declined operation without a reason")
 
 # Event types: the envelope enum and the files in events/ must agree.
 envelope_types = set(docs[ROOT / "schemas/event.schema.json"]["properties"]["type"]["enum"])

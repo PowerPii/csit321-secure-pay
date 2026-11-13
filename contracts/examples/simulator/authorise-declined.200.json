@@ -1,0 +1,17 @@
+{
+  "operation_id": "op_EXAMPLE00000000000000015",
+  "object": "operation",
+  "type": "authorise",
+  "status": "declined",
+  "decline_reason": "insufficient_funds",
+  "merchant_id": "mer_EXAMPLE00000000000000003",
+  "payment_id": "pay_EXAMPLE00000000000000005",
+  "authorisation_id": null,
+  "refund_id": null,
+  "amount": 12900,
+  "currency": "SGD",
+  "card": { "brand": "visa", "last4": "9995" },
+  "simulator_reference": "sim_EXAMPLE00000000000000023",
+  "authorisation": null,
+  "recorded_at": "2026-11-13T05:02:09Z"
+}

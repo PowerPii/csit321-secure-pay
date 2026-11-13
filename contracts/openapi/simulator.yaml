@@ -1,0 +1,453 @@
+openapi: 3.1.0
+info:
+  title: SecurePay processing simulator API
+  version: 1.0.0-draft
+  summary: Internal API between the gateway and the processing simulator (fictional card processing).
+  description: |
+    Implements FR-SIM-01 to FR-SIM-04 and the simulator side of UC-24, UC-25 and UC-29.
+    Called only by the gateway, over HTTPS on the internal `simulator` network. The rules that
+    a schema cannot express (operation identity, retiring an operation reported as "no record",
+    which replies count as evidence, fault controls) are in `contracts/SIMULATOR-CONTRACT.md`.
+
+    Every request carries `Authorization: Bearer simk_...`. Every reply the simulator sends with
+    status 200 or 409, and every notification, carries `Simulator-Signature: t=...,v1=...`
+    (HMAC-SHA256 over `"<t>." + raw body` with the simulator signing secret). The gateway
+    treats only a 200 reply with a valid signature as evidence of an outcome.
+servers:
+  - url: https://simulator.localhost
+    description: Docker Compose (through Caddy, internal network only)
+security:
+  - gatewayKey: []
+paths:
+  /sim/authorise:
+    post:
+      operationId: authorise
+      summary: Authorise a card payment (FR-SIM-01, UC-01 step 7)
+      description: |
+        The test card decides the outcome (SIMULATOR-CONTRACT.md section 5). The card number and
+        security code are used for this decision only and are never stored or logged; the record
+        keeps brand and last four digits.
+
+        One record per `operation_id`: a repeat with the same body returns the stored reply with
+        `Simulator-Replayed: true`; a different body gets `409 operation_id_conflict`; an ID
+        retired by an earlier status query gets `409 operation_retired`. The gateway never sends
+        an authorisation twice in normal running (the vault deletes the card on submission).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AuthoriseRequest' }
+            example:
+              operation_id: op_EXAMPLE00000000000000010
+              merchant_id: mer_EXAMPLE00000000000000003
+              payment_id: pay_EXAMPLE00000000000000001
+              amount: 4590
+              currency: SGD
+              card: { number: '4242424242424242', expiry_month: 12, expiry_year: 2029, cvc: '123' }
+      responses:
+        '200': { $ref: '#/components/responses/Recorded' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorised' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /sim/capture:
+    post:
+      operationId: capture
+      summary: Capture an open authorisation, in full or in part, once (FR-SIM-04, UC-25)
+      description: |
+        `amount` may be less than the authorised amount; the rest is released and the
+        authorisation becomes `captured`. A second capture, a capture after cancel, or an amount
+        above the authorised amount is recorded as `declined` with the matching reason.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CaptureRequest' }
+            example:
+              operation_id: op_EXAMPLE00000000000000011
+              authorisation_id: op_EXAMPLE00000000000000010
+              amount: 4590
+      responses:
+        '200': { $ref: '#/components/responses/Recorded' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorised' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /sim/cancel:
+    post:
+      operationId: cancel
+      summary: Cancel (void) an open authorisation (FR-SIM-04, UC-25, 7-day auto-cancel)
+      description: Releases the whole authorised amount. On an authorisation that is not open the operation is recorded as `declined`, reason `authorisation_not_open`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CancelRequest' }
+            example:
+              operation_id: op_EXAMPLE00000000000000012
+              authorisation_id: op_EXAMPLE00000000000000010
+      responses:
+        '200': { $ref: '#/components/responses/Recorded' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorised' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /sim/refund:
+    post:
+      operationId: refund
+      summary: Refund all or part of a captured authorisation (FR-SIM-04, UC-24)
+      description: |
+        Approved while approved refunds plus this amount stay within the captured amount;
+        otherwise `declined`, reason `refund_exceeds_captured`. The gateway's own reservation
+        check (API-CONTRACT.md section 3) runs first; this is the simulator's independent check.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RefundRequest' }
+            example:
+              operation_id: op_EXAMPLE00000000000000013
+              authorisation_id: op_EXAMPLE00000000000000010
+              refund_id: rfd_EXAMPLE00000000000000004
+              amount: 1500
+      responses:
+        '200': { $ref: '#/components/responses/Recorded' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorised' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /sim/operations/{operation_id}:
+    get:
+      operationId: getOperation
+      summary: Status query by operation ID (FR-SIM-03, UC-29, UC-43)
+      description: |
+        Returns the record for this operation ID. If there is none, the simulator **writes** a
+        `no_record` entry for the ID in the same step and returns it: the ID is retired, and the
+        operation is rejected with `409 operation_retired` if it arrives later. Both the
+        operation and the `no_record` entry are inserted under the same unique key, so whichever
+        commits first wins; a query never sees a half-processed operation.
+
+        This is the only call that changes state on GET, by design: it is how the simulator
+        keeps its "no record" answer true for ever.
+      parameters:
+        - name: operation_id
+          in: path
+          required: true
+          schema: { type: string, pattern: '^op_[0-9A-Za-z]{24}$' }
+        - name: type
+          in: query
+          required: false
+          description: The operation type the gateway expects. Stored on a new `no_record` entry; ignored when a record exists.
+          schema: { enum: [authorise, capture, cancel, refund] }
+      responses:
+        '200': { $ref: '#/components/responses/Recorded' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorised' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /sim/operations:
+    get:
+      operationId: listOperations
+      summary: List records for the gateway/simulator comparison (FR-TXN-11, NFR-AVA-01 test)
+      description: |
+        Oldest first, including `no_record` entries. Used by the reconciliation report and by
+        the restart test that compares both sides' records. Read-only: it never retires an ID.
+      parameters:
+        - name: recorded_after
+          in: query
+          required: false
+          schema: { type: string, format: date-time }
+        - name: payment_id
+          in: query
+          required: false
+          schema: { type: string, pattern: '^pay_[0-9A-Za-z]{24}$' }
+        - name: cursor
+          in: query
+          required: false
+          schema: { type: string }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 500, default: 100 }
+      responses:
+        '200':
+          description: One page of records.
+          headers:
+            Simulator-Signature: { $ref: '#/components/headers/Simulator-Signature' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OperationList' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorised' }
+  /sim/faults:
+    get:
+      operationId: listFaults
+      summary: List active fault rules (test controls, FR-SIM-02)
+      description: Exists only when `SIM_TEST_CONTROLS=1`; otherwise every `/sim/faults` path answers 404. Uses the separate test-control key.
+      security:
+        - testControlKey: []
+      responses:
+        '200':
+          description: Active rules, oldest first.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [data]
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/FaultRule' } }
+        '401': { $ref: '#/components/responses/Unauthorised' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      operationId: createFault
+      summary: Add a fault rule (lost request, lost response, delay, failing status query, notification faults)
+      security:
+        - testControlKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FaultRuleInput' }
+            example:
+              match: { operation_type: capture }
+              action: drop_response
+              remaining: 1
+      responses:
+        '201':
+          description: Rule created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FaultRule' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorised' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      operationId: clearFaults
+      summary: Remove every fault rule (call between tests)
+      security:
+        - testControlKey: []
+      responses:
+        '204': { description: All rules removed. }
+        '401': { $ref: '#/components/responses/Unauthorised' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /sim/faults/{fault_id}:
+    delete:
+      operationId: deleteFault
+      summary: Remove one fault rule
+      security:
+        - testControlKey: []
+      parameters:
+        - name: fault_id
+          in: path
+          required: true
+          schema: { type: string, pattern: '^flt_[0-9A-Za-z]{24}$' }
+      responses:
+        '204': { description: Rule removed. }
+        '401': { $ref: '#/components/responses/Unauthorised' }
+        '404': { $ref: '#/components/responses/NotFound' }
+webhooks:
+  operationRecorded:
+    post:
+      operationId: receiveSimulatorNotification
+      summary: Simulator notification to the gateway (FR-SIM-02 repeated notifications)
+      description: |
+        Sent to the gateway at `POST /internal/simulator/notifications` after an operation is
+        recorded, **only while a fault rule with action `notify` is active** (proposal S3).
+        Fault rules can repeat, delay or reorder notifications. The gateway verifies the
+        signature, treats the body as evidence equal to a status-query reply, and applies it
+        only if the operation is still `processing` or `unresolved`; a repeat changes nothing.
+        It answers 200 within 5 seconds. The simulator does not retry: the status query is the
+        safety net.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Notification' }
+      responses:
+        '200': { description: Accepted (also for a repeat or an operation that is already final). }
+        '400': { description: 'Signature missing or invalid, or timestamp more than 300 seconds off. Nothing applied.' }
+components:
+  securitySchemes:
+    gatewayKey:
+      type: http
+      scheme: bearer
+      description: '`simk_` + 40 base62 characters, from the Docker secret `simulator_api_key`. The simulator stores only its SHA-256 digest.'
+    testControlKey:
+      type: http
+      scheme: bearer
+      description: '`simc_` + 40 base62 characters, from the Docker secret `simulator_test_control_key`. Held by the test runner, never by the gateway.'
+  headers:
+    Simulator-Signature:
+      description: '`t=<unix seconds>,v1=<hex HMAC-SHA256 of "<t>." + raw body>` with the simulator signing secret (`simsig_...`). The gateway rejects a timestamp more than 300 seconds off its clock.'
+      required: true
+      schema: { type: string, pattern: '^t=[0-9]+,v1=[0-9a-f]{64}$' }
+    Simulator-Replayed:
+      description: Present and `true` when the reply is the stored reply for an operation_id already recorded with the same request.
+      schema: { const: 'true' }
+    Simulator-Request-Id:
+      description: The simulator's request ID (`req_...`), also in error bodies and its logs.
+      required: true
+      schema: { type: string, pattern: '^req_[0-9A-Za-z]{24}$' }
+  responses:
+    Recorded:
+      description: |
+        The authoritative record for this operation ID: approved, declined or (status query
+        only) no_record. A decline is a 200, not an error.
+      headers:
+        Simulator-Signature: { $ref: '#/components/headers/Simulator-Signature' }
+        Simulator-Replayed: { $ref: '#/components/headers/Simulator-Replayed' }
+        Simulator-Request-Id: { $ref: '#/components/headers/Simulator-Request-Id' }
+      content:
+        application/json:
+          schema: { $ref: '../schemas/simulator-operation.schema.json' }
+    Conflict:
+      description: |
+        Nothing new was recorded. `operation_retired`: this ID was reported as no_record and
+        can never be processed. `operation_id_conflict`: this ID is already recorded with a
+        different request. The body carries the existing record as `operation`.
+      headers:
+        Simulator-Signature: { $ref: '#/components/headers/Simulator-Signature' }
+        Simulator-Request-Id: { $ref: '#/components/headers/Simulator-Request-Id' }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ConflictError' }
+    BadRequest:
+      description: 'Malformed request (invalid_json, missing_field, invalid_field, invalid_card, currency_not_supported). Nothing recorded and the ID is not retired.'
+      content:
+        application/json:
+          schema: { $ref: '../schemas/error.schema.json' }
+    Unauthorised:
+      description: Missing or wrong key (`api_key_invalid`). Not signed.
+      content:
+        application/json:
+          schema: { $ref: '../schemas/error.schema.json' }
+    NotFound:
+      description: 'No such fault rule, or test controls are switched off (`resource_not_found`).'
+      content:
+        application/json:
+          schema: { $ref: '../schemas/error.schema.json' }
+    Unavailable:
+      description: 'Simulator database unavailable, or a `fail_status_query` fault (`service_unavailable`). The gateway treats it like no answer.'
+      content:
+        application/json:
+          schema: { $ref: '../schemas/error.schema.json' }
+  schemas:
+    OperationId:
+      type: string
+      pattern: '^op_[0-9A-Za-z]{24}$'
+    Amount:
+      type: integer
+      minimum: 1
+      maximum: 1000000
+      description: Cents, SGD.
+    AuthoriseRequest:
+      type: object
+      additionalProperties: false
+      required: [operation_id, merchant_id, payment_id, amount, currency, card]
+      properties:
+        operation_id: { $ref: '#/components/schemas/OperationId' }
+        merchant_id: { type: string, pattern: '^mer_[0-9A-Za-z]{24}$' }
+        payment_id: { type: string, pattern: '^pay_[0-9A-Za-z]{24}$' }
+        amount: { $ref: '#/components/schemas/Amount' }
+        currency: { const: SGD }
+        card:
+          type: object
+          additionalProperties: false
+          required: [number, expiry_month, expiry_year, cvc]
+          properties:
+            number: { type: string, pattern: '^[0-9]{13,19}$', description: Synthetic test card only; must pass the Luhn check (else 400 invalid_card). }
+            expiry_month: { type: integer, minimum: 1, maximum: 12 }
+            expiry_year: { type: integer, minimum: 2000, maximum: 2099 }
+            cvc: { type: string, pattern: '^[0-9]{3,4}$' }
+    CaptureRequest:
+      type: object
+      additionalProperties: false
+      required: [operation_id, authorisation_id, amount]
+      properties:
+        operation_id: { $ref: '#/components/schemas/OperationId' }
+        authorisation_id: { $ref: '#/components/schemas/OperationId' }
+        amount: { $ref: '#/components/schemas/Amount' }
+    CancelRequest:
+      type: object
+      additionalProperties: false
+      required: [operation_id, authorisation_id]
+      properties:
+        operation_id: { $ref: '#/components/schemas/OperationId' }
+        authorisation_id: { $ref: '#/components/schemas/OperationId' }
+    RefundRequest:
+      type: object
+      additionalProperties: false
+      required: [operation_id, authorisation_id, refund_id, amount]
+      properties:
+        operation_id: { $ref: '#/components/schemas/OperationId' }
+        authorisation_id: { $ref: '#/components/schemas/OperationId' }
+        refund_id: { type: string, pattern: '^rfd_[0-9A-Za-z]{24}$' }
+        amount: { $ref: '#/components/schemas/Amount' }
+    ConflictError:
+      type: object
+      additionalProperties: false
+      required: [error, operation]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [type, code, message, request_id]
+          properties:
+            type: { const: conflict }
+            code: { enum: [operation_retired, operation_id_conflict] }
+            message: { type: string }
+            param: { type: ['string', 'null'] }
+            request_id: { type: string, pattern: '^req_[0-9A-Za-z]{24}$' }
+        operation: { $ref: '../schemas/simulator-operation.schema.json' }
+    OperationList:
+      type: object
+      additionalProperties: false
+      required: [data, next_cursor]
+      properties:
+        data: { type: array, items: { $ref: '../schemas/simulator-operation.schema.json' } }
+        next_cursor: { type: ['string', 'null'] }
+    FaultAction:
+      enum:
+        - drop_request
+        - delay_request
+        - drop_response
+        - delay_response
+        - fail_status_query
+        - notify
+      description: See SIMULATOR-CONTRACT.md section 6.
+    FaultRuleInput:
+      type: object
+      additionalProperties: false
+      required: [match, action]
+      properties:
+        match:
+          type: object
+          additionalProperties: false
+          description: All given fields must match. An empty object matches every operation.
+          properties:
+            operation_type: { enum: [authorise, capture, cancel, refund] }
+            payment_id: { type: string, pattern: '^pay_[0-9A-Za-z]{24}$' }
+            merchant_id: { type: string, pattern: '^mer_[0-9A-Za-z]{24}$' }
+            card_last4: { type: string, pattern: '^[0-9]{4}$' }
+        action: { $ref: '#/components/schemas/FaultAction' }
+        delay_ms: { type: integer, minimum: 0, maximum: 600000, description: 'For delay_request, delay_response and notify.' }
+        copies: { type: integer, minimum: 1, maximum: 10, default: 1, description: For notify. Number of identical notifications to send. }
+        remaining: { type: ['integer', 'null'], minimum: 1, description: 'Apply to the next N matching operations, then remove the rule. null means until removed.' }
+    FaultRule:
+      allOf:
+        - $ref: '#/components/schemas/FaultRuleInput'
+        - type: object
+          required: [id, created_at]
+          properties:
+            id: { type: string, pattern: '^flt_[0-9A-Za-z]{24}$' }
+            created_at: { type: string, format: date-time }
+    Notification:
+      type: object
+      additionalProperties: false
+      required: [id, type, created_at, delivery, data]
+      properties:
+        id: { type: string, pattern: '^ntf_[0-9A-Za-z]{24}$', description: Same for every copy of one notification. }
+        type: { const: operation.recorded }
+        created_at: { type: string, format: date-time }
+        delivery: { type: integer, minimum: 1, description: Copy number when a fault rule repeats the notification. }
+        data: { $ref: '../schemas/simulator-operation.schema.json' }

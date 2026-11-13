@@ -1,0 +1,23 @@
+{
+  "id": "ntf_EXAMPLE00000000000000040",
+  "type": "operation.recorded",
+  "created_at": "2026-11-13T04:31:13Z",
+  "delivery": 2,
+  "data": {
+    "operation_id": "op_EXAMPLE00000000000000010",
+    "object": "operation",
+    "type": "authorise",
+    "status": "approved",
+    "decline_reason": null,
+    "merchant_id": "mer_EXAMPLE00000000000000003",
+    "payment_id": "pay_EXAMPLE00000000000000001",
+    "authorisation_id": null,
+    "refund_id": null,
+    "amount": 4590,
+    "currency": "SGD",
+    "card": { "brand": "visa", "last4": "4242" },
+    "simulator_reference": "sim_EXAMPLE00000000000000020",
+    "authorisation": { "state": "open", "authorised_amount": 4590, "captured_amount": 0, "refunded_amount": 0 },
+    "recorded_at": "2026-11-13T04:31:12Z"
+  }
+}
