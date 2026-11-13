@@ -11,8 +11,9 @@ from apps.audit.models import AuditEvent
 from apps.audit.models import record as audit
 from apps.common.errors import ApiError, invalid, not_found
 from apps.merchants.api import MerchantAPIView
+from apps.payments import settlement
 from apps.payments.idempotency import run_idempotent
-from apps.payments.models import Payment
+from apps.payments.models import Operation, Payment
 from apps.payments.serializers import payment_to_dict
 
 CREATE_FIELDS = ("amount", "currency", "order_reference", "return_url", "customer_email",
@@ -165,3 +166,47 @@ class PaymentDetailView(MerchantAPIView):
             raise not_found()
         return Response(payment_to_dict(payment))
 
+
+
+class _SettlementView(MerchantAPIView):
+    """POST /v1/payments/{id}/capture and /cancel (UC-25, contract section 3).
+
+    200 with the payment when the simulator confirmed it; 202 with `pending_operation` when
+    it did not answer (reconciliation finishes it). Runs non-atomically so the operation is
+    committed before the simulator is called.
+    """
+
+    op_type: str = ""
+
+    def post(self, request, payment_id: str):
+        merchant, api_key = request.user, request.auth
+        key = request.headers.get("Idempotency-Key", "")
+
+        def run(body):
+            actor = settlement.Actor(AuditEvent.ActorType.MERCHANT_API, api_key.public_id,
+                                     request.request_id)
+            operation, created = settlement.start(payment_id, self.op_type, actor,
+                                                  merchant=merchant, body=body,
+                                                  request_key=key)
+            payment, operation = settlement.settle(operation, created, request.request_id)
+            if operation.status == Operation.Status.SUCCEEDED:
+                return Response(payment_to_dict(payment), status=status.HTTP_200_OK)
+            if operation.status in Operation.OPEN_STATUSES:
+                return Response(payment_to_dict(payment), status=status.HTTP_202_ACCEPTED)
+            if operation.status == Operation.Status.NOT_PROCESSED:
+                raise ApiError(409, "operation_not_processed",
+                               "The processor has no record of this request, so nothing "
+                               "changed. Try again with a new Idempotency-Key.")
+            raise ApiError(409, "processor_rejected",
+                           f"The processor refused the {self.op_type}. Nothing changed; "
+                           "check the payment and contact support if it persists.")
+
+        return run_idempotent(request, run, atomic=False)
+
+
+class PaymentCaptureView(_SettlementView):
+    op_type = Operation.Type.CAPTURE
+
+
+class PaymentCancelView(_SettlementView):
+    op_type = Operation.Type.CANCEL

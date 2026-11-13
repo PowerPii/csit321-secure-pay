@@ -9,7 +9,7 @@ from django.utils import timezone
 
 from apps.common.http import ApiError, rfc3339
 from apps.common.ids import new_id
-from apps.ledger.models import post_hold
+from apps.ledger.models import post_capture, post_hold, post_release
 from apps.operations.models import Authorisation, OperationRecord
 from apps.operations.test_cards import Behaviour, brand_for, digits_only, luhn_ok
 
@@ -197,3 +197,94 @@ def status_query(operation_id: str, op_type: str | None) -> OperationRecord:
         except IntegrityError:
             continue  # the operation (or another query) committed first; read it
     raise RuntimeError("could not read or retire the operation")
+
+
+CAPTURE_FIELDS = {"operation_id", "authorisation_id", "amount"}
+CANCEL_FIELDS = {"operation_id", "authorisation_id"}
+
+
+def _parse_object(raw: bytes, fields: set[str]) -> dict:
+    try:
+        body = json.loads(raw or b"")
+    except (ValueError, UnicodeDecodeError):
+        raise _bad("invalid_json", "The request body is not valid JSON.") from None
+    if not isinstance(body, dict):
+        raise _bad("invalid_json", "The request body must be a JSON object.")
+    for name in sorted(fields):
+        if name not in body:
+            raise _bad("missing_field", f"'{name}' is required.", name)
+    for name in body:
+        if name not in fields:
+            raise _bad("invalid_field", f"Unknown field '{name}'.", name)
+    for name in ("operation_id", "authorisation_id"):
+        if not isinstance(body[name], str) or not OPERATION_ID.match(body[name]):
+            raise _bad("invalid_field", f"'{name}' must be op_ + 24 base62 characters.", name)
+    if body["operation_id"] == body["authorisation_id"]:
+        raise _bad("invalid_field", "'operation_id' must be a new ID, not the authorisation's.",
+                   "operation_id")
+    if "amount" in fields and (not _is_int(body["amount"])
+                               or not 1 <= body["amount"] <= 1_000_000):
+        raise _bad("invalid_field", "'amount' must be 1 to 1000000 cents.", "amount")
+    return body
+
+
+def parse_capture(raw: bytes) -> dict:
+    return _parse_object(raw, CAPTURE_FIELDS)
+
+
+def parse_cancel(raw: bytes) -> dict:
+    return _parse_object(raw, CANCEL_FIELDS)
+
+
+def record_settlement(body: dict, op_type: str, request_fingerprint: str) -> OperationRecord:
+    """Record a capture or cancel against an authorisation (SIMULATOR-CONTRACT.md section 4).
+
+    The authorisation row is locked, so a capture and a cancel at the same time cannot both
+    succeed. A rule failure is recorded as a decline (a 200), never an error. Raises Existing
+    if the operation_id was recorded or retired in the meantime.
+    """
+    is_capture = op_type == OperationRecord.Type.CAPTURE
+    try:
+        with transaction.atomic():
+            auth = (Authorisation.objects.select_for_update()
+                    .filter(operation_id=body["authorisation_id"]).first())
+            decline_reason = ""
+            if auth is None:
+                decline_reason = "authorisation_not_found"
+            elif auth.state != Authorisation.State.OPEN:
+                decline_reason = "authorisation_not_open"
+            elif is_capture and body["amount"] > auth.authorised_amount:
+                decline_reason = "capture_exceeds_authorised"
+            approved = not decline_reason
+            amount = body["amount"] if is_capture else (auth.authorised_amount if auth else 0)
+            record = OperationRecord(
+                operation_id=body["operation_id"],
+                type=op_type,
+                status=(OperationRecord.Status.APPROVED if approved
+                        else OperationRecord.Status.DECLINED),
+                decline_reason=decline_reason,
+                merchant_id=auth.merchant_id if auth else None,
+                payment_id=auth.payment_id if auth else None,
+                authorisation_ref=body["authorisation_id"],
+                authorisation=auth,
+                amount=amount,
+                currency="SGD",
+                simulator_reference=new_id("sim"),
+                request_fingerprint=request_fingerprint,
+                recorded_at=timezone.now(),
+            )
+            if approved and is_capture:
+                auth.state = Authorisation.State.CAPTURED
+                auth.captured_amount = body["amount"]
+                auth.save(update_fields=["state", "captured_amount", "updated_at"])
+                post_capture(record.operation_id, auth.operation_id, auth.authorised_amount,
+                             body["amount"])
+            elif approved:
+                auth.state = Authorisation.State.CANCELLED
+                auth.save(update_fields=["state", "updated_at"])
+                post_release(record.operation_id, auth.operation_id, auth.authorised_amount)
+            record.save(force_insert=True)
+    except IntegrityError:
+        check_existing(body["operation_id"], request_fingerprint)
+        raise
+    return record

@@ -80,3 +80,16 @@ def create_payment(*, idempotency_key: str, amount: int, order_reference: str,
 
 def get_payment(payment_id: str) -> Reply:
     return _request("GET", f"/v1/payments/{payment_id}")
+
+
+def capture_payment(payment_id: str, *, idempotency_key: str, amount: int | None = None) -> Reply:
+    """Capture all (amount None) or part of an authorised payment, once (UC-25)."""
+    body = {} if amount is None else {"amount": amount}
+    return _request("POST", f"/v1/payments/{payment_id}/capture", json=body,
+                    headers={"Idempotency-Key": idempotency_key})
+
+
+def cancel_payment(payment_id: str, *, idempotency_key: str) -> Reply:
+    """Void an authorised payment; nothing is charged."""
+    return _request("POST", f"/v1/payments/{payment_id}/cancel", json={},
+                    headers={"Idempotency-Key": idempotency_key})

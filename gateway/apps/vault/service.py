@@ -136,6 +136,6 @@ def discard(token: str) -> None:
 
 
 def purge_expired() -> int:
-    """Delete cards whose checkout ended without a submission. For the worker (sprint 3)."""
+    """Delete cards whose checkout ended without a submission. Run by the worker."""
     deleted, _ = StoredCard.objects.using(DB).filter(expires_at__lte=timezone.now()).delete()
     return deleted

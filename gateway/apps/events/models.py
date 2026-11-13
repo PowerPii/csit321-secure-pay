@@ -1,7 +1,8 @@
 """Transactional outbox for webhook events (API-CONTRACT.md sections 6 and 7, FR-TXN-06/07).
 
 An OutboxEvent is written in the same database transaction as the status change it
-describes. The worker (sprint 3) delivers it; delivery results never change a payment.
+describes. The worker delivers it (apps/events/delivery.py); delivery results never change a
+payment.
 """
 from django.db import models
 from django.db.models import Q
@@ -63,3 +64,29 @@ class OutboxEvent(models.Model):
         if not self.public_id:
             self.public_id = new_id("evt")
         super().save(*args, **kwargs)
+
+
+class WebhookAttempt(models.Model):
+    """One delivery attempt of an event (API-CONTRACT.md section 7 "Recording", FR-TXN-07).
+
+    Stores time, attempt number, HTTP status or error class, and duration. Never the
+    response body.
+    """
+
+    event = models.ForeignKey(OutboxEvent, on_delete=models.CASCADE, related_name="attempts")
+    attempt_number = models.PositiveSmallIntegerField()
+    started_at = models.DateTimeField()
+    duration_ms = models.PositiveIntegerField()
+    http_status = models.PositiveSmallIntegerField(null=True, blank=True)
+    error = models.CharField(max_length=64, blank=True)  # e.g. timeout, blocked_address
+    succeeded = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["event", "attempt_number"]
+        constraints = [
+            models.UniqueConstraint(fields=["event", "attempt_number"],
+                                    name="one_attempt_per_number"),
+        ]
+
+    def __str__(self):
+        return f"{self.event_id} #{self.attempt_number} {self.http_status or self.error}"

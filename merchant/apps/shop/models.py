@@ -91,6 +91,11 @@ class PaymentAttempt(models.Model):
     status = models.CharField(max_length=24, blank=True)  # last signed status seen
     sequence = models.PositiveIntegerField(default=0)  # ignore anything older (section 6)
     checkout_url = models.URLField(max_length=2048, blank=True)
+    # Keys for capture and cancel, saved before the call so a retry after a lost reply
+    # cannot capture twice (API-CONTRACT.md section 5).
+    capture_key = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    cancel_key = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    captured_amount = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

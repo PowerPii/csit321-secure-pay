@@ -106,11 +106,40 @@ def _claim(merchant, key, method, path, fingerprint):
         return record, None
 
 
-def run_idempotent(request, handler):
+def _run_handler(request, handler, body):
+    """Call the handler; map a 4xx ApiError to its reply. 5xx and crashes propagate."""
+    try:
+        response = handler(body)
+    except Exception as exc:  # mapped below or re-raised
+        api_error = to_api_error(exc)
+        if api_error is None or api_error.status_code >= 500:
+            raise
+        response = error_response(api_error, request)
+    if response.status_code >= 500:
+        raise RuntimeError(f"handler returned {response.status_code}")
+    return response
+
+
+def _complete(record, response) -> bytes:
+    rendered = JSONRenderer().render(response.data)
+    record.status = IdempotencyRecord.Status.COMPLETED
+    record.response_status = response.status_code
+    record.response_body = rendered.decode()
+    record.save(update_fields=["status", "response_status", "response_body"])
+    return rendered
+
+
+def run_idempotent(request, handler, *, atomic: bool = True):
     """Run `handler(body)` at most once per merchant + key, replaying its stored reply.
 
     `handler` gets the parsed body and returns a DRF Response, or raises ApiError.
     Returns an HttpResponse with the exact bytes that were (or will be) stored.
+
+    With `atomic=False` the handler manages its own transactions. Capture and cancel need
+    that: their operation row must be committed before the simulator is called. The reply
+    is then stored right after the handler returns; if the process dies in between, the key
+    is freed (or taken over when stale) and the handler must recognise its own earlier work
+    by the key (see apps.payments.settlement.start).
     """
     key = request.headers.get(HEADER)
     if key is None:
@@ -128,24 +157,22 @@ def run_idempotent(request, handler):
         return reply
 
     try:
-        with transaction.atomic():
-            try:
+        if atomic:
+            def in_savepoint(b):
+                # A 4xx raised by the handler rolls back the handler's writes only.
                 with transaction.atomic():
-                    response = handler(body)
-            except Exception as exc:  # mapped below or re-raised
-                api_error = to_api_error(exc)
-                if api_error is None or api_error.status_code >= 500:
-                    raise
-                response = error_response(api_error, request)
-            if response.status_code >= 500:
-                raise RuntimeError(f"handler returned {response.status_code}")
-            rendered = JSONRenderer().render(response.data)
-            record.status = IdempotencyRecord.Status.COMPLETED
-            record.response_status = response.status_code
-            record.response_body = rendered.decode()
-            record.save(update_fields=["status", "response_status", "response_body"])
+                    return handler(b)
+
+            with transaction.atomic():
+                response = _run_handler(request, in_savepoint, body)
+                rendered = _complete(record, response)
+        else:
+            response = _run_handler(request, handler, body)
+            with transaction.atomic():
+                rendered = _complete(record, response)
     except BaseException:
-        # Nothing was committed; free the key so a retry runs again (rule 7).
+        # The handler's writes were rolled back (atomic) or it can recognise them by the key
+        # (non-atomic); free the key so a retry runs again (rule 7).
         IdempotencyRecord.objects.filter(pk=record.pk,
                                          status=IdempotencyRecord.Status.IN_PROGRESS).delete()
         raise

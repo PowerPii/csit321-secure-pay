@@ -63,6 +63,7 @@ def apply_payment(attempt: PaymentAttempt, data: dict, order: Order) -> bool:
             attempt.status = data.get("status") or ""
             attempt.sequence = data.get("sequence", 0)
             attempt.checkout_url = data.get("checkout_url") or ""
+            attempt.captured_amount = data.get("captured_amount") or 0
             attempt.save()
         paid = attempt.status in PaymentAttempt.PAID
         if paid:
@@ -82,3 +83,30 @@ def refresh(attempt: PaymentAttempt) -> None:
         return
     if reply.status == 200:
         apply_payment(attempt, reply.data, attempt.order)
+
+
+class SettleError(Exception):
+    """The gateway refused a capture or cancel; the message is its error code."""
+
+
+def capture(attempt: PaymentAttempt, amount: int | None = None) -> str:
+    """Capture the order's payment (merchant back office, S1). Returns the new status.
+
+    202 means SecurePay is still waiting for the processor; the webhook tells us later.
+    """
+    reply = securepay.capture_payment(attempt.payment_id,
+                                      idempotency_key=str(attempt.capture_key), amount=amount)
+    return _settled(attempt, reply)
+
+
+def cancel(attempt: PaymentAttempt) -> str:
+    reply = securepay.cancel_payment(attempt.payment_id, idempotency_key=str(attempt.cancel_key))
+    return _settled(attempt, reply)
+
+
+def _settled(attempt: PaymentAttempt, reply) -> str:
+    if reply.status in (200, 202):
+        apply_payment(attempt, reply.data, attempt.order)
+        attempt.refresh_from_db()
+        return attempt.status if reply.status == 200 else "pending"
+    raise SettleError(reply.data.get("error", {}).get("code", f"HTTP {reply.status}"))

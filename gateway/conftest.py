@@ -32,6 +32,27 @@ def payment_schema():
 
 
 @pytest.fixture(scope="session")
+def event_schema():
+    """Validate a webhook event payload against contracts/events/<type>.schema.json."""
+    from referencing import Registry, Resource
+
+    docs = {}
+    for folder in ("schemas", "events"):
+        for path in (CONTRACTS / folder).glob("*.json"):
+            doc = json.loads(path.read_text())
+            docs[doc.get("$id", path.name)] = doc
+    registry = Registry().with_resources(
+        (uri, Resource.from_contents(doc)) for uri, doc in docs.items())
+
+    def validate(payload):
+        schema = json.loads((CONTRACTS / "events" / f"{payload['type']}.schema.json")
+                            .read_text())
+        Draft202012Validator(schema, registry=registry).validate(payload)
+
+    return validate
+
+
+@pytest.fixture(scope="session")
 def error_schema():
     return _validator("error.schema.json")
 
@@ -102,6 +123,8 @@ class FakeSimulator:
         self.mode = "normal"
         self.requests = []  # (method, path, json body or None)
         self.records = {}
+        self.auth_state = {}
+        self.settle_mode = "normal"  # capture/cancel: "normal", "hang", "decline"
 
     def record(self, body, status, reason=None):
         number = body["card"]["number"]
@@ -149,7 +172,33 @@ class FakeSimulator:
                 rec = self.record(body, "declined", self.DECLINE.get(number, "card_declined"))
             self.records[body["operation_id"]] = rec
             return self.reply(rec)
+        if request.url.path in ("/sim/capture", "/sim/cancel"):
+            if self.settle_mode == "hang":
+                raise httpx.ReadTimeout("no reply", request=request)
+            return self.reply(self.settle(request.url.path.rsplit("/", 1)[1], body))
         raise AssertionError(f"unexpected call {request.url.path}")
+
+    def settle(self, op_type, body):
+        """Capture or cancel against an authorisation this fake approved."""
+        if body["operation_id"] in self.records:
+            return self.records[body["operation_id"]]
+        auth = self.records.get(body["authorisation_id"])
+        state = self.auth_state.get(body["authorisation_id"], "open")
+        reason = None
+        if auth is None or auth["status"] != "approved":
+            reason = "authorisation_not_found"
+        elif state != "open" or self.settle_mode == "decline":
+            reason = "authorisation_not_open"
+        amount = body.get("amount", auth["amount"] if auth else 0)
+        if reason is None:
+            self.auth_state[body["authorisation_id"]] = (
+                "captured" if op_type == "capture" else "cancelled")
+        rec = {**(auth or {}), "operation_id": body["operation_id"], "type": op_type,
+               "status": "declined" if reason else "approved", "decline_reason": reason,
+               "authorisation_id": body["authorisation_id"], "amount": amount, "card": None,
+               "simulator_reference": "sim_" + "T" * 24}
+        self.records[body["operation_id"]] = rec
+        return rec
 
 
 @pytest.fixture

@@ -185,6 +185,11 @@ class Operation(models.Model):
     simulator_reference = models.CharField(max_length=32, blank=True)
     evidence_body = models.TextField(blank=True)
     evidence_signature = models.CharField(max_length=128, blank=True)
+    # The merchant's Idempotency-Key for a capture or cancel, so a retry of a request whose
+    # reply was lost finds this operation instead of making a second one.
+    request_key = models.CharField(max_length=255, blank=True)
+    # For cancel: why (merchant_cancelled, or authorisation_expired for the 7-day job).
+    reason = models.CharField(max_length=32, blank=True)
     reconciliation_checks = models.PositiveSmallIntegerField(default=0)
     last_checked_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

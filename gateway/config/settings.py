@@ -182,6 +182,9 @@ GATEWAY_RULES = {
         60, 300, 900, 1800, 3600, 7200, 14400, 28800, 43200, 43200, 43200, 43200,
     ),
     "RECONCILIATION_MAX_CHECKS": 6,
+    # Status checks on an unresolved operation, after the timeout (+/-10% jitter); after the
+    # last one it is escalated (SIMULATOR-CONTRACT.md S2, confirmed by Fifa 13 Nov 2026).
+    "RECONCILIATION_DELAYS_SECONDS": (30, 60, 120, 300, 600, 1200),
     # Simulator call timeouts (SIMULATOR-CONTRACT.md S1, confirmed by Fifa 13 Nov 2026):
     # no reply in time -> the payment is Unresolved and reconciliation asks about the same ID.
     "SIMULATOR_CONNECT_TIMEOUT_SECONDS": 2,
@@ -199,6 +202,18 @@ SIMULATOR_SIGNING_SECRET = secret(
 # CA bundle for the simulator's TLS certificate (Caddy's local CA in the Compose stack);
 # empty means the system trust store.
 SIMULATOR_CA_BUNDLE = env("SIMULATOR_CA_BUNDLE", "")
+# Webhooks go only to public addresses (API-CONTRACT.md section 7). In the local stack the
+# shop is reached through Caddy on a private Docker network, so its host name is allowed
+# here. Leave empty in any real deployment.
+WEBHOOK_ALLOWED_PRIVATE_HOSTS = frozenset(
+    h.strip().lower() for h in env("WEBHOOK_ALLOWED_PRIVATE_HOSTS", "").split(",") if h.strip()
+)
+# CA bundle for merchants' TLS certificates (Caddy's local CA locally); empty = system store.
+WEBHOOK_CA_BUNDLE = env("WEBHOOK_CA_BUNDLE", "")
+# Worker loop: events claimed per pass, and how long a claimed event is held before another
+# worker may take it (covers a worker that dies mid-send).
+WORKER_BATCH_SIZE = int(env("WORKER_BATCH_SIZE", "50"))
+WEBHOOK_LEASE_SECONDS = 60
 # Public address of the hosted checkout; the payment's checkout_url is this + "/cs_...".
 CHECKOUT_BASE_URL = env("CHECKOUT_BASE_URL", "https://localhost:8443/pay")
 # Fernet key for secrets the gateway must read back (merchant signing secrets).
