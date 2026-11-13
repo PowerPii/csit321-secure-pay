@@ -37,6 +37,8 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "drf_spectacular",
+    "django_otp",
+    "django_otp.plugins.otp_totp",
     "apps.accounts",
     "apps.merchants",
     "apps.checkout",
@@ -57,6 +59,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django_otp.middleware.OTPMiddleware",  # request.user.is_verified() after the TOTP step
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -121,6 +124,8 @@ LANGUAGE_CODE = "en-gb"
 TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
+# Dates in the staff dashboard's filters and tiles ("Blocked today") are Singapore dates.
+DASHBOARD_TIME_ZONE = "Asia/Singapore"
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
@@ -131,6 +136,15 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG
 SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Strict"
+# Staff dashboard sessions end after 15 idle minutes (FR-ACC-10); every request extends them.
+SESSION_COOKIE_AGE = 15 * 60
+SESSION_SAVE_EVERY_REQUEST = True
+
+# Staff two-step sign-in (FR-ACC-14). Our own lockout (STAFF_LOCKOUT_*) counts wrong
+# passwords and wrong codes together, so django-otp's per-device back-off is switched off.
+OTP_TOTP_ISSUER = "SecurePay"
+OTP_TOTP_THROTTLE_FACTOR = 0
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [],
@@ -175,8 +189,12 @@ GATEWAY_RULES = {
     "SCREENING_TARGET_P95_MS": 200,  # NFR-PER-02, checked by `manage.py benchmark_screening`
     # FR-FRD-04: no decision within 500 ms (or an error) -> Blocked, reason screening_unavailable
     "SCREENING_TIMEOUT_MS": 500,
+    # Staff sign-in (FR-ACC-15): 5 failed sign-ins (wrong password or wrong TOTP code) lock the
+    # account for 15 minutes and email the account holder.
     "STAFF_LOCKOUT_FAILURES": 5,
     "STAFF_LOCKOUT_MINUTES": 15,
+    # After a correct password, the TOTP code must follow within this time.
+    "STAFF_TOTP_STEP_MINUTES": 5,
     "WEBHOOK_SIGNATURE_TOLERANCE_SECONDS": 300,
     # Webhook delivery (contract section 7, confirmed 13 Nov 2026): retry for 72 h from the first
     # failure with these delays (+/-10% jitter), then a final attempt at 72 h; then undelivered.

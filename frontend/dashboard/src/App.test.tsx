@@ -1,0 +1,189 @@
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import App from "./App";
+
+type Reply = (init?: RequestInit) => Response;
+const json = (data: unknown, status = 200) =>
+  new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
+const unauthorised = () => json({ error: { code: "not_signed_in", message: "Sign in to the dashboard." } }, 401);
+
+function mockFetch(routes: Record<string, Reply | Reply[]>) {
+  const calls: { url: string; method: string; body: unknown }[] = [];
+  const used: Record<string, number> = {};
+  vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
+    const method = init?.method ?? "GET";
+    calls.push({ url, method, body: init?.body ? JSON.parse(String(init.body)) : null });
+    const path = url.replace(/^\/internal/, "").split("?")[0];
+    const key = `${method} ${path}`;
+    const reply = routes[key];
+    if (!reply) throw new Error(`unexpected ${key}`);
+    if (Array.isArray(reply)) {
+      const i = Math.min(used[key] ?? 0, reply.length - 1);
+      used[key] = (used[key] ?? 0) + 1;
+      return reply[i](init);
+    }
+    return reply(init);
+  }));
+  return calls;
+}
+
+const operator = {
+  id: "stf_1", email: "ops@demoshop.sg", name: "Aisha Rahman", role: "merchant_operator",
+  role_label: "Merchant operator", merchant: { id: "mer_1", name: "Demo Shop" },
+};
+const analyst = { ...operator, id: "stf_2", name: "Daniel Lim", role: "fraud_analyst", role_label: "Fraud analyst", merchant: null };
+
+const row = {
+  id: "pay_1", reference: "SP-7Q2K-91XD", order_reference: "ORD-1042", merchant: { id: "mer_1", name: "Demo Shop" },
+  amount: 8990, currency: "SGD", status: "authorised", refunded_amount: 0, card: { brand: "visa", last4: "3456" },
+  risk: { decision: "verify", verification: "passed" }, customer: "j•••@example.com", outcome_reason: null,
+  created_at: "2026-11-02T06:52:00Z",
+};
+const list = {
+  count: 1, page: 1, page_size: 20, data: [row],
+  summary: { awaiting_capture: 4, unresolved: 1, blocked_today: 3, refunded_this_month: 41200, escalated: null },
+};
+const screening = {
+  id: "scr_1", outcome: "verify", score: 0.47, reasons: ["high_amount"], features: { card_attempts_10m: 0 },
+  model_version: "stub-0", rules_version: "rules-0.1", policy_version: "policy-0.1", feature_schema_version: "fs-0.1",
+  thresholds: { verify: 0.5, block: 0.9 }, elapsed_ms: 12, error: null, occurred_at: "2026-11-02T06:52:00Z",
+};
+function detail(over: Record<string, unknown> = {}) {
+  return {
+    ...row, line_items: null, captured_amount: 0, refundable_amount: 0, refund_reserved_amount: 0,
+    card: { token: "tok_1", brand: "visa", last4: "3456" }, outcome: null, pending_operation: null,
+    authorisation_expires_at: "2026-11-09T06:52:00Z", authorised_at: "2026-11-02T06:52:05Z", captured_at: null,
+    cancelled_at: null, description: null, screening, screening_decision: "verify", verification: "passed",
+    operations: [], refunds: [], webhooks: [{ id: "evt_1", type: "payment.authorised", sequence: 2, status: "delivered",
+      attempts: 1, last_http_status: 200, last_error: null, next_attempt_at: null, delivered_at: "2026-11-02T06:52:06Z" }],
+    timeline: [{ at: "2026-11-02T06:52:00Z", action: "payment.created", actor_type: "merchant_api", actor: "key_abcdefgh",
+      target_type: "payment", target_id: "pay_1", details: {} }],
+    actions: { capture: true, cancel: true, refund: false, recheck: false, review: false },
+    ...over,
+  };
+}
+
+beforeEach(() => {
+  document.cookie = "csrftoken=tok123";
+});
+
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
+
+function at(path: string) {
+  window.history.pushState({}, "", `${import.meta.env.BASE_URL.replace(/\/$/, "")}${path}`);
+  render(<App />);
+}
+
+describe("dashboard", () => {
+  it("signs in with password then TOTP (D1, D2) and lands on payments (D3)", async () => {
+    const calls = mockFetch({
+      "GET /me": [unauthorised, unauthorised, () => json(operator)],
+      "POST /auth/login": () => json({ next: "totp", email: "ops@demoshop.sg", setup: null }),
+      "POST /auth/totp": () => json(operator),
+      "GET /payments": () => json(list),
+    });
+    at("/payments");
+    expect(await screen.findByText("Sign in to the dashboard")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText(/Email/), { target: { value: "ops@demoshop.sg" } });
+    fireEvent.change(screen.getByLabelText(/Password/), { target: { value: "correct horse" } });
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+    expect(await screen.findByText("Two-step verification")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Digit 1"), { target: { value: "279013" } });
+    fireEvent.click(screen.getByRole("button", { name: "Verify" }));
+    expect(await screen.findByText("SP-7Q2K-91XD")).toBeTruthy();
+    expect(screen.getByText("Verify · passed")).toBeTruthy();
+    expect(screen.getByText("S$ 412.00")).toBeTruthy();
+    expect(screen.getByText("Merchant: Demo Shop")).toBeTruthy();
+    const login = calls.find((c) => c.url.endsWith("/auth/login"))!;
+    expect(login.body).toEqual({ email: "ops@demoshop.sg", password: "correct horse" });
+    expect(calls.find((c) => c.url.endsWith("/auth/totp") && c.method === "POST")!.body).toEqual({ code: "279013" });
+  });
+
+  it("shows a lockout message from the server", async () => {
+    mockFetch({
+      "GET /me": unauthorised,
+      "POST /auth/login": () => json({ error: { code: "account_locked", message: "This account is locked after too many failed sign-ins. Try again in 15 minutes." } }, 403),
+    });
+    at("/login");
+    fireEvent.change(await screen.findByLabelText(/Email/), { target: { value: "a@b.sg" } });
+    fireEvent.change(screen.getByLabelText(/Password/), { target: { value: "x" } });
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+    expect((await screen.findByRole("alert")).textContent).toMatch(/locked/);
+  });
+
+  it("lets an operator capture from the payment detail (D4)", async () => {
+    const calls = mockFetch({
+      "GET /me": () => json(operator),
+      "GET /payments/pay_1": () => json(detail()),
+      "POST /payments/pay_1/capture": () => json(detail({ status: "captured", captured_amount: 8990,
+        actions: { capture: false, cancel: false, refund: true, recheck: false, review: false } })),
+      "GET /payments": () => json(list),
+    });
+    at("/payments/pay_1");
+    expect(await screen.findByText("Fraud decision")).toBeTruthy();
+    expect(screen.getByText("0.47")).toBeTruthy();
+    expect(screen.getByText("Amount over S$ 500")).toBeTruthy();
+    expect(screen.getByText("Created by merchant API")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Capture S$ 89.90" }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Capture S$ 89.90" }));
+    expect(await screen.findByRole("button", { name: "Refund" })).toBeTruthy();
+    expect(calls.some((c) => c.method === "POST" && c.url.endsWith("/capture"))).toBe(true);
+  });
+
+  it("refunds part of a captured payment (D5) and checks the amount", async () => {
+    const captured = detail({ status: "captured", captured_amount: 12900, refundable_amount: 10000, refunded_amount: 2900,
+      actions: { capture: false, cancel: false, refund: true, recheck: false, review: false } });
+    const calls = mockFetch({
+      "GET /me": () => json(operator),
+      "GET /payments/pay_1": () => json(captured),
+      "POST /payments/pay_1/refunds": () => json({ id: "rfd_1", reference: "RF-AAAA-BBBB", amount: 3000, status: "completed",
+        reason: "One item", failure_reason: null, created_at: "2026-11-02T07:00:00Z", completed_at: "2026-11-02T07:00:01Z" }, 201),
+    });
+    at("/payments/pay_1/refund");
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText("S$ 100.00")).toBeTruthy();
+    const amount = within(dialog).getByLabelText(/Amount/);
+    fireEvent.change(amount, { target: { value: "101" } });
+    expect((within(dialog).getByRole("button", { name: /^Refund/ }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.change(amount, { target: { value: "30" } });
+    fireEvent.change(within(dialog).getByLabelText(/Reason/), { target: { value: "One item" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Refund S$ 30.00" }));
+    expect(await within(dialog).findByText(/Refunded S\$ 30.00/)).toBeTruthy();
+    expect(calls.find((c) => c.method === "POST")!.body).toEqual({ amount: 3000, reason: "One item" });
+  });
+
+  it("hides capture from an analyst and records a finding (D6, D6b)", async () => {
+    const caseRow = {
+      id: "scr_9", payment: { id: "pay_9", reference: "SP-5LKD-2ZZ8", amount: 98000, currency: "SGD", status: "blocked" },
+      merchant: { id: "mer_1", name: "Demo Shop" }, score: 0.93, outcome: "block", decision: "blocked",
+      reasons: ["blocklisted_card"], occurred_at: "2026-11-02T04:47:00Z",
+      review: { status: "open", assigned_to: null, finding: null, notes: "", reviewed_by: null, reviewed_at: null },
+    };
+    const caseDetail = { ...caseRow, payment: { ...caseRow.payment, order_reference: "ORD-1040", card: null, customer: null,
+      outcome_reason: "fraud_rule", created_at: "2026-11-02T04:47:00Z" }, screening: { ...screening, outcome: "block", score: 0.93 },
+      linked_activity: { window_hours: 24, card: { attempts: 7, merchants: 3, blocked: 2 }, email: null, ip: { attempts: 11, merchants: 1, blocked: 0 } },
+      related: [] };
+    const calls = mockFetch({
+      "GET /me": () => json(analyst),
+      "GET /reviews": () => json({ count: 1, page: 1, page_size: 25, counts: { open: 1, mine: 0, closed: 0 }, data: [caseRow] }),
+      "GET /reviews/scr_9": () => json(caseDetail),
+      "POST /reviews/scr_9": () => json({ ...caseDetail, review: { ...caseDetail.review, status: "closed",
+        finding: "confirmed_fraud", reviewed_by: "Daniel Lim", reviewed_at: "2026-11-02T05:00:00Z" } }),
+    });
+    at("/reviews/scr_9");
+    expect(await screen.findByText("Case · SP-5LKD-2ZZ8")).toBeTruthy();
+    expect(screen.getByText("7 other attempts · 3 merchants · 2 blocked")).toBeTruthy();
+    expect(screen.queryByText(/Payments/, { selector: "button" })).toBeNull();
+    fireEvent.click(screen.getByRole("radio", { name: "Confirmed fraud" }));
+    fireEvent.change(screen.getByLabelText("Notes"), { target: { value: "Card tested on several stores" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save finding" }));
+    expect(await screen.findByText(/recorded by Daniel Lim/)).toBeTruthy();
+    expect(calls.find((c) => c.method === "POST")!.body).toEqual({
+      action: "save", finding: "confirmed_fraud", notes: "Card tested on several stores" });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Reopen case" })).toBeTruthy());
+  });
+});

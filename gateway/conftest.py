@@ -273,3 +273,55 @@ def fake_sim(settings, monkeypatch):
     sim = FakeSimulator(settings.SIMULATOR_SIGNING_SECRET)
     monkeypatch.setattr(processor, "TRANSPORT", httpx.MockTransport(sim))
     return sim
+
+
+# --- staff dashboard ------------------------------------------------------------------------
+
+STAFF_PASSWORD = "correct horse battery staple"
+
+
+def make_staff_user(email, role, password=STAFF_PASSWORD, merchant=None, with_device=True):
+    """A staff account; with a confirmed authenticator device unless with_device=False."""
+    from django.contrib.auth import get_user_model
+    from django_otp.plugins.otp_totp.models import TOTPDevice
+
+    from apps.accounts.models import StaffAccount
+
+    user = get_user_model().objects.create_user(username=email, email=email,
+                                                password=password, first_name="Test")
+    account = StaffAccount.objects.create(user=user, role=role, merchant=merchant)
+    if with_device:
+        TOTPDevice.objects.create(user=user, name="Authenticator app", confirmed=True)
+    return account
+
+
+def current_totp(account, device=None):
+    from django_otp.oath import TOTP
+    from django_otp.plugins.otp_totp.models import TOTPDevice
+
+    device = device or TOTPDevice.objects.get(user=account.user, confirmed=True)
+    return f"{TOTP(device.bin_key, device.step, device.t0, device.digits).token():06d}"
+
+
+@pytest.fixture
+def staff_client(db):
+    """staff_client(role, merchant=None) -> a signed-in django.test.Client (.account set)."""
+    from django.test import Client
+
+    counter = iter(range(1000))
+
+    def make(role, merchant=None):
+        account = make_staff_user(f"{role}{next(counter)}@securepay.sg", role,
+                                  merchant=merchant)
+        client = Client()
+        r = client.post("/internal/auth/login", {"email": account.user.email,
+                                                 "password": STAFF_PASSWORD},
+                        content_type="application/json")
+        assert r.status_code == 200, r.content
+        r = client.post("/internal/auth/totp", {"code": current_totp(account)},
+                        content_type="application/json")
+        assert r.status_code == 200, r.content
+        client.account = account
+        return client
+
+    return make

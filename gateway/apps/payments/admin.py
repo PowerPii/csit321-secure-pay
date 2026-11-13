@@ -64,7 +64,7 @@ class EscalatedFilter(admin.SimpleListFilter):
 
 @admin.register(Operation)
 class OperationAdmin(admin.ModelAdmin):
-    """Unresolved and escalated operations (UC-43) until the sprint 6 dashboard. Read-only:
+    """Unresolved and escalated operations (UC-43); the dashboard has the same view. Read-only:
     the only action is a re-check with the simulator (FR-TXN-13); nobody sets an outcome."""
 
     list_display = ("public_id", "type", "status", "payment", "amount",

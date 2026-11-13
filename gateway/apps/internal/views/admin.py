@@ -1,0 +1,202 @@
+"""Administrator pages: merchant approval (FR-ADM-01, FR-MER-03, FR-ADM-13) and the
+read-only audit log (FR-ADM-10, FR-ADM-11).
+
+Merchants are created by an administrator as pending (self-registration is a later item).
+Approval issues the API key and a fresh signing secret and returns both once; only the key's
+digest and the encrypted secret are kept.
+"""
+from datetime import datetime, time, timedelta
+
+from django.core.exceptions import ValidationError
+from django.core.validators import URLValidator
+from django.db import transaction
+from rest_framework import status
+from rest_framework.response import Response
+
+from apps.audit.models import AuditEvent
+from apps.audit.models import record as audit
+from apps.common.errors import ApiError, invalid, not_found
+from apps.common.timefmt import rfc3339
+from apps.internal.access import ADMIN, StaffAPIView
+from apps.internal.views.payments import _date, _int, local_zone
+from apps.merchants.models import ApiKey, Merchant
+
+
+def merchant_to_dict(merchant: Merchant) -> dict:
+    key = next((k for k in merchant.api_keys.all() if k.revoked_at is None), None)
+    return {
+        "id": merchant.public_id,
+        "name": merchant.name,
+        "status": merchant.status,
+        "webhook_url": merchant.webhook_url or None,
+        "webhook_url_approved": merchant.webhook_url_approved,
+        "max_amount_cents": merchant.max_amount_cents,
+        "api_key": ({"id": key.public_id, "hint": key.hint + "…",
+                     "last_used_at": rfc3339(key.last_used_at)} if key else None),
+        "created_at": rfc3339(merchant.created_at),
+    }
+
+
+def _webhook_url(value) -> str:
+    if value in (None, ""):
+        return ""
+    if not isinstance(value, str) or len(value) > 2048:
+        raise invalid("invalid_field", "The webhook URL is too long.", param="webhook_url")
+    try:
+        URLValidator(schemes=["https"])(value)
+    except ValidationError:
+        raise invalid("invalid_field", "The webhook URL must be an https:// address.",
+                      param="webhook_url") from None
+    return value
+
+
+def _audit(view, action, merchant, **details):
+    audit(action, actor_type=AuditEvent.ActorType.STAFF, actor_id=view.staff.public_id,
+          merchant_id=merchant.public_id, target_type="merchant",
+          target_id=merchant.public_id, request_id=view.request.request_id, details=details)
+
+
+class MerchantListView(StaffAPIView):
+    roles = ADMIN
+
+    def get(self, request):
+        merchants = Merchant.objects.prefetch_related("api_keys").order_by("-created_at")
+        return Response({"object": "list", "data": [merchant_to_dict(m) for m in merchants]})
+
+    def post(self, request):
+        body = request.data if isinstance(request.data, dict) else {}
+        name = body.get("name")
+        if not isinstance(name, str) or not 1 <= len(name.strip()) <= 120:
+            raise invalid("invalid_field", "Enter a business name of up to 120 characters.",
+                          param="name")
+        limit = body.get("max_amount_cents")
+        if limit is not None and (not isinstance(limit, int) or isinstance(limit, bool)
+                                  or not 50 <= limit <= 1_000_000):
+            raise invalid("invalid_field", "The limit must be 50 to 1000000 cents.",
+                          param="max_amount_cents")
+        merchant = Merchant(name=name.strip(), webhook_url=_webhook_url(body.get("webhook_url")),
+                            max_amount_cents=limit)
+        merchant.save()
+        _audit(self, "merchant.created", merchant)
+        return Response(merchant_to_dict(merchant), status=status.HTTP_201_CREATED)
+
+
+def _get(merchant_id: str, lock=False) -> Merchant:
+    merchants = Merchant.objects.select_for_update() if lock else Merchant.objects
+    merchant = merchants.filter(public_id=merchant_id).first()
+    if merchant is None:
+        raise not_found()
+    return merchant
+
+
+class MerchantApproveView(StaffAPIView):
+    """Pending -> active. Returns the API key and signing secret once."""
+
+    roles = ADMIN
+
+    def post(self, request, merchant_id: str):
+        with transaction.atomic():
+            merchant = _get(merchant_id, lock=True)
+            if merchant.status != Merchant.Status.PENDING:
+                raise ApiError(409, "merchant_not_pending",
+                               f"Only a pending merchant can be approved; this one is "
+                               f"{merchant.status}.")
+            merchant.status = Merchant.Status.ACTIVE
+            secret = merchant.rotate_signing_secret()
+            merchant.save()
+            api_key, plaintext = ApiKey.issue(merchant)
+            _audit(self, "merchant.approved", merchant)
+            _audit(self, "api_key.issued", merchant, api_key_id=api_key.public_id)
+        data = merchant_to_dict(Merchant.objects.prefetch_related("api_keys").get(pk=merchant.pk))
+        data["credentials"] = {"api_key": plaintext, "signing_secret": secret}
+        return Response(data)
+
+
+class MerchantRejectView(StaffAPIView):
+    roles = ADMIN
+
+    def post(self, request, merchant_id: str):
+        reason = (request.data or {}).get("reason") if isinstance(request.data, dict) else None
+        if not isinstance(reason, str) or not 1 <= len(reason.strip()) <= 200:
+            raise invalid("missing_field", "Give a reason of up to 200 characters.",
+                          param="reason")
+        with transaction.atomic():
+            merchant = _get(merchant_id, lock=True)
+            if merchant.status != Merchant.Status.PENDING:
+                raise ApiError(409, "merchant_not_pending",
+                               f"Only a pending merchant can be rejected; this one is "
+                               f"{merchant.status}.")
+            merchant.status = Merchant.Status.REJECTED
+            merchant.save(update_fields=["status", "updated_at"])
+            _audit(self, "merchant.rejected", merchant, reason=reason.strip())
+        return Response(merchant_to_dict(merchant))
+
+
+class MerchantWebhookView(StaffAPIView):
+    """POST {webhook_url?, approved}: set or approve the webhook address (FR-ADM-13). Changing
+    the address withdraws the approval until an administrator approves the new one."""
+
+    roles = ADMIN
+
+    def post(self, request, merchant_id: str):
+        body = request.data if isinstance(request.data, dict) else {}
+        approved = body.get("approved")
+        if not isinstance(approved, bool):
+            raise invalid("invalid_field", "'approved' must be true or false.",
+                          param="approved")
+        with transaction.atomic():
+            merchant = _get(merchant_id, lock=True)
+            if "webhook_url" in body:
+                url = _webhook_url(body.get("webhook_url"))
+                if url != merchant.webhook_url:
+                    merchant.webhook_url = url
+            if approved and not merchant.webhook_url:
+                raise invalid("missing_field", "There is no webhook URL to approve.",
+                              param="webhook_url")
+            merchant.webhook_url_approved = approved
+            merchant.save(update_fields=["webhook_url", "webhook_url_approved", "updated_at"])
+            _audit(self, "merchant.webhook_approved" if approved else
+                   "merchant.webhook_unapproved", merchant, webhook_url=merchant.webhook_url)
+        return Response(merchant_to_dict(
+            Merchant.objects.prefetch_related("api_keys").get(pk=merchant.pk)))
+
+
+class AuditListView(StaffAPIView):
+    """GET ?action=&actor=&target=&merchant=&from=&to=&page=. Read-only: there is no route
+    that edits or deletes an entry, and the table refuses it anyway (migration 0002)."""
+
+    roles = ADMIN
+
+    def get(self, request):
+        params = request.query_params
+        events = AuditEvent.objects.all()
+        if params.get("action"):
+            events = events.filter(action__startswith=params["action"][:64])
+        if params.get("actor"):
+            events = events.filter(actor_id=params["actor"][:64])
+        if params.get("actor_type"):
+            events = events.filter(actor_type=params["actor_type"][:16])
+        if params.get("target"):
+            events = events.filter(target_id=params["target"][:32])
+        if params.get("merchant"):
+            events = events.filter(merchant_id=params["merchant"][:32])
+        zone = local_zone()
+        if params.get("from"):
+            events = events.filter(occurred_at__gte=datetime.combine(
+                _date(params["from"], "from"), time.min, zone))
+        if params.get("to"):
+            events = events.filter(occurred_at__lt=datetime.combine(
+                _date(params["to"], "to") + timedelta(days=1), time.min, zone))
+        page = _int(params.get("page"), "page", 1, 1, 100_000)
+        size = _int(params.get("page_size"), "page_size", 50, 1, 200)
+        count = events.count()
+        rows = events.order_by("-occurred_at", "-id")[(page - 1) * size: page * size]
+        return Response({"object": "list", "count": count, "page": page, "page_size": size,
+                         "data": [{
+                             "id": e.pk, "at": rfc3339(e.occurred_at), "action": e.action,
+                             "actor_type": e.actor_type, "actor_id": e.actor_id or None,
+                             "merchant_id": e.merchant_id or None,
+                             "target_type": e.target_type or None,
+                             "target_id": e.target_id or None,
+                             "request_id": e.request_id or None, "details": e.details,
+                         } for e in rows]})

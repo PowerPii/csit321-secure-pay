@@ -15,10 +15,17 @@ gateway.localhost {
 		header Referrer-Policy no-referrer
 		header Cache-Control no-store
 	}
-	handle_path /dashboard/* {
+	# Staff dashboard (frontend/dashboard, built with base /dashboard/), calling /internal/* on
+	# the same origin with the session cookie. MUI injects its styles at run time, hence
+	# 'unsafe-inline' for styles only; the TOTP setup QR code is a data: image.
+	redir /dashboard /dashboard/ 308
+	handle /dashboard/* {
 		root * /srv/dashboard
+		uri strip_prefix /dashboard
 		try_files {path} /index.html
 		file_server
+		header Content-Security-Policy "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; form-action 'self'; base-uri 'none'"
+		header Cache-Control no-store
 	}
 	handle {
 		reverse_proxy gateway:8000
