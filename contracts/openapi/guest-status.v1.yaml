@@ -5,7 +5,10 @@ info:
   summary: Browser API behind screen C9. A guest checks one payment with its reference, checkout email and an emailed one-time code.
   description: |
     Implements FR-ACC-05, FR-ACC-06 and UC-08, and closes open point 1 in docs/MVP-SCOPE.md.
-    Used only by `frontend/checkout` (same origin as the gateway, CSRF token required on POST).
+    Used only by `frontend/checkout` (same origin as the gateway). Cross-site requests are
+    stopped without a CSRF token: every POST takes `application/json` only (a cross-site form
+    cannot send it without a CORS preflight, which the gateway never allows), and the session
+    cookie is SameSite=Strict (confirmed by Fifa 13 November 2026), as for the hosted checkout.
     Flow and rules are in `contracts/API-CONTRACT.md` section 8.
 
     The receipt link (`/guest/status?ref=SP-XXXX-XXXX`) only pre-fills the reference. It is not
