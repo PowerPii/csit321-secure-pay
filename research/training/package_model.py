@@ -20,13 +20,9 @@ from pathlib import Path
 import joblib
 import sklearn
 
-# Must equal gateway/apps/risk/features.py (FEATURE_SCHEMA_VERSION, FEATURE_NAMES).
-FEATURE_SCHEMA_VERSION = "fs-0.1"
-FEATURE_NAMES = (
-    "amount_cents", "card_attempts_10m", "card_attempts_1h", "card_attempts_24h",
-    "card_blocked_24h", "card_distinct_emails_24h", "card_allowed_30d", "email_attempts_24h",
-    "email_distinct_cards_24h", "ip_attempts_1h", "ip_distinct_cards_1h",
-)
+# The replay in research/features/gateway_schema.py mirrors gateway/apps/risk/features.py;
+# the gateway's parity test keeps the two equal.
+from research.features.gateway_schema import FEATURE_NAMES, FEATURE_SCHEMA_VERSION
 
 ARTIFACTS = Path(__file__).resolve().parent.parent / "artifacts"
 

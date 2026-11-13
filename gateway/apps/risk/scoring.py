@@ -24,7 +24,7 @@ from typing import Any, Protocol
 
 from django.conf import settings
 
-from apps.risk.features import FEATURE_NAMES, FEATURE_SCHEMA_VERSION
+from apps.risk.features import COMPATIBLE_SCHEMAS, FEATURE_NAMES, FEATURE_SCHEMA_VERSION
 
 logger = logging.getLogger(__name__)
 
@@ -116,9 +116,9 @@ def load_artifact(folder: Path, expected_sha256: str = "") -> ArtifactModel:
     for key in ("version", "sha256", "sklearn_version", "feature_schema_version", "features"):
         if key not in manifest:
             raise ArtifactError(f"manifest.json has no '{key}'")
-    if manifest["feature_schema_version"] != FEATURE_SCHEMA_VERSION:
+    if manifest["feature_schema_version"] not in COMPATIBLE_SCHEMAS:
         raise ArtifactError(f"trained on feature schema {manifest['feature_schema_version']}, "
-                            f"gateway builds {FEATURE_SCHEMA_VERSION}")
+                            f"gateway builds {FEATURE_SCHEMA_VERSION} (accepts {', '.join(COMPATIBLE_SCHEMAS)})")
     unknown = sorted(set(manifest["features"]) - set(FEATURE_NAMES))
     if unknown:
         raise ArtifactError(f"needs features the gateway does not build: {unknown}")

@@ -260,6 +260,11 @@ CARD_FINGERPRINT_KEY = secret("card_fingerprint_key", "dev-only-fingerprint-key"
 RISK_MODEL_DIR = env("RISK_MODEL_DIR", str(BASE_DIR / "apps" / "risk" / "model_artifacts"))
 RISK_MODEL_VERSION = env("RISK_MODEL_VERSION", "")
 RISK_MODEL_SHA256 = env("RISK_MODEL_SHA256", "")  # optional pin, checked as well as the manifest
+# The model scores one row per payment. OpenMP threads per call only add start-up cost and,
+# with several payments at once, oversubscribe the CPUs: in `manage.py loadtest_screening` at
+# 20 req/s the p95 went from 23 ms to 66 ms. Set here, before scikit-learn's OpenMP runtime
+# loads (it reads the variable once, and per-thread limits do not reach request threads).
+os.environ.setdefault("OMP_NUM_THREADS", "1")
 # DEBUG only: "error" or "slow" makes every screening unavailable (outage test, NFR-AVA-04).
 RISK_SIMULATE_OUTAGE = env("RISK_SIMULATE_OUTAGE", "")
 # How many reverse proxies (Caddy) sit in front of the gateway; the client IP used for

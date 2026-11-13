@@ -24,6 +24,7 @@ from apps.merchants.models import Merchant
 from apps.payments.models import Payment
 from apps.risk import hashing
 from apps.risk.models import ScreeningEvent
+from apps.risk.scoring import active_model
 from apps.risk.screening import screen_payment
 
 
@@ -51,6 +52,7 @@ class Command(BaseCommand):
         emails = [f"customer{i}@example.com" for i in range(max(50, payments // 3))]
         ips = [f"198.51.100.{i % 250 + 1}" for i in range(max(20, payments // 10))]
         timings, outcomes = [], {}
+        model = active_model()  # load before timing, as the gateway does at start-up (wsgi.py)
         try:
             with transaction.atomic():
                 merchant = Merchant(name="Benchmark (rolled back)", status=Merchant.Status.ACTIVE)
@@ -74,7 +76,7 @@ class Command(BaseCommand):
         budget = settings.GATEWAY_RULES["SCREENING_TIMEOUT_MS"]
         p95 = pct(timings, 95)
         self.stdout.write(
-            f"{len(timings)} screenings over {history} earlier events\n"
+            f"model {model.version}: {len(timings)} screenings over {history} earlier events\n"
             f"  mean {statistics.mean(timings):.1f} ms   p50 {pct(timings, 50):.1f} ms   "
             f"p95 {p95:.1f} ms   p99 {pct(timings, 99):.1f} ms   max {max(timings):.1f} ms\n"
             f"  over the {budget} ms budget: {sum(t > budget for t in timings)}\n"

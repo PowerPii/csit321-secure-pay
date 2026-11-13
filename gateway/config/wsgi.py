@@ -14,3 +14,9 @@ from django.core.wsgi import get_wsgi_application
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 
 application = get_wsgi_application()
+
+# Load the fraud model now, not inside the first customer's payment: joblib and scikit-learn
+# take about a second to load, which the first screening would otherwise wait for.
+from apps.risk.scoring import active_model
+
+active_model()

@@ -114,7 +114,7 @@ export const FINDING_LABELS: Record<string, string> = {
 };
 
 export const FEATURE_LABELS: Record<string, string> = {
-  amount_cents: "Amount (cents)",
+  amount_cents: "Amount",
   card_attempts_10m: "Card attempts, 10 min",
   card_attempts_1h: "Card attempts, 1 h",
   card_attempts_24h: "Card attempts, 24 h",
@@ -125,7 +125,35 @@ export const FEATURE_LABELS: Record<string, string> = {
   email_distinct_cards_24h: "Cards on this email, 24 h",
   ip_attempts_1h: "IP attempts, 1 h",
   ip_distinct_cards_1h: "Cards from this IP, 1 h",
+  card_attempts_7d: "Card attempts, 7 days",
+  card_attempts_30d: "Card attempts, 30 days",
+  card_seconds_since_last: "Since this card's last attempt",
+  card_mean_amount_30d: "Card's average amount, 30 days",
+  amount_to_card_mean_30d: "Amount vs card's average",
 };
+
+/** Features in schema order (Postgres returns JSON keys sorted by length), unknown ones last. */
+export function orderedFeatures(features: Record<string, number>): [string, number][] {
+  const order = Object.keys(FEATURE_LABELS);
+  const rank = (k: string) => (order.includes(k) ? order.indexOf(k) : order.length);
+  return Object.entries(features).sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b));
+}
+
+/** A feature value as an analyst reads it: money in S$, gaps as durations, ratios as "x 1.25". */
+export function featureValue(name: string, value: number): string {
+  if (name === "card_seconds_since_last") {
+    if (value < 0) return "No attempt in 30 days";
+    if (value < 120) return `${Math.round(value)} s`;
+    if (value < 7200) return `${Math.round(value / 60)} min`;
+    if (value < 172800) return `${Math.round(value / 3600)} h`;
+    return `${Math.round(value / 86400)} days`;
+  }
+  if (name === "amount_cents" || name === "card_mean_amount_30d") {
+    return value > 0 ? money(value) : "–";
+  }
+  if (name === "amount_to_card_mean_30d") return value > 0 ? `x ${value.toFixed(2)}` : "–";
+  return String(value);
+}
 
 /** Audit actions as status-history lines (D4). */
 const ACTION_LABELS: Record<string, string> = {
