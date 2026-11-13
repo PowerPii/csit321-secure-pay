@@ -1,6 +1,6 @@
 # SecurePay processing simulator contract (M2 draft)
 
-Status: **v1 draft for Muhammad Adeeb**, 13 November 2026. The URS lists "API, webhook and simulator contracts" as an open item for Week 9 (M2), owned by Muhammad Adeeb, including "the simulator's handling of an operation it reported as not received". `API-CONTRACT.md` covers the merchant side; this file covers the link between the gateway and the processing simulator. Proposals S1 to S4 (section 10) need the team's confirmation; everything else follows the URS, the architecture recommendation (own simulator, no Stripe test mode) or `API-CONTRACT.md`.
+Status: **v1 draft for Muhammad Adeeb**, 13 November 2026. The URS lists "API, webhook and simulator contracts" as an open item for Week 9 (M2), owned by Muhammad Adeeb, including "the simulator's handling of an operation it reported as not received". `API-CONTRACT.md` covers the merchant side; this file covers the link between the gateway and the processing simulator. Proposals S1 to S4 (section 10) were confirmed by Fifa on 13 November 2026; everything else follows the URS, the architecture recommendation (own simulator, no Stripe test mode) or `API-CONTRACT.md`.
 
 | File | What it holds |
 | --- | --- |
@@ -122,13 +122,13 @@ FR-SIM-02 asks for repeated notifications, and URS Section 2.4.1 allows recovery
 
 The gateway verifies the signature and timestamp, then treats the record exactly like a status-query reply: it applies it only if the operation is still `processing` or `unresolved`, so a repeat, a late copy or a copy for an operation that is already final changes nothing. It answers `200` within 5 seconds. The simulator does not retry; the status query remains the safety net. `no_record` is never notified, because only a status query can retire an ID.
 
-## 10. Proposals to confirm
+## 10. Decisions taken for this contract
 
-The URS leaves these values to the contract. Each follows the practice of `API-CONTRACT.md` (Stripe and Adyen style idempotency and signatures) or an existing setting.
+The URS leaves these values to the contract. All four were confirmed by Fifa on 13 November 2026. Each follows the practice of `API-CONTRACT.md` (Stripe and Adyen style idempotency and signatures) or an existing setting.
 
 | # | Proposal | Value | Why |
 | --- | --- | --- | --- |
-| S1 | Gateway timeout for a simulator call | 2 s to connect, 10 s for the reply; then unresolved | Keeps the customer's wait short and well inside NFR-AVA-03; the 15 s slow and dropped cases always exceed it. `SIMULATOR_CONNECT_TIMEOUT_SECONDS`, `SIMULATOR_TIMEOUT_SECONDS` |
+| S1 | Gateway timeout for a simulator call | 2 s to connect, 10 s for the reply; then unresolved, never failed | A simulator that has not connected in 2 s is down, so fail fast. Keeps the customer's wait short and well inside NFR-AVA-03; the 15 s slow and dropped cases always exceed it. `SIMULATOR_CONNECT_TIMEOUT_SECONDS`, `SIMULATOR_TIMEOUT_SECONDS` |
 | S2 | Reconciliation schedule | 30 s, 1, 2, 5, 10, 20 min (±10%), then escalate | Uses the existing `RECONCILIATION_MAX_CHECKS = 6`; escalates at about 38.5 min, inside the 1-hour bound of NFR-AVA-03. `RECONCILIATION_DELAYS_SECONDS` |
 | S3 | Simulator notifications | Off unless a `notify` fault rule is active | Keeps the status query as the one normal recovery path, so S4 and NFR-AVA-03 test what they mean to test, while FR-SIM-02 can still be shown |
 | S4 | Authentication | Bearer key for requests; HMAC-signed replies and notifications | A signed reply can be kept as evidence for a correction (FR-TXN-13). Same signature scheme as the merchant API, so one implementation |
@@ -139,7 +139,7 @@ Kept out of this PR because the sprint 1 build is working in the same folders:
 
 - `simulator/apps/operations/test_cards.py`: add `4000000000000135` as a lost-request behaviour (`DROP_REQUEST`), and treat the expiry date.
 - `simulator/apps/operations/urls.py`: add `GET /sim/operations` and the `/sim/faults` routes behind `SIM_TEST_CONTROLS`.
-- `gateway/config/settings.py`: add the S1 and S2 values to `GATEWAY_RULES` once confirmed.
+- `gateway/config/settings.py`: the S1 values are already in `GATEWAY_RULES` (sprint 2); add `RECONCILIATION_DELAYS_SECONDS = (30, 60, 120, 300, 600, 1200)` for S2.
 - `deploy/compose.yaml`: add the secrets `simulator_api_key`, `simulator_signing_secret` (both services) and `simulator_test_control_key` (test runner only).
 - `API-CONTRACT.md` section 12 and `contracts/README.md` now point here.
 
