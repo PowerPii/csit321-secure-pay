@@ -6,6 +6,18 @@
   "status": "created",
   "amount": 4590,
   "currency": "SGD",
+  "line_items": [
+    {
+      "name": "Wireless mouse",
+      "quantity": 1,
+      "unit_amount": 2990
+    },
+    {
+      "name": "Cable tie (pack)",
+      "quantity": 2,
+      "unit_amount": 800
+    }
+  ],
   "captured_amount": 0,
   "refundable_amount": 0,
   "refunded_amount": 0,

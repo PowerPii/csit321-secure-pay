@@ -70,6 +70,7 @@ def payment_to_dict(payment: Payment) -> dict:
         "status": payment.status,
         "amount": payment.amount,
         "currency": payment.currency,
+        "line_items": payment.line_items or None,
         "captured_amount": payment.captured_amount,
         "refundable_amount": refundable,
         "refunded_amount": refunded,

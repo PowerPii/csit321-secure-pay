@@ -50,6 +50,11 @@ class Order(models.Model):
     def latest_attempt(self):
         return self.attempts.order_by("-id").first()
 
+    def line_items(self) -> list[dict]:
+        """Shown on SecurePay's checkout page; they add up to total_cents."""
+        return [{"name": line.name, "quantity": line.quantity,
+                 "unit_amount": line.unit_price_cents} for line in self.lines.all()]
+
     def description(self) -> str:
         text = ", ".join(f"{line.name} × {line.quantity}" for line in self.lines.all())
         return text if len(text) <= 200 else text[:197] + "..."

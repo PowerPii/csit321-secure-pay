@@ -21,6 +21,7 @@ export interface Session {
   currency: string;
   order_reference: string;
   description: string | null;
+  line_items: { name: string; quantity: number; unit_amount: number }[] | null;
   reference: string | null;
   email_required: boolean;
   customer_email_masked: string | null;

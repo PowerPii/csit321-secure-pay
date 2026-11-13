@@ -30,7 +30,8 @@ def start_payment(order: Order) -> PaymentAttempt:
     reply = securepay.create_payment(
         idempotency_key=str(attempt.idempotency_key), amount=order.total_cents,
         order_reference=order.reference, return_url=return_url(order),
-        customer_email=order.email, description=order.description())
+        customer_email=order.email, description=order.description(),
+        line_items=order.line_items())
     if reply.status != 201:
         error = reply.data.get("error", {})
         logger.error("SecurePay refused the payment for %s: %s", order.reference,

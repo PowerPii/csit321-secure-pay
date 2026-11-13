@@ -16,7 +16,9 @@ from apps.payments.models import Payment
 from apps.payments.serializers import payment_to_dict
 
 CREATE_FIELDS = ("amount", "currency", "order_reference", "return_url", "customer_email",
-                 "description")
+                 "description", "line_items")
+LINE_ITEM_FIELDS = {"name", "quantity", "unit_amount"}
+MAX_LINE_ITEMS = 50
 REQUIRED_FIELDS = ("amount", "currency", "order_reference", "return_url")
 PRINTABLE_ASCII = re.compile(r"^[\x20-\x7E]+$")
 
@@ -79,6 +81,8 @@ def validate_create(body: dict, merchant) -> dict:
         raise invalid("invalid_field", "'description' must be text of at most 200 characters.",
                       param="description")
 
+    line_items = validate_line_items(body.get("line_items"), amount)
+
     if merchant.max_amount_cents is not None and amount > merchant.max_amount_cents:
         raise ApiError(422, "amount_above_merchant_limit",
                        "The amount is above the limit set for your account.", param="amount")
@@ -90,7 +94,45 @@ def validate_create(body: dict, merchant) -> dict:
         "return_url": return_url,
         "customer_email": customer_email or "",
         "description": description or "",
+        "line_items": line_items,
     }
+
+
+def _is_int(value) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def validate_line_items(items, amount: int) -> list[dict] | None:
+    """Optional order lines shown at checkout; they must add up to the amount exactly."""
+    if items is None:
+        return None
+    if not isinstance(items, list) or not 1 <= len(items) <= MAX_LINE_ITEMS:
+        raise invalid("invalid_field", f"'line_items' must be a list of 1 to {MAX_LINE_ITEMS} "
+                      "items.", param="line_items")
+    clean = []
+    for i, item in enumerate(items):
+        param = f"line_items[{i}]"
+        if not isinstance(item, dict) or set(item) != LINE_ITEM_FIELDS:
+            raise invalid("invalid_field", "Each line item needs exactly name, quantity and "
+                          "unit_amount.", param=param)
+        name, quantity, unit = item["name"], item["quantity"], item["unit_amount"]
+        if (not isinstance(name, str) or not 1 <= len(name.strip()) <= 100
+                or any(ord(c) < 32 or ord(c) == 127 for c in name)):
+            raise invalid("invalid_field", "'name' must be 1 to 100 characters of text.",
+                          param=f"{param}.name")
+        if not _is_int(quantity) or not 1 <= quantity <= 999:
+            raise invalid("invalid_field", "'quantity' must be 1 to 999.",
+                          param=f"{param}.quantity")
+        if not _is_int(unit) or not 0 <= unit <= 1_000_000:
+            raise invalid("invalid_field", "'unit_amount' must be 0 to 1000000 cents.",
+                          param=f"{param}.unit_amount")
+        clean.append({"name": name.strip(), "quantity": quantity, "unit_amount": unit})
+    total = sum(item["quantity"] * item["unit_amount"] for item in clean)
+    if total != amount:
+        raise invalid("line_items_total_mismatch",
+                      f"The line items add up to {total} cents but 'amount' is {amount}.",
+                      param="line_items")
+    return clean
 
 
 class PaymentListView(MerchantAPIView):

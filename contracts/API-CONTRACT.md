@@ -46,7 +46,7 @@ Statuses mirror `gateway/apps/payments/states.py` (URS Figure 2.2.2.1).
 | `unresolved` | Simulator did not answer; reconciliation decides. **Do not ship** | GET |
 | `declined`, `blocked`, `cancelled`, `expired` | Final, no charge. `outcome.reason` says why | GET |
 
-**Create** (`POST /v1/payments`, UC-57). Body: `amount`, `currency`, `order_reference`, `return_url` (HTTPS), optional `customer_email` and `description`. The gateway fixes merchant, amount and currency here; checkout can never change them (FR-CHK-03). Reply `201` with the Payment, including `reference`, `checkout_url` and `checkout_expires_at`. The merchant sends the customer to `checkout_url`.
+**Create** (`POST /v1/payments`, UC-57). Body: `amount`, `currency`, `order_reference`, `return_url` (HTTPS), optional `customer_email`, `description` and `line_items`. `line_items` is a list of `{name, quantity, unit_amount}` (1 to 50 items, amounts in cents) that the hosted checkout shows as the order summary (wireframe C3); the items must add up to `amount` exactly, otherwise `400 line_items_total_mismatch`. Added 13 November 2026 at Fifa's request; optional, so existing merchants are unaffected. The gateway fixes merchant, amount and currency here; checkout can never change them (FR-CHK-03). Reply `201` with the Payment, including `reference`, `checkout_url` and `checkout_expires_at`. The merchant sends the customer to `checkout_url`.
 
 **Return to the shop.** After checkout the browser goes to `return_url?payment_id=pay_...`. This is navigation only. The shop fulfils only after a verified `payment.authorised` webhook or a signed `GET /v1/payments/{id}` (UC-28, C6 in the URS).
 
@@ -75,6 +75,7 @@ Merchants branch on `code`, never on `message`.
 | 400 | invalid_request | `invalid_json`, `missing_field`, `invalid_field` | Body cannot be parsed or a field is missing or wrong |
 | 400 | invalid_request | `amount_too_small`, `amount_too_large` | Outside S$0.50 to S$10,000 |
 | 400 | invalid_request | `currency_not_supported` | Currency other than SGD |
+| 400 | invalid_request | `line_items_total_mismatch` | `line_items` do not add up to `amount` |
 | 400 | invalid_request | `return_url_not_https` | `return_url` is not HTTPS |
 | 400 | invalid_request | `card_data_not_allowed` | Body contains what looks like a card number (FR-TXN-09) |
 | 400 | invalid_request | `idempotency_key_missing`, `idempotency_key_invalid` | POST without a usable key |

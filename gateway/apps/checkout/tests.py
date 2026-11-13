@@ -70,6 +70,13 @@ def test_session_summary_shows_order_but_never_lets_browser_set_it(browser, paym
     assert r.status_code == 400 and r.json()["error"]["code"] == "invalid_field"
 
 
+def test_session_shows_line_items(browser, make_payment):
+    items = [{"name": "Wireless mouse", "quantity": 1, "unit_amount": 2990},
+             {"name": "USB-C hub", "quantity": 1, "unit_amount": 1600}]
+    payment = make_payment(line_items=items)
+    assert browser.get(url(payment)).json()["line_items"] == items
+
+
 @pytest.mark.parametrize("session_id", ["cs_" + "x" * 24, "nope", "cs_short"])
 def test_unknown_session_is_404(browser, session_id):
     r = browser.get(f"/checkout/{session_id}")

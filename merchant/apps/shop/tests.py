@@ -55,7 +55,10 @@ def test_placing_an_order_creates_a_payment_and_redirects_to_checkout(client, ga
     assert body == {"amount": 8990, "currency": "SGD", "order_reference": order.reference,
                     "return_url": f"https://shop.localhost/orders/{order.number}/return",
                     "customer_email": "alex@example.com",
-                    "description": "Wireless mouse × 1, USB-C hub × 1"}
+                    "description": "Wireless mouse × 1, USB-C hub × 1",
+                    "line_items": [
+                        {"name": "Wireless mouse", "quantity": 1, "unit_amount": 2990},
+                        {"name": "USB-C hub", "quantity": 1, "unit_amount": 6000}]}
     attempt = order.latest_attempt
     assert headers["idempotency-key"] == str(attempt.idempotency_key)
     assert r.status_code == 302 and r["Location"] == attempt.checkout_url

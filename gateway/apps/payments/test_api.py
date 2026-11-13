@@ -131,3 +131,48 @@ def test_card_numbers_are_refused_and_never_stored(shop, caplog):
 def test_unknown_payment_routes_still_return_501(shop):
     response = shop.post("/v1/payments/pay_x/capture", {}, format="json")
     assert response.status_code == 501
+
+
+# --- line items (added 13 Nov 2026) ----------------------------------------------------------
+
+ITEMS = [{"name": "Wireless mouse", "quantity": 1, "unit_amount": 2990},
+         {"name": "Cable tie (pack)", "quantity": 2, "unit_amount": 800}]
+
+
+def test_line_items_are_stored_and_returned(shop, payment_schema):
+    r = shop.create_payment(valid_body(line_items=ITEMS))
+    assert r.status_code == 201, r.content
+    payment_schema.validate(r.json())
+    assert r.json()["line_items"] == ITEMS
+    got = shop.get(f"/v1/payments/{r.json()['id']}").json()
+    assert got["line_items"] == ITEMS
+
+
+def test_line_items_are_optional(shop, payment_schema):
+    r = shop.create_payment(valid_body())
+    payment_schema.validate(r.json())
+    assert r.json()["line_items"] is None
+
+
+def test_line_items_must_add_up_to_the_amount(shop, error_schema):
+    r = shop.create_payment(valid_body(amount=4591, line_items=ITEMS))
+    assert r.status_code == 400
+    error_schema.validate(r.json())
+    assert r.json()["error"]["code"] == "line_items_total_mismatch"
+
+
+
+@pytest.mark.parametrize(("items", "param"), [
+    ([], "line_items"),
+    ("mouse", "line_items"),
+    ([{"name": "x", "quantity": 1}], "line_items[0]"),
+    ([{"name": "", "quantity": 1, "unit_amount": 4590}], "line_items[0].name"),
+    ([{"name": "x", "quantity": 0, "unit_amount": 4590}], "line_items[0].quantity"),
+    ([{"name": "x", "quantity": True, "unit_amount": 4590}], "line_items[0].quantity"),
+    ([{"name": "x", "quantity": 1, "unit_amount": -1}], "line_items[0].unit_amount"),
+    ([{"name": "x" * 101, "quantity": 1, "unit_amount": 4590}], "line_items[0].name"),
+])
+def test_bad_line_items(shop, items, param):
+    r = shop.create_payment(valid_body(line_items=items))
+    assert r.status_code == 400
+    assert (r.json()["error"]["code"], r.json()["error"]["param"]) == ("invalid_field", param)
