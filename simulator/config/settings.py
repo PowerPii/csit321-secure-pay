@@ -111,3 +111,16 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [],
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
 }
+
+# Gateway <-> simulator link (contracts/SIMULATOR-CONTRACT.md section 2, proposal S4).
+# The gateway sends `Authorization: Bearer simk_...`; we keep only its SHA-256 digest in memory.
+SIMULATOR_API_KEY = secret(
+    "simulator_api_key", "simk_" + "devonly" * 5 + "devon" if DEBUG else None
+)
+# Signs every 200 and 409 reply (`Simulator-Signature`), so the gateway can keep it as evidence.
+SIMULATOR_SIGNING_SECRET = secret(
+    "simulator_signing_secret", "simsig_dev-only-signing-secret" if DEBUG else None
+)
+# How long the lost-response, lost-request and slow test cards hold the connection
+# (SIMULATOR-CONTRACT.md section 5). Always longer than the gateway's 10 s reply timeout.
+SIM_HOLD_SECONDS = float(env("SIM_HOLD_SECONDS", "15"))

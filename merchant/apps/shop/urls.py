@@ -1,19 +1,15 @@
 """Demo storefront pages (wireframes C1, C2, C8)."""
-from django.http import HttpResponse
 from django.urls import path
 
-
-def todo(screen):
-    def view(request, **kwargs):
-        return HttpResponse(f"TODO: {screen}", status=501, content_type="text/plain")
-
-    return view
-
+from apps.shop import views
 
 urlpatterns = [
-    path("", todo("C1 products and cart"), name="shop-home"),
-    path("checkout", todo("C2 order summary; POST creates the gateway payment and redirects"),
-         name="shop-checkout"),
-    path("orders/<str:order_ref>", todo("C8 order page; paid only after webhook + API check"),
-         name="shop-order"),
+    path("", views.home, name="shop-home"),
+    path("cart/add", views.cart_add, name="shop-cart-add"),
+    path("cart/remove", views.cart_remove, name="shop-cart-remove"),
+    path("checkout", views.checkout, name="shop-checkout"),
+    path("orders", views.order_list, name="shop-orders"),
+    path("orders/<int:number>", views.order_detail, name="shop-order"),
+    path("orders/<int:number>/return", views.order_return, name="shop-order-return"),
+    path("orders/<int:number>/pay", views.order_pay, name="shop-order-pay"),
 ]

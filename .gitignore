@@ -34,3 +34,4 @@ gateway/apps/risk/model_artifacts/*
 .DS_Store
 *.egg-info/
 build/
+*.tsbuildinfo

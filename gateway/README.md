@@ -40,3 +40,27 @@ minute per key). Demo story S5 is `apps/payments/test_idempotency.py::test_s5_du
 | `apps/audit/models.py` | Append-only audit trail (also enforced by a database trigger) |
 
 Tests check every reply against `contracts/schemas/*.schema.json`.
+
+## Hosted checkout (sprint 2)
+
+The payment's `checkout_url` opens `frontend/checkout` at `/pay/cs_...`, which calls the
+same-origin JSON API under `/checkout/`:
+
+| Route | What |
+| --- | --- |
+| `GET /checkout/{cs}` | Order summary and state (C3; C6/C7 after a reload). Expires the session after 1 hour (`payment.expired`) |
+| `POST /checkout/{cs}/card` | Card to the vault; the payment keeps token, brand, last four and fingerprint |
+| `POST /checkout/{cs}/submit` | Screening (stub Allow until sprint 4), operation row committed, then `/sim/authorise`; answers `authorised`, `declined` or `unresolved` |
+| `GET /checkout/{cs}/result` | Same object as the session |
+
+| Where | What |
+| --- | --- |
+| `apps/vault/service.py` | `tokenise` / `take` (decrypt and delete on submit) / `discard`; Fernet with `VAULT_ENCRYPTION_KEY`, own DB alias |
+| `apps/checkout/service.py` | The checkout flow and the customer-facing result (no fraud reasons) |
+| `apps/payments/processor.py` | Simulator client: bearer key, 2 s / 10 s timeouts (proposal S1), only signed replies count |
+| `apps/payments/processing.py` | Applies an answer (approved, declined, no_record, none) to the operation and payment, with outbox event and audit. Reconciliation reuses it in sprint 5 |
+| `apps/risk/screening.py` | Sprint 2 stub: always Allow |
+
+Running locally: `python manage.py migrate && python manage.py migrate --database=vault`. If the
+vault role shares your database and role, set `VAULT_DB_NAME` to a second database so the two
+migration histories stay apart.

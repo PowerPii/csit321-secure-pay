@@ -1,0 +1,41 @@
+{% extends "shop/base.html" %}{% load shop %}
+{% block body %}
+<div class="layout">
+  <main class="main">
+    <h1>Featured</h1>
+    <div class="grid">
+      {% for p in products %}
+      <div class="product">
+        <svg viewBox="0 0 100 60" preserveAspectRatio="none" aria-hidden="true"><path d="M0 0L100 60M100 0L0 60" stroke="#999" stroke-width="0.4" vector-effect="non-scaling-stroke"/></svg>
+        <span>{{ p.name }}</span>
+        <span class="price">{{ p.price_cents|money }}</span>
+        <form method="post" action="{% url 'shop-cart-add' %}">{% csrf_token %}
+          <input type="hidden" name="sku" value="{{ p.sku }}">
+          <button class="btn" type="submit">Add to cart</button>
+        </form>
+      </div>
+      {% endfor %}
+    </div>
+  </main>
+  <aside class="side" id="cart">
+    <div class="card">
+      <h2>Cart · {{ cart_count }} item{{ cart_count|pluralize }}</h2>
+      {% for line in lines %}
+      <div class="row small">
+        <span class="muted">{{ line.product.name }}{% if line.quantity > 1 %} × {{ line.quantity }}{% endif %}
+          <form class="inline" method="post" action="{% url 'shop-cart-remove' %}">{% csrf_token %}<input type="hidden" name="sku" value="{{ line.product.sku }}"><button class="linkbtn" type="submit" aria-label="Remove {{ line.product.name }}">Remove</button></form>
+        </span>
+        <span>{{ line.total_cents|money }}</span>
+      </div>
+      {% empty %}
+      <p class="muted small">Your cart is empty.</p>
+      {% endfor %}
+      {% if lines %}
+      <div class="row total small"><span class="muted">Subtotal</span><strong>{{ total_cents|money }}</strong></div>
+      <a class="btn primary" href="{% url 'shop-checkout' %}">Checkout</a>
+      {% endif %}
+    </div>
+    <p class="small"><a href="{% url 'shop-orders' %}">My orders</a></p>
+  </aside>
+</div>
+{% endblock %}

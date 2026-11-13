@@ -4,9 +4,16 @@
 }
 
 gateway.localhost {
-	handle_path /checkout-app/* {
+	# Hosted checkout page (frontend/checkout, built with base /pay/). Strict CSP: only our own
+	# script, styles and API; no framing.
+	handle /pay/* {
 		root * /srv/checkout
+		uri strip_prefix /pay
+		try_files {path} /index.html
 		file_server
+		header Content-Security-Policy "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; form-action 'self'; base-uri 'none'"
+		header Referrer-Policy no-referrer
+		header Cache-Control no-store
 	}
 	handle_path /dashboard/* {
 		root * /srv/dashboard

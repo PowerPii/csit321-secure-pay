@@ -23,6 +23,7 @@ TYPES = {
     404: "not_found",
     405: "invalid_request",
     409: "conflict",
+    410: "not_found",
     415: "invalid_request",
     422: "business_rule",
     429: "rate_limit",

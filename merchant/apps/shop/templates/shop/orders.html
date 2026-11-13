@@ -1,0 +1,12 @@
+{% extends "shop/base.html" %}{% load shop %}
+{% block title %}My orders · Demo Shop{% endblock %}
+{% block body %}
+<main class="narrow">
+  <h1>My orders</h1>
+  {% for order in orders %}
+  <div class="row box"><a href="{% url 'shop-order' order.number %}">Order #{{ order.number }}</a><span>{{ order.total_cents|money }} · {% if order.paid_at %}Paid{% else %}Not paid{% endif %}</span></div>
+  {% empty %}
+  <p class="muted">No orders yet. <a href="{% url 'shop-home' %}">Start shopping</a></p>
+  {% endfor %}
+</main>
+{% endblock %}

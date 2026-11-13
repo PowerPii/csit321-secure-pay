@@ -36,6 +36,13 @@ services:
       POSTGRES_DB: gateway
       POSTGRES_USER: gateway
       DJANGO_ALLOWED_HOSTS: gateway.localhost,gateway
+      CHECKOUT_BASE_URL: https://gateway.localhost/pay
+      SIMULATOR_URL: https://simulator.localhost
+      SIMULATOR_CA_BUNDLE: &caddy-root /caddy-data/caddy/pki/authorities/local/root.crt
+    # Apply migrations (the vault's on its own role and schema), then serve.
+    command: ["sh", "-c", "python manage.py migrate --noinput && python manage.py migrate --database=vault --noinput && exec gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 30"]
+    volumes:
+      - caddy_data:/caddy-data:ro  # Caddy's local root CA, to verify https://simulator.localhost
     secrets:
       - source: gateway_django_secret_key
         target: django_secret_key
@@ -45,6 +52,8 @@ services:
       - vault_encryption_key
       - card_fingerprint_key
       - field_encryption_key
+      - simulator_api_key
+      - simulator_signing_secret
     networks: [data, gateway, edge]
 
   gateway-worker:
@@ -71,11 +80,14 @@ services:
       POSTGRES_DB: simulator
       POSTGRES_USER: simulator
       DJANGO_ALLOWED_HOSTS: simulator.localhost,simulator
+    command: ["sh", "-c", "python manage.py migrate --noinput && exec gunicorn config.wsgi:application --bind 0.0.0.0:8001 --workers 4 --timeout 30"]
     secrets:
       - source: simulator_django_secret_key
         target: django_secret_key
       - source: simulator_db_password
         target: db_password
+      - simulator_api_key
+      - simulator_signing_secret
     networks: [data, simulator]
 
   merchant:
@@ -86,11 +98,20 @@ services:
       POSTGRES_DB: merchant
       POSTGRES_USER: merchant
       DJANGO_ALLOWED_HOSTS: shop.localhost,merchant
+      SECUREPAY_API_URL: https://gateway.localhost
+      SECUREPAY_CA_BUNDLE: *caddy-root
+      SHOP_BASE_URL: https://shop.localhost
+    command: ["sh", "-c", "python manage.py migrate --noinput && exec gunicorn config.wsgi:application --bind 0.0.0.0:8002 --workers 3 --timeout 30"]
+    volumes:
+      - caddy_data:/caddy-data:ro
+    # The shop's SecurePay API key and signing secret, from `create_merchant` (README).
     secrets:
       - source: merchant_django_secret_key
         target: django_secret_key
       - source: merchant_db_password
         target: db_password
+      - securepay_api_key
+      - securepay_signing_secret
     networks: [data, merchant, edge]
 
   caddy:
@@ -140,3 +161,7 @@ secrets:
   simulator_db_password: { file: ./secrets/simulator_db_password }
   merchant_django_secret_key: { file: ./secrets/merchant_django_secret_key }
   merchant_db_password: { file: ./secrets/merchant_db_password }
+  simulator_api_key: { file: ./secrets/simulator_api_key }
+  simulator_signing_secret: { file: ./secrets/simulator_signing_secret }
+  securepay_api_key: { file: ./secrets/securepay_api_key }
+  securepay_signing_secret: { file: ./secrets/securepay_signing_secret }

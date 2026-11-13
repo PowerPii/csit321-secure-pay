@@ -28,10 +28,21 @@ Status: skeleton. Every MVP route is wired and returns `501 Not Implemented` unt
 cd deploy/secrets && for f in *.example; do python3 -c "import secrets; print(secrets.token_urlsafe(48))" > "${f%.example}"; done && cd ../..
 python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())" > deploy/secrets/vault_encryption_key
 
-# 2. whole stack
+# 2. checkout page bundle (Caddy serves it at https://gateway.localhost/pay/...)
+(cd frontend/checkout && npm install && npm run build)
+
+# 3. whole stack
 docker compose -f deploy/compose.yaml up --build
 # https://gateway.localhost   https://shop.localhost   https://mail.localhost
+
+# 4. register the demo shop as a merchant and give it its API key and signing secret
+docker compose -f deploy/compose.yaml exec gateway python manage.py create_merchant "Demo Shop" \
+  | tee /dev/stderr | awk '/API key:/{print $3 > "deploy/secrets/securepay_api_key"}
+                           /Signing secret:/{print $3 > "deploy/secrets/securepay_signing_secret"}'
+docker compose -f deploy/compose.yaml restart merchant
 ```
+
+Then shop at https://shop.localhost and pay with a test card from `contracts/SIMULATOR-CONTRACT.md` section 5 (4242 4242 4242 4242 approves, 4000 0000 0000 0002 declines, 4000 0000 0000 0119 loses the answer).
 
 For day-to-day work on one service, see that service's README (venv + `runserver`).
 

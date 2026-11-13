@@ -1,0 +1,68 @@
+// Small pure helpers for the checkout page (tested in format.test.ts).
+
+export function sessionIdFromPath(path: string): string | null {
+  return path.match(/^\/pay\/(cs_[0-9A-Za-z]{24})\/?$/)?.[1] ?? null;
+}
+
+/** 8990 -> "S$ 89.90" (amounts are integer cents, SGD only). */
+export function money(cents: number): string {
+  const dollars = Math.floor(cents / 100).toLocaleString("en-SG");
+  return `S$ ${dollars}.${String(cents % 100).padStart(2, "0")}`;
+}
+
+export function digitsOnly(value: string): string {
+  return value.replace(/\D/g, "");
+}
+
+/** Group digits in fours as the customer types: "4242424242424242" -> "4242 4242 4242 4242". */
+export function formatCardNumber(value: string): string {
+  return digitsOnly(value).slice(0, 19).replace(/(\d{4})(?=\d)/g, "$1 ");
+}
+
+/** "1230" or "12/30" -> "12 / 30". */
+export function formatExpiry(value: string): string {
+  const d = digitsOnly(value).slice(0, 4);
+  return d.length > 2 ? `${d.slice(0, 2)} / ${d.slice(2)}` : d;
+}
+
+export function parseExpiry(value: string): { month: number; year: number } | null {
+  const d = digitsOnly(value);
+  if (d.length !== 4) return null;
+  const month = Number(d.slice(0, 2));
+  if (month < 1 || month > 12) return null;
+  return { month, year: 2000 + Number(d.slice(2)) };
+}
+
+export function luhnOk(digits: string): boolean {
+  let sum = 0;
+  for (let i = 0; i < digits.length; i++) {
+    let d = Number(digits[digits.length - 1 - i]);
+    if (i % 2 === 1) {
+      d *= 2;
+      if (d > 9) d -= 9;
+    }
+    sum += d;
+  }
+  return digits.length >= 13 && digits.length <= 19 && sum % 10 === 0;
+}
+
+/** Remaining time as "mm:ss", never negative. */
+export function countdown(expiresAt: string, now: number): string {
+  const s = Math.max(0, Math.floor((Date.parse(expiresAt) - now) / 1000));
+  return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+}
+
+export function brandName(brand: string): string {
+  return { visa: "Visa", mastercard: "Mastercard", amex: "Amex" }[brand] ?? "Card";
+}
+
+export function formatDate(iso: string): string {
+  return new Date(iso).toLocaleString("en-SG", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+}
