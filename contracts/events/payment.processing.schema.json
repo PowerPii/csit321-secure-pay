@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.securepay.local/events/payment.processing.schema.json",
+  "title": "payment.processing",
+  "description": "The payment passed screening (and verification, if asked) and was sent to the simulated bank. payment.authorised, payment.declined or payment.unresolved follows.",
+  "allOf": [
+    {
+      "$ref": "../schemas/event.schema.json"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "payment.processing"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "object": {
+              "$ref": "../schemas/payment.schema.json",
+              "properties": {
+                "status": {
+                  "const": "processing"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

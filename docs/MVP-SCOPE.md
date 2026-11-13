@@ -81,5 +81,5 @@ The research track (IEEE-CIS experiment in `research/`) runs alongside and hands
 ## 6. Open points to confirm with the team
 
 1. **Guest status access.** Fifa chose (5 Nov 2026) that guests check status with a one-time code rather than only a long-lived link. Designed in `contracts/API-CONTRACT.md` section 8 (confirmed by Fifa 13 Nov 2026): the receipt link only pre-fills the payment reference; the guest enters reference + checkout email, receives a 6-digit code valid 10 minutes, and 3 wrong codes lock the check for 15 minutes. This replaces the `checkout/status/<token>` route; `GUEST_STATUS_LINK_TTL_DAYS` is removed from `GATEWAY_RULES`.
-2. **Amount check against the merchant's order record (CP FR 3).** The architecture fixes the amount when the merchant creates the payment, so there is no second record to compare. The MVP treats the server-side payment record as that order record. Confirm this reading.
+2. **Amount check against the merchant's order record (CP FR 3).** Settled 13 Nov 2026 (`contracts/API-CONTRACT.md` section 11): the payment the merchant created is the order record, as with a Stripe PaymentIntent.
 3. **Signed transaction responses (TL FR 8).** The MVP signs API responses with the merchant's webhook secret in a `SecurePay-Signature` header, the same scheme as webhooks.

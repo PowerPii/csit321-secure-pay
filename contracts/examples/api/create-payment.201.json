@@ -6,6 +6,7 @@
   "status": "created",
   "amount": 4590,
   "currency": "SGD",
+  "captured_amount": 0,
   "refundable_amount": 0,
   "refunded_amount": 0,
   "refund_reserved_amount": 0,

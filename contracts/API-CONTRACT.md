@@ -52,13 +52,13 @@ Statuses mirror `gateway/apps/payments/states.py` (URS Figure 2.2.2.1).
 
 **Status query** (`GET /v1/payments/{id}`, UC-28). Signed reply with the current Payment.
 
-**Capture** (`POST /v1/payments/{id}/capture`, UC-25). Full amount only; partial capture is not offered (refund the difference after capture). From any status other than `authorised` the reply is `409` with `payment_already_captured`, `payment_already_cancelled`, `authorisation_expired` or `payment_not_authorised` (FR-TXN-05).
+**Capture** (`POST /v1/payments/{id}/capture`, UC-25). Send `{}` to capture the full amount, or `{"amount": n}` to capture less, as Stripe and Adyen allow. A payment is captured once: the uncaptured rest of the authorisation is released, and `captured_amount` records what was charged. More than the authorised amount: `422 capture_exceeds_authorised`. From any status other than `authorised` the reply is `409` with `payment_already_captured`, `payment_already_cancelled`, `authorisation_expired` or `payment_not_authorised` (FR-TXN-05).
 
 **Cancel** (`POST /v1/payments/{id}/cancel`, UC-25). Same rules. On a captured payment the reply is `409 payment_already_captured`; refund instead.
 
 **No answer from the simulator on capture or cancel.** The reply is `202` with the payment still `authorised` and `pending_operation: {type, status: "unresolved"}`. Reconciliation (UC-29) then settles it with the original operation ID: on success the payment becomes `captured` or `cancelled` and the event is sent; if the simulator has no record, the operation is retired and `pending_operation` is cleared, so the merchant may try again with a new Idempotency-Key. While an operation is pending, another capture or cancel gets `409 operation_in_progress`. The 7-day auto-cancel waits for a pending capture to settle.
 
-**Refunds** (`POST /v1/payments/{id}/refunds`, UC-24). Body: `amount` (cents) and optional `reason`. Only on `captured` payments (`409 payment_not_captured` otherwise). The gateway locks the payment row, checks `completed + reserved + amount <= captured amount` and reserves the amount in the same transaction (FR-TXN-02, FR-TXN-03). Too much: `422 refund_exceeds_refundable`, and no refund object is created (the attempt still appears as "rejected" in the dashboard history, FR-TXN-14). Reply `201` with the Refund, whose status is `completed`, `failed` or `unresolved`. An unresolved refund keeps its reservation until reconciliation. `GET /v1/payments/{id}/refunds` lists them with the current `refundable_amount`; `GET /v1/refunds/{id}` reads one.
+**Refunds** (`POST /v1/payments/{id}/refunds`, UC-24). Body: `amount` (cents) and optional `reason`. Only on `captured` payments (`409 payment_not_captured` otherwise). The gateway locks the payment row, checks `completed + reserved + amount <= captured_amount` and reserves the amount in the same transaction (FR-TXN-02, FR-TXN-03). Too much: `422 refund_exceeds_refundable`, and no refund object is created (the attempt still appears as "rejected" in the dashboard history, FR-TXN-14). Reply `201` with the Refund, whose status is `completed`, `failed` or `unresolved`. An unresolved refund keeps its reservation until reconciliation. `GET /v1/payments/{id}/refunds` lists them with the current `refundable_amount`; `GET /v1/refunds/{id}` reads one.
 
 ## 4. Errors
 
@@ -87,6 +87,7 @@ Merchants branch on `code`, never on `message`.
 | 409 | conflict | `operation_in_progress` | A capture or cancel is still unresolved |
 | 409 | conflict | `payment_not_captured` | Refund on a payment that is not captured |
 | 422 | business_rule | `amount_above_merchant_limit` | Above the merchant's own limit set by an administrator (FR-ADM-07) |
+| 422 | business_rule | `capture_exceeds_authorised` | Capture amount larger than the authorised amount |
 | 422 | business_rule | `refund_exceeds_refundable` | Refund larger than the remaining refundable amount |
 | 429 | rate_limit | `rate_limited` | Over 100 requests a minute; has `Retry-After` |
 | 500 | server | `internal_error` | Unexpected failure; retry with the same Idempotency-Key |
@@ -111,6 +112,8 @@ The 24-hour key window is separate from the webhook retry window in section 7. T
 
 | Event | `data.object` | Sent when |
 | --- | --- | --- |
+| `payment.verification_required` | Payment | Screening asked for simulated verification; the customer was emailed a code |
+| `payment.processing` | Payment | Sent to the simulator after screening (and verification) |
 | `payment.authorised` | Payment | Simulator authorised it (also after reconciliation) |
 | `payment.declined` | Payment | Simulator declined it, or reconciliation found no record (`outcome.reason = not_processed`) |
 | `payment.blocked` | Payment | Fraud rule or model, failed or expired verification, screening unavailable, amount limit |
@@ -122,9 +125,9 @@ The 24-hour key window is separate from the webhook retry window in section 7. T
 | `refund.failed` | Refund | Refund declined, or reconciliation found no record; reservation released |
 | `refund.unresolved` | Refund | Simulator did not answer the refund |
 
-The short in-progress statuses (`screening`, `verification_required`, `processing`) are not notified; the merchant sees them by status query. See section 11, item 1.
+`created` and `screening` are not notified: the merchant already knows about `created`, and screening is internal and lasts milliseconds. The other in-progress statuses are notified, as Stripe does with `payment_intent.requires_action` and `payment_intent.processing`, but need no action from the merchant.
 
-Envelope (`schemas/event.schema.json`): `id`, `object: "event"`, `type`, `created_at` (when the change was committed), `payment_id`, `sequence`, `data.object` (a full snapshot). `payment.expired` and `refund.unresolved` are new compared with the list in the architecture document.
+Envelope (`schemas/event.schema.json`): `id`, `object: "event"`, `type`, `created_at` (when the change was committed), `payment_id`, `sequence`, `data.object` (a full snapshot). `payment.verification_required`, `payment.processing`, `payment.expired` and `refund.unresolved` are new compared with the list in the architecture document.
 
 **Ordering.** Events can arrive out of order. `sequence` counts every notified change of a payment and its refunds, starting at 1, and equals `Payment.sequence` at that moment. Ignore an event whose `sequence` is not higher than the one you stored; if you see a gap, call `GET /v1/payments/{id}` (UC-26).
 
@@ -199,12 +202,14 @@ All three were confirmed by Fifa on 13 November 2026 and are in `GATEWAY_RULES`.
 | P2 | Password reset link, single use | 30 min | `PASSWORD_RESET_LINK_TTL_MINUTES` |
 | P3 | Guest status: receipt link is not a credential; view session; code request limits | 15 min; 3 per pair and 10 per IP per 15 min | `GUEST_STATUS_*` |
 
-## 11. Readings of the URS to confirm
+## 11. Readings of the URS (settled 13 November 2026)
 
-1. **FR-TXN-06 says a webhook goes out "whenever a payment or refund changes status".** This contract does not notify `screening`, `verification_required` and `processing`, which last seconds and need no action from the merchant. If the team wants them, they can be added in v1 as new event types.
-2. **FR-TXN-14 lists refund statuses requested and rejected.** In the API a rejected refund is an error reply and creates no refund object; requested is the moment before reservation and is never visible. Both still appear in the dashboard history.
-3. **Partial capture is not offered** (UC-25 captures the authorised payment). The merchant refunds a difference after capture.
-4. **MVP-SCOPE open point 2 (amount check, FR-CHK-03).** This contract treats the payment the merchant created as the order record that checkout amounts are checked against.
+Fifa asked that each reading follow common industry practice. Checked against Stripe and Adyen:
+
+1. **Webhooks on every status change (FR-TXN-06).** Stripe also notifies in-progress states (`payment_intent.requires_action`, `payment_intent.processing`), so this contract sends `payment.verification_required` and `payment.processing` too. `created` (the merchant just made it) and `screening` (internal, milliseconds) are not sent.
+2. **Rejected refunds (FR-TXN-14).** Like Stripe, a refund above the refundable amount is an error reply and creates no refund object; "requested" and "rejected" appear only in the dashboard history.
+3. **Partial capture (UC-25).** Stripe (`amount_to_capture`) and Adyen both allow capturing less than the authorised amount, so this contract does too (section 3), once per payment.
+4. **Amount check (FR-CHK-03, MVP-SCOPE open point 2).** As with a Stripe PaymentIntent, the amount is fixed when the merchant creates the payment, and that record is what checkout is checked against.
 
 ## 12. Not covered yet
 

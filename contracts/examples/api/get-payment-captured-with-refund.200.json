@@ -6,6 +6,7 @@
   "status": "captured",
   "amount": 4590,
   "currency": "SGD",
+  "captured_amount": 4590,
   "refundable_amount": 3090,
   "refunded_amount": 0,
   "refund_reserved_amount": 1500,
