@@ -5,7 +5,7 @@ export const CREATE_PAYMENT: Snippet[] = [
     label: "curl",
     code: `curl https://api.securepay.example/v1/payments \\
   -H "Authorization: Bearer sp_test_..." \\
-  -H "Idempotency-Key: 6f1c2b8e-4d3a-4e0f-9a51-2c7d8e9f0a1b" \\
+  -H "Idempotency-Key: $(uuidgen)" \\
   -H "Content-Type: application/json" \\
   -d '{
     "amount": 4290,
@@ -142,11 +142,11 @@ export const CAPTURE: Snippet[] = [
     code: `# capture the full amount
 curl -X POST https://api.securepay.example/v1/payments/pay_4fJ8.../capture \\
   -H "Authorization: Bearer sp_test_..." \\
-  -H "Idempotency-Key: 0b7e..." -d '{}'
+  -H "Idempotency-Key: $(uuidgen)" -d '{}'
 
 # then refund part of it
 curl -X POST https://api.securepay.example/v1/payments/pay_4fJ8.../refunds \\
   -H "Authorization: Bearer sp_test_..." \\
-  -H "Idempotency-Key: 91ac..." -d '{ "amount": 690, "reason": "item returned" }'`,
+  -H "Idempotency-Key: $(uuidgen)" -d '{ "amount": 690, "reason": "item returned" }'`,
   },
 ];
