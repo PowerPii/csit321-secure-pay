@@ -159,7 +159,10 @@ GATEWAY_RULES = {
     "API_RATE_LIMIT_PER_MINUTE": 100,  # per API key (NFR-AVA-02, contract section 2)
     "AUTH_EXPIRY_DAYS": 7,  # uncaptured authorisations are cancelled by the worker
     "VERIFICATION_CODE_TTL_MINUTES": 10,
-    "VERIFICATION_MAX_ATTEMPTS": 3,  # requirements FR CP-6, confirmed 5 Nov 2026
+    "VERIFICATION_MAX_ATTEMPTS": 3,  # wrong codes, then Blocked (FR-CHK-21, confirmed 5 Nov 2026)
+    # A new code replaces the old one (FR-CHK-06). Not set by the URS; proposed in sprint 4.
+    "VERIFICATION_RESEND_COOLDOWN_SECONDS": 30,
+    "VERIFICATION_MAX_CODES": 5,  # codes sent per attempt, including the first
     "CHECKOUT_SESSION_TTL_MINUTES": 60,
     # Guest status check (contracts/API-CONTRACT.md section 8; values confirmed 13 Nov 2026)
     "GUEST_STATUS_CODE_TTL_MINUTES": 10,
@@ -169,8 +172,9 @@ GATEWAY_RULES = {
     "GUEST_STATUS_CODE_REQUESTS_PER_PAIR": 3,  # per reference + email, per 15 minutes
     "GUEST_STATUS_CODE_REQUESTS_PER_IP": 10,  # per IP address, per 15 minutes
     "PASSWORD_RESET_LINK_TTL_MINUTES": 30,  # single use (contract section 9, confirmed 13 Nov 2026)
-    "SCREENING_TARGET_P95_MS": 200,
-    "SCREENING_TIMEOUT_MS": 500,  # on timeout: Blocked, reason screening_unavailable
+    "SCREENING_TARGET_P95_MS": 200,  # NFR-PER-02, checked by `manage.py benchmark_screening`
+    # FR-FRD-04: no decision within 500 ms (or an error) -> Blocked, reason screening_unavailable
+    "SCREENING_TIMEOUT_MS": 500,
     "STAFF_LOCKOUT_FAILURES": 5,
     "STAFF_LOCKOUT_MINUTES": 15,
     "WEBHOOK_SIGNATURE_TOLERANCE_SECONDS": 300,
@@ -228,3 +232,21 @@ VAULT_ENCRYPTION_KEY = secret(
     base64.urlsafe_b64encode(b"dev-only-vault-encryption-key!!!"[:32]).decode() if DEBUG else None,
 )
 CARD_FINGERPRINT_KEY = secret("card_fingerprint_key", "dev-only-fingerprint-key" if DEBUG else None)
+
+# Fraud screening (apps/risk). Empty RISK_MODEL_VERSION = the stub model (score 0, rules
+# decide) until the fraud experiment hands over an artefact; see apps/risk/scoring.py.
+RISK_MODEL_DIR = env("RISK_MODEL_DIR", str(BASE_DIR / "apps" / "risk" / "model_artifacts"))
+RISK_MODEL_VERSION = env("RISK_MODEL_VERSION", "")
+RISK_MODEL_SHA256 = env("RISK_MODEL_SHA256", "")  # optional pin, checked as well as the manifest
+# DEBUG only: "error" or "slow" makes every screening unavailable (outage test, NFR-AVA-04).
+RISK_SIMULATE_OUTAGE = env("RISK_SIMULATE_OUTAGE", "")
+# How many reverse proxies (Caddy) sit in front of the gateway; the client IP used for
+# screening is that many entries from the right of X-Forwarded-For. 0 = REMOTE_ADDR.
+TRUSTED_PROXY_HOPS = int(env("TRUSTED_PROXY_HOPS", "0"))
+
+# Email (verification codes). Mailpit in the local stack; nothing leaves the machine.
+EMAIL_BACKEND = env("EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
+EMAIL_HOST = env("EMAIL_HOST", "localhost")
+EMAIL_PORT = int(env("EMAIL_PORT", "1025"))
+EMAIL_TIMEOUT = 5
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", "SecurePay <no-reply@securepay.localhost>")

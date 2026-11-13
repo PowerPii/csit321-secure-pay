@@ -14,8 +14,9 @@ OUTCOME_MESSAGES = {
                                "contact you if they think this is wrong.",
     OutcomeReason.VERIFICATION_FAILED: "The customer entered the wrong verification code too "
                                        "many times. They can start a new payment.",
-    OutcomeReason.VERIFICATION_EXPIRED: "The verification code expired before it was entered. "
-                                        "The customer can start a new payment.",
+    OutcomeReason.VERIFICATION_EXPIRED: "The checkout session ended before a correct "
+                                        "verification code was entered. The customer can "
+                                        "start a new payment.",
     OutcomeReason.SCREENING_UNAVAILABLE: "Screening was unavailable, so the attempt was "
                                          "stopped. This is not a fraud finding; try again "
                                          "later.",

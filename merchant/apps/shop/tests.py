@@ -108,6 +108,16 @@ def test_waiting_page_refreshes_itself(client, gateway):
     assert b'http-equiv="refresh"' in page.content
 
 
+def test_verification_required_links_back_to_the_payment_page(client, gateway):
+    place_order(client)
+    order = Order.objects.get()
+    gateway.next_status = "verification_required"
+    page = client.get(f"/orders/{order.number}").content.decode()
+    assert "emailed you a verification code" in page
+    assert "Continue to payment" in page
+    assert order.latest_attempt.checkout_url in page
+
+
 def test_declined_then_try_another_card_makes_a_new_payment(client, gateway):
     place_order(client)
     order = Order.objects.get()

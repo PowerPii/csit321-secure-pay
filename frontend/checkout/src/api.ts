@@ -10,7 +10,8 @@ export type Result =
   | "not_completed"
   | "pending"
   | "cancelled"
-  | "expired";
+  | "expired"
+  | "unavailable";
 
 export interface Session {
   session_id: string;
@@ -30,6 +31,15 @@ export interface Session {
   submitted_at: string | null;
   authorised_at: string | null;
   return_url: string;
+  verification: Verification | null;
+}
+
+// Present while the payment waits for the emailed code (C5).
+export interface Verification {
+  sent_to: string | null;
+  code_expires_at: string;
+  attempts_remaining: number;
+  resend_available_at: string | null; // null: no more codes can be sent
 }
 
 export interface CardInput {
@@ -80,3 +90,9 @@ export const addCard = (sessionId: string, card: CardInput) =>
 
 export const submit = (sessionId: string) =>
   call(`${encodeURIComponent(sessionId)}/submit`, { method: "POST", body: "{}" });
+
+export const verify = (sessionId: string, code: string) =>
+  call(`${encodeURIComponent(sessionId)}/verify`, { method: "POST", body: JSON.stringify({ code }) });
+
+export const resendCode = (sessionId: string) =>
+  call(`${encodeURIComponent(sessionId)}/verify/resend`, { method: "POST", body: "{}" });

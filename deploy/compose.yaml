@@ -39,8 +39,16 @@ services:
       CHECKOUT_BASE_URL: https://gateway.localhost/pay
       SIMULATOR_URL: https://simulator.localhost
       SIMULATOR_CA_BUNDLE: &caddy-root /caddy-ca/root.crt
-    # Apply migrations (the vault's on its own role and schema), then serve.
-    command: ["sh", "-c", "python manage.py migrate --noinput && python manage.py migrate --database=vault --noinput && exec gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 30"]
+      # Screening: client IP from Caddy's X-Forwarded-For; verification codes to Mailpit
+      # (https://mail.localhost). Set RISK_MODEL_VERSION once a trained model is installed
+      # (gateway/apps/risk/model_artifacts/README.md); empty = stub model, rules decide.
+      TRUSTED_PROXY_HOPS: "1"
+      EMAIL_HOST: mailpit
+      EMAIL_PORT: "1025"
+      RISK_MODEL_VERSION: ""
+    # Apply migrations (the vault's on its own role and schema), seed the demo block and
+    # review lists, then serve.
+    command: ["sh", "-c", "python manage.py migrate --noinput && python manage.py migrate --database=vault --noinput && python manage.py seed_risk_lists && exec gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 30"]
     volumes:
       - caddy_ca:/caddy-ca:ro  # Caddy's local root certificate (public part only), to verify https://simulator.localhost
     secrets:
@@ -57,7 +65,8 @@ services:
     networks: [data, gateway, edge]
 
   # Delivers webhooks from the outbox, runs the 7-day auto-cancel (a simulator cancel) and
-  # ends checkout sessions past their hour (which discards any card left in the vault).
+  # ends checkout sessions past their hour (which discards any card left in the vault, and
+  # blocks payments still waiting for a verification code).
   gateway-worker:
     <<: *django
     build: ../gateway

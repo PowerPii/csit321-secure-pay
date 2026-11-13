@@ -2,6 +2,7 @@
 
     tokenise(...)  -> CardSummary   card entry (C3): encrypt, store, return token + summary
     take(token)    -> CardData|None submission: read, decrypt and delete in one step
+    has(token)     -> bool          is the card still there (checked before screening)
     discard(token)                  the customer replaced the card, or the session ended
 
 Nothing returned by `tokenise` contains the number or security code, so callers can store
@@ -128,6 +129,12 @@ def take(token: str) -> CardData | None:
         stored.delete()
     return CardData(number=secret_part["number"], cvc=secret_part["cvc"],
                     expiry_month=stored.expiry_month, expiry_year=stored.expiry_year)
+
+
+def has(token: str) -> bool:
+    """True if the card for this token is still in the vault (not taken, not expired)."""
+    return bool(token) and StoredCard.objects.using(DB).filter(
+        token=token, expires_at__gt=timezone.now()).exists()
 
 
 def discard(token: str) -> None:

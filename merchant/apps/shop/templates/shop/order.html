@@ -12,7 +12,11 @@
   {% elif state == "waiting" %}
     <h1>Order #{{ order.number }}</h1>
     <span class="badge">Waiting for payment confirmation</span>
+    {% if attempt.status == "verification_required" %}
+    <p class="muted">SecurePay emailed you a verification code. Enter it on the payment page to finish paying.</p>
+    {% else %}
     <p class="muted">We're waiting for SecurePay to confirm your payment. This page updates automatically.</p>
+    {% endif %}
   {% elif state == "declined" or state == "blocked" or state == "cancelled" or state == "expired" %}
     <h1>Order #{{ order.number }}</h1>
     <span class="badge">Payment not completed</span>
@@ -35,7 +39,7 @@
     {% if attempt.reference %}<div class="row small"><span class="muted">Payment ref</span><span>{{ attempt.reference }}</span></div>{% endif %}
   </div>
 
-  {% if state == "unpaid" and attempt.checkout_url %}
+  {% if state == "unpaid" and attempt.checkout_url or attempt.status == "verification_required" and attempt.checkout_url and not order.paid_at %}
     <a class="btn primary" href="{{ attempt.checkout_url }}">Continue to payment</a>
   {% elif state != "paid" and state != "waiting" and not order.paid_at %}
     <form method="post" action="{% url 'shop-order-pay' order.number %}">{% csrf_token %}

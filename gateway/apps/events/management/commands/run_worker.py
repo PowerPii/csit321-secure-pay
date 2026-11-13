@@ -62,8 +62,8 @@ def expire_authorisations():
 
 
 def expire_checkout_and_verification():
-    """End checkout sessions past their hour (payment -> expired). Verification codes:
-    sprint 4."""
+    """End checkout sessions past their hour: expired, or Blocked when a verification code
+    was never entered (FR-CHK-21)."""
     jobs.expire_checkout_sessions()
 
 

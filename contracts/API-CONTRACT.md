@@ -40,7 +40,7 @@ Statuses mirror `gateway/apps/payments/states.py` (URS Figure 2.2.2.1).
 | Status | Meaning for the merchant | Allowed calls |
 | --- | --- | --- |
 | `created` | Waiting for the customer at the hosted checkout (1 hour) | GET |
-| `screening`, `verification_required`, `processing` | Customer is paying; lasts seconds or, with verification, up to 10 minutes | GET |
+| `screening`, `verification_required`, `processing` | Customer is paying; lasts seconds or, with verification, until the code is entered (each code lasts 10 minutes; the attempt is `blocked` if the 1-hour checkout session ends first) | GET |
 | `authorised` | Bank said yes; not yet charged. Auto-cancelled 7 days after `authorised_at` | GET, capture, cancel |
 | `captured` | Customer charged. Stays `captured` after refunds | GET, refunds |
 | `unresolved` | Simulator did not answer; reconciliation decides. **Do not ship** | GET |

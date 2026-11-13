@@ -62,7 +62,10 @@ def apply_payment(attempt: PaymentAttempt, data: dict, order: Order) -> bool:
             attempt.reference = data.get("reference") or ""
             attempt.status = data.get("status") or ""
             attempt.sequence = data.get("sequence", 0)
-            attempt.checkout_url = data.get("checkout_url") or ""
+            # The API gives checkout_url only while the payment is "created". Keep the one we
+            # have while a verification code is awaited, so the customer can get back to it.
+            if data.get("checkout_url") or attempt.status != "verification_required":
+                attempt.checkout_url = data.get("checkout_url") or ""
             attempt.captured_amount = data.get("captured_amount") or 0
             attempt.save()
         paid = attempt.status in PaymentAttempt.PAID

@@ -45,6 +45,8 @@ docker compose -f deploy/compose.yaml restart merchant
 
 Then shop at https://shop.localhost and pay with a test card from `contracts/SIMULATOR-CONTRACT.md` section 5 (4242 4242 4242 4242 approves, 4000 0000 0000 0002 declines, 4000 0000 0000 0119 loses the answer).
 
+Fraud screening (demo stories S2 and S3): an order over S$500, or the email `review@example.com`, asks for a 6-digit code, which arrives in Mailpit at https://mail.localhost; three wrong codes block the payment. Card 4000 0000 0000 0101 or the email `blocked@example.com` is blocked, and so is a sixth attempt on one card within 10 minutes. Screening decisions, with reasons and scores, are in the gateway's Django admin under Risk -> Screening events.
+
 The gateway worker sends the shop a signed webhook for each status change; the shop confirms it with a signed `GET` before marking the order paid. To ship (capture) or cancel an order, as the merchant in demo story S1:
 
 ```bash
