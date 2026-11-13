@@ -2,7 +2,6 @@
 from django.urls import path
 
 from apps.checkout import views
-from apps.common.views import todo
 
 urlpatterns = [
     path("<str:session_id>", views.SessionView.as_view(), name="checkout-session"),
@@ -12,6 +11,4 @@ urlpatterns = [
     path("<str:session_id>/verify/resend", views.ResendView.as_view(),
          name="checkout-verify-resend"),
     path("<str:session_id>/result", views.ResultView.as_view(), name="checkout-result"),
-    path("status/<str:token>", todo("guest status, replaced by /guest/status (contract 8)"),
-         name="guest-status"),
 ]

@@ -62,7 +62,15 @@ If the demo shows that path end to end, plus the three failure stories below, th
 | Test cards | `simulator/apps/operations/test_cards.py` |
 | Shop pages | `merchant/apps/shop/` |
 
-Every endpoint is routed but returns `501 Not Implemented` until someone builds it. Search for `NotImplementedView` to see what is left.
+Every endpoint is routed but returns `501 Not Implemented` until someone builds it. Search for `NotImplementedView` to see what is left (after sprint 8, nothing in the MVP).
+
+| Piece (sprint 8) | Code |
+| --- | --- |
+| Customer emails (receipts, guest status codes) | `gateway/apps/events/emails.py` (outbox, sent by the worker); receipt text in `gateway/apps/guest/receipts.py` |
+| Guest status check | `gateway/apps/guest/` (API under `/guest/status/`); page `frontend/checkout/src/GuestStatus.tsx` at `https://gateway.localhost/guest/status` |
+| Simulator notifications to the gateway | `gateway/apps/reconciliation/views.py` (`POST /internal/simulator/notifications`) |
+| Simulator fault controls | `simulator/apps/faults/` (`/sim/faults`, only with `SIM_TEST_CONTROLS=1`) |
+| Cross-service tests | `tests/integration/` |
 
 ## 5. Suggested build order (2-week sprints, risk first)
 
@@ -75,6 +83,7 @@ Every endpoint is routed but returns `501 Not Implemented` until someone builds 
 | 5 | Reconciliation sweep, refunds with reservations | S4, S6 pass (done 13 Nov 2026; escalated operations and the admin re-check are in the Django admin until sprint 6) |
 | 6 | Dashboard D1 to D6b on top of the APIs; TOTP and lockout | Staff can do every demo step from the UI (done 13 Nov 2026; plus merchant approval and the audit log for administrators) |
 | 7 | Swap stub model for trained HistGradientBoosting artefact; parity test; latency check at 20 req/s | p95 screening <= 200 ms (done 13 Nov 2026: `hgb-fs02-2026-11-13` on feature schema fs-0.2, parity test against `research/features/gateway_schema.py`, p95 21.6 ms at 20/s; see `research/evaluation/hgb-fs02-2026-11-13.md`) |
+| 8 | Close the MVP against the contracts: emailed receipt with guest status link (FR-CHK-15), guest status check by emailed code and screen C9 (API-CONTRACT.md section 8), simulator fault controls, record list and notifications (SIMULATOR-CONTRACT.md sections 8 and 9), cross-service tests | S1-S6 pass as automated tests on the Compose stack (done 13 Nov 2026: `tests/integration`, 11 tests with the trained model) |
 
 The research track (IEEE-CIS experiment in `research/`) runs alongside and hands over a versioned model artefact by sprint 7.
 

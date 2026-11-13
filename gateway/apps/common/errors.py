@@ -35,13 +35,14 @@ TYPES = {
 class ApiError(drf.APIException):
     """An error with a stable machine-readable `code` from the contract table."""
 
-    def __init__(self, http_status, code, message, param=None, retry_after=None):
+    def __init__(self, http_status, code, message, param=None, retry_after=None, extra=None):
         super().__init__(detail=message, code=code)
         self.status_code = http_status
         self.code = code
         self.message = message
         self.param = param
         self.retry_after = retry_after
+        self.extra = extra or {}  # top-level fields next to "error", e.g. attempts_remaining
 
 
 def invalid(code, message, param=None):
@@ -66,7 +67,7 @@ def error_body(request, http_status, code, message, param=None):
 
 def error_response(exc: ApiError, request) -> Response:
     response = Response(
-        error_body(request, exc.status_code, exc.code, exc.message, exc.param),
+        error_body(request, exc.status_code, exc.code, exc.message, exc.param) | exc.extra,
         status=exc.status_code,
     )
     if exc.retry_after is not None:

@@ -11,5 +11,6 @@ urlpatterns = [
     path("v1/", include("apps.payments.urls")),
     path("v1/", include("apps.refunds.urls")),
     path("checkout/", include("apps.checkout.urls")),
+    path("guest/status/", include("apps.guest.urls")),
     path("internal/", include("apps.internal.urls")),
 ]

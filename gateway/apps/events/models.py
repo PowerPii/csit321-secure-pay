@@ -90,3 +90,52 @@ class WebhookAttempt(models.Model):
 
     def __str__(self):
         return f"{self.event_id} #{self.attempt_number} {self.http_status or self.error}"
+
+
+class OutboundEmail(models.Model):
+    """An email to a customer, written in the transaction that decides to send it.
+
+    Receipts (FR-CHK-15, UC-05) and guest status codes (API-CONTRACT.md section 8) go
+    through here, so a failed send is retried and recorded (UC-05 alternative flow), and a
+    guest status reply takes the same time whether or not a code is sent. The body is kept
+    only as ciphertext (FIELD_ENCRYPTION_KEY) and is wiped once the email is sent, given up
+    or past `discard_after`; a one-time code never stays in the database longer than that.
+    """
+
+    class Kind(models.TextChoices):
+        RECEIPT = "receipt"
+        GUEST_STATUS_CODE = "guest_status_code"
+
+    class Status(models.TextChoices):
+        PENDING = "pending"
+        SENT = "sent"
+        FAILED = "failed"  # attempts used up; kept for the record, body wiped
+        DISCARDED = "discarded"  # no longer worth sending (an expired code)
+
+    public_id = models.CharField(max_length=32, unique=True, editable=False)  # eml_...
+    kind = models.CharField(max_length=24, choices=Kind.choices)
+    payment = models.ForeignKey(Payment, on_delete=models.PROTECT, related_name="emails")
+    to = models.EmailField(max_length=254)
+    subject = models.CharField(max_length=200)
+    body_encrypted = models.TextField(blank=True)
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)
+    attempt_count = models.PositiveSmallIntegerField(default=0)
+    next_attempt_at = models.DateTimeField()
+    discard_after = models.DateTimeField(null=True, blank=True)
+    last_error = models.CharField(max_length=64, blank=True)  # error class only
+    sent_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["next_attempt_at"], condition=Q(status="pending"),
+                         name="email_due_idx"),
+        ]
+
+    def __str__(self):
+        return f"{self.public_id} {self.kind} {self.status}"
+
+    def save(self, *args, **kwargs):
+        if not self.public_id:
+            self.public_id = new_id("eml")
+        super().save(*args, **kwargs)

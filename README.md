@@ -79,6 +79,21 @@ docker compose -f deploy/compose.yaml exec merchant python manage.py settle_orde
 
 Lost answers (demo story S4): pay with 4000 0000 0000 0119 (the bank approves but the answer is lost) or 4000 0000 0000 0127 (the answer comes too late). After 10 seconds the checkout page says "We're confirming your payment" and the payment is Unresolved. The gateway worker then asks the simulator about the same operation ID, 30 seconds later and then at 1, 2, 5, 10 and 20 minutes; the first check finds the approval, the payment becomes Authorised without a second charge, and the page updates itself. Card 4000 0000 0000 0135 loses the request instead: the check finds no record, retires the ID, and the payment ends Declined (`not_processed`). An operation still without an answer after the sixth check is escalated; administrators find it with the "Escalated operations" tile on the dashboard's payments page and use "Re-check with the simulator" on the payment. Nobody can set an outcome by hand.
 
+Receipts and guest status (sprint 8): every authorised payment gets an emailed receipt (Mailpit) with its reference and a link to https://gateway.localhost/guest/status?ref=SP-.... The link only fills in the reference: the guest also enters the email they paid with, receives a 6-digit code, and then sees that one payment, read-only, for 15 minutes. The reply is the same whether or not the details match, and three wrong codes lock the check for 15 minutes.
+
+Fault controls (sprint 8, SIMULATOR-CONTRACT.md section 8): with `SIM_TEST_CONTROLS=1` (the Compose default; set it to 0 in a demo where nobody should inject faults) the simulator accepts fault rules at `https://simulator.localhost/sim/faults` with the test-control key in `deploy/secrets/simulator_test_control_key`, which the gateway never holds. For example, lose the reply to the next capture and also send two signed notifications 12 seconds later:
+
+```bash
+KEY=$(cat deploy/secrets/simulator_test_control_key)
+curl -s https://simulator.localhost/sim/faults -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
+  -d '{"match": {"operation_type": "capture"}, "action": "drop_response", "remaining": 1}'
+curl -s https://simulator.localhost/sim/faults -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
+  -d '{"match": {"operation_type": "capture"}, "action": "notify", "delay_ms": 12000, "copies": 2, "remaining": 1}'
+curl -s -X DELETE https://simulator.localhost/sim/faults -H "Authorization: Bearer $KEY"   # clear all rules
+```
+
+Automated cross-service tests for S1-S6, receipts, guest status and fault controls: `tests/integration/README.md`.
+
 For day-to-day work on one service, see that service's README (venv + `runserver`).
 
 ## Rules that shape the code

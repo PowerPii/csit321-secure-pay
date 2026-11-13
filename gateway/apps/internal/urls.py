@@ -2,6 +2,7 @@
 from django.urls import path
 
 from apps.internal.views import admin, auth, payments, reviews
+from apps.reconciliation.views import SimulatorNotificationView
 
 urlpatterns = [
     path("auth/login", auth.LoginView.as_view(), name="staff-login"),
@@ -29,4 +30,7 @@ urlpatterns = [
     path("merchants/<str:merchant_id>/webhook", admin.MerchantWebhookView.as_view(),
          name="merchant-webhook"),
     path("audit", admin.AuditListView.as_view(), name="audit-list"),
+    # Signed by the simulator, not a staff call (SIMULATOR-CONTRACT.md section 9).
+    path("simulator/notifications", SimulatorNotificationView.as_view(),
+         name="simulator-notifications"),
 ]

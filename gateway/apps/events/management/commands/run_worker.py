@@ -50,6 +50,13 @@ def deliver_outbox():
     deliver_due()
 
 
+def send_emails():
+    """Send queued customer emails (receipts, guest status codes); retry and record failures."""
+    from apps.events.emails import send_due
+
+    send_due()
+
+
 def reconcile_unresolved():
     """Query the simulator with the original operation ID at
     GATEWAY_RULES["RECONCILIATION_DELAYS_SECONDS"]; settle or escalate. Never sends a new
@@ -86,6 +93,7 @@ def purge_idempotency_records():
 
 JOBS = [
     deliver_outbox,
+    send_emails,
     reconcile_unresolved,
     expire_authorisations,
     expire_checkout_and_verification,

@@ -97,7 +97,7 @@ export default function App({ path = window.location.pathname }: { path?: string
   );
 }
 
-function Shell({ status, children }: { status: string; children: ReactNode }) {
+export function Shell({ status, children }: { status: string; children: ReactNode }) {
   return (
     <>
       <header className="topbar">
@@ -268,7 +268,7 @@ function CardForm({
   );
 }
 
-function Field({ label, error, id, children }: { label: string; error?: string; id: string; children: ReactNode }) {
+export function Field({ label, error, id, children }: { label: string; error?: string; id: string; children: ReactNode }) {
   return (
     <div className={`field${error ? " has-error" : ""}`}>
       <label htmlFor={id}>{label}</label>
@@ -496,7 +496,7 @@ function NotCompleted({ session }: { session: Session }) {
   );
 }
 
-function Row({ label, children }: { label: string; children: ReactNode }) {
+export function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="row">
       <dt>{label}</dt>
