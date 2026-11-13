@@ -1,0 +1,28 @@
+{
+  "name": "securepay-website",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 5175",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "echo \"No unit tests for the marketing site; CI checks types and the build.\""
+  },
+  "dependencies": {
+    "@emotion/react": "^11.13.0",
+    "@emotion/styled": "^11.13.0",
+    "@mui/icons-material": "^6.4.0",
+    "@mui/material": "^6.4.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^7.18.5"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^6.2.1",
+    "typescript": "^5.5.4",
+    "vite": "^8.3.6"
+  }
+}

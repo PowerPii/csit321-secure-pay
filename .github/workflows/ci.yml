@@ -43,7 +43,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        app: [checkout, dashboard]
+        app: [checkout, dashboard, website]
     defaults:
       run:
         working-directory: frontend/${{ matrix.app }}
@@ -55,6 +55,8 @@ jobs:
       - run: npm install
       - run: npx tsc --noEmit
       - run: npm test -- --passWithNoTests
+      - if: matrix.app == 'website'
+        run: npm run build
       - run: npm audit --audit-level=high
 
   contracts:
