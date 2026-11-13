@@ -60,6 +60,9 @@ def apply_authorise_answer(operation_id: int, answer: Answer, request_id: str = 
                 payment.authorised_at = now
                 _move(payment, PaymentStatus.AUTHORISED, EventType.PAYMENT_AUTHORISED)
                 action = "payment.authorised"
+                from apps.guest.receipts import queue_receipt
+
+                queue_receipt(payment)  # FR-CHK-15, sent by the worker after the commit
             elif status == "declined":
                 operation.status = Operation.Status.FAILED
                 payment.outcome_reason = OutcomeReason.CARD_DECLINED

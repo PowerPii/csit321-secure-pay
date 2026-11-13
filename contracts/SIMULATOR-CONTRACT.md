@@ -135,7 +135,7 @@ The URS leaves these values to the contract. All four were confirmed by Fifa on 
 
 ## 11. Follow-ups outside `contracts/`
 
-Kept out of this PR because the sprint 1 build is working in the same folders:
+All done by sprint 8 (13 November 2026): fault controls in `simulator/apps/faults/`, notifications received by `gateway/apps/reconciliation/views.py`, the secrets in `deploy/compose.yaml`. When several fault rules match one operation, the oldest request rule (`drop_request`, `delay_request`, `drop_response`, `delay_response`) applies and every matching `notify` rule fires; a replay of an operation already recorded never uses up a rule. The original list:
 
 - `simulator/apps/operations/test_cards.py`: add `4000000000000135` as a lost-request behaviour (`DROP_REQUEST`), and treat the expiry date.
 - `simulator/apps/operations/urls.py`: add `GET /sim/operations` and the `/sim/faults` routes behind `SIM_TEST_CONTROLS`.

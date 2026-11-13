@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     "apps.reconciliation",
     "apps.audit",
     "apps.internal",
+    "apps.guest",
 ]
 
 MIDDLEWARE = [
@@ -242,6 +243,9 @@ WORKER_BATCH_SIZE = int(env("WORKER_BATCH_SIZE", "50"))
 WEBHOOK_LEASE_SECONDS = 60
 # Public address of the hosted checkout; the payment's checkout_url is this + "/cs_...".
 CHECKOUT_BASE_URL = env("CHECKOUT_BASE_URL", "https://localhost:8443/pay")
+# Public address of the guest status page (screen C9). Receipts link to it with ?ref=SP-...
+# (API-CONTRACT.md section 8: the link only fills in the reference; it is not a credential).
+GUEST_STATUS_URL = env("GUEST_STATUS_URL", "https://localhost:8443/guest/status")
 # Fernet key for secrets the gateway must read back (merchant signing secrets).
 # Generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 FIELD_ENCRYPTION_KEY = secret(

@@ -80,3 +80,18 @@ dl { margin: 0; }
   .amount { font-size: 32px; }
   .panel-right { padding: 20px 16px 32px; align-items: flex-start; }
 }
+
+/* Guest status (C9): one centred column, step boxes, a code field and a timeline. */
+.status-page { align-items: flex-start; }
+.step { display: flex; flex-direction: column; gap: 10px; }
+.step-label { font-size: 12px; font-weight: 600; color: var(--muted); margin: 0; }
+.code-input { font-size: 22px !important; letter-spacing: 8px; text-align: center; }
+.center-text { text-align: center; }
+.link { font: inherit; background: none; border: 0; padding: 0; color: var(--ink); text-decoration: underline; cursor: pointer; }
+.link:disabled { opacity: 0.6; cursor: progress; }
+.view-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.view-head h1 { font-size: 19px; margin: 0; }
+.small-heading { font-size: 15px; margin: 4px 0 0; }
+.timeline { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.timeline li { display: flex; justify-content: space-between; gap: 12px; padding-left: 18px; position: relative; }
+.timeline li::before { content: ""; position: absolute; left: 2px; top: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--ink-2); }

@@ -15,6 +15,16 @@ gateway.localhost {
 		header Referrer-Policy no-referrer
 		header Cache-Control no-store
 	}
+	# Guest status page (screen C9), from the same checkout build. Only the page itself:
+	# /guest/status/* is the gateway's guest status API, handled by the catch-all below.
+	handle /guest/status {
+		root * /srv/checkout
+		rewrite * /index.html
+		file_server
+		header Content-Security-Policy "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; form-action 'self'; base-uri 'none'"
+		header Referrer-Policy no-referrer
+		header Cache-Control no-store
+	}
 	# Staff dashboard (frontend/dashboard, built with base /dashboard/), calling /internal/* on
 	# the same origin with the session cookie. MUI injects its styles at run time, hence
 	# 'unsafe-inline' for styles only; the TOTP setup QR code is a data: image.

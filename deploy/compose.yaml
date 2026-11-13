@@ -37,6 +37,7 @@ services:
       POSTGRES_USER: gateway
       DJANGO_ALLOWED_HOSTS: gateway.localhost,gateway
       CHECKOUT_BASE_URL: https://gateway.localhost/pay
+      GUEST_STATUS_URL: https://gateway.localhost/guest/status  # receipts link here (FR-CHK-15)
       SIMULATOR_URL: https://simulator.localhost
       SIMULATOR_CA_BUNDLE: &caddy-root /caddy-ca/root.crt
       # Screening: client IP from Caddy's X-Forwarded-For; verification codes to Mailpit
@@ -85,6 +86,10 @@ services:
       WEBHOOK_CA_BUNDLE: *caddy-root
       # The demo shop sits on a private Docker network behind Caddy. Never set in production.
       WEBHOOK_ALLOWED_PRIVATE_HOSTS: shop.localhost
+      # Receipts and guest status codes leave from the email outbox here (Mailpit locally).
+      EMAIL_HOST: mailpit
+      EMAIL_PORT: "1025"
+      GUEST_STATUS_URL: https://gateway.localhost/guest/status
     volumes:
       - caddy_ca:/caddy-ca:ro
     secrets:
@@ -108,7 +113,15 @@ services:
       POSTGRES_DB: simulator
       POSTGRES_USER: simulator
       DJANGO_ALLOWED_HOSTS: simulator.localhost,simulator
+      # Test controls (/sim/faults, SIMULATOR-CONTRACT.md section 8) for tests/integration.
+      # Set to "0" for a demo where nobody should be able to inject faults.
+      SIM_TEST_CONTROLS: ${SIM_TEST_CONTROLS:-1}
+      # `notify` fault rules post signed notifications to the gateway through Caddy.
+      SIM_GATEWAY_NOTIFY_URL: https://gateway.localhost/internal/simulator/notifications
+      SIM_GATEWAY_CA_BUNDLE: *caddy-root
     command: ["sh", "-c", "python manage.py migrate --noinput && exec gunicorn config.wsgi:application --bind 0.0.0.0:8001 --workers 4 --timeout 30"]
+    volumes:
+      - caddy_ca:/caddy-ca:ro
     secrets:
       - source: simulator_django_secret_key
         target: django_secret_key
@@ -116,6 +129,7 @@ services:
         target: db_password
       - simulator_api_key
       - simulator_signing_secret
+      - simulator_test_control_key
     networks: [data, simulator]
 
   merchant:
@@ -174,7 +188,8 @@ services:
         aliases: [gateway.localhost, shop.localhost]
       gateway:
         aliases: [simulator.localhost, shop.localhost, gateway.localhost]
-      simulator: {}
+      simulator:
+        aliases: [gateway.localhost]  # simulator notifications (section 9)
       merchant:
         aliases: [gateway.localhost]
 
@@ -209,5 +224,6 @@ secrets:
   merchant_db_password: { file: ./secrets/merchant_db_password }
   simulator_api_key: { file: ./secrets/simulator_api_key }
   simulator_signing_secret: { file: ./secrets/simulator_signing_secret }
+  simulator_test_control_key: { file: ./secrets/simulator_test_control_key }
   securepay_api_key: { file: ./secrets/securepay_api_key }
   securepay_signing_secret: { file: ./secrets/securepay_signing_secret }

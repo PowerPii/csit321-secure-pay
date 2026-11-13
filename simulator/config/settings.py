@@ -124,3 +124,17 @@ SIMULATOR_SIGNING_SECRET = secret(
 # How long the lost-response, lost-request and slow test cards hold the connection
 # (SIMULATOR-CONTRACT.md section 5). Always longer than the gateway's 10 s reply timeout.
 SIM_HOLD_SECONDS = float(env("SIM_HOLD_SECONDS", "15"))
+
+# Test controls (SIMULATOR-CONTRACT.md section 8): /sim/faults exists only when this is 1.
+# On in local and CI stacks, off in a demo deployment unless the demo needs it. Its own key,
+# held by the test runner only (never the gateway).
+SIM_TEST_CONTROLS = env("SIM_TEST_CONTROLS", "0") == "1"
+SIMULATOR_TEST_CONTROL_KEY = secret(
+    "simulator_test_control_key", "simc_" + "devonly" * 5 + "devon" if DEBUG else None
+)
+# Where `notify` fault rules send operation.recorded notifications (section 9), and the CA
+# that signs the gateway's certificate (Caddy's local root in Compose).
+SIM_GATEWAY_NOTIFY_URL = env(
+    "SIM_GATEWAY_NOTIFY_URL", "https://gateway.localhost/internal/simulator/notifications"
+)
+SIM_GATEWAY_CA_BUNDLE = env("SIM_GATEWAY_CA_BUNDLE", "")

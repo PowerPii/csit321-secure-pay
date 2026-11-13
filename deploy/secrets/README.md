@@ -14,5 +14,6 @@ done
 | File | Used by | What |
 | --- | --- | --- |
 | `simulator_api_key` | gateway, simulator | Bearer key the gateway sends to the simulator (any random string) |
-| `simulator_signing_secret` | gateway, simulator | Signs the simulator's replies (any random string) |
+| `simulator_signing_secret` | gateway, simulator | Signs the simulator's replies and notifications (any random string) |
+| `simulator_test_control_key` | simulator, test runner | Opens the simulator's `/sim/faults` test controls (SIMULATOR-CONTRACT.md section 8). Never given to the gateway. `tests/integration` reads it from this file. |
 | `securepay_api_key`, `securepay_signing_secret` | merchant | The demo shop's SecurePay API key and signing secret. Random placeholders at first; replace them with the values `create_merchant` prints (see the main README), then restart `merchant`. |
