@@ -1,0 +1,30 @@
+{% extends "shop/base.html" %}{% load shop %}
+{% block title %}Checkout · Demo Shop{% endblock %}
+{% block nav %}<span>Step 2 of 2</span>{% endblock %}
+{% block body %}
+<div class="layout">
+  <main class="main">
+    <h1>Contact &amp; delivery</h1>
+    <form method="post" novalidate>{% csrf_token %}
+      <div class="fields">
+        <div><label for="{{ form.email.id_for_label }}">Email</label>{{ form.email }}{{ form.email.errors }}</div>
+        <div><label for="{{ form.full_name.id_for_label }}">Full name</label>{{ form.full_name }}{{ form.full_name.errors }}</div>
+        <div class="wide"><label for="{{ form.delivery_address.id_for_label }}">Delivery address</label>{{ form.delivery_address }}{{ form.delivery_address.errors }}</div>
+      </div>
+      <div class="pay">
+        <button class="btn primary" type="submit">Pay {{ total_cents|money }} with SecurePay</button>
+        <span class="muted small">You'll be taken to SecurePay's secure page to enter your card. Demo Shop never sees your card number.</span>
+      </div>
+    </form>
+  </main>
+  <aside class="side">
+    <h2>Your order</h2>
+    <div class="box white">
+      {% for line in lines %}
+      <div class="row small"><span class="muted">{{ line.product.name }} × {{ line.quantity }}</span><span>{{ line.total_cents|money }}</span></div>
+      {% endfor %}
+      <div class="row total small"><span class="muted">Total (SGD)</span><strong>{{ total_cents|money }}</strong></div>
+    </div>
+  </aside>
+</div>
+{% endblock %}

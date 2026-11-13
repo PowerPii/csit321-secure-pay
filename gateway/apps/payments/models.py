@@ -66,6 +66,9 @@ class Payment(models.Model):
     card_token = models.CharField(max_length=32, blank=True)
     card_brand = models.CharField(max_length=16, blank=True)
     card_last4 = models.CharField(max_length=4, blank=True)
+    # Keyed HMAC of the card number from the vault, for prior-activity screening features.
+    card_fingerprint = models.CharField(max_length=64, blank=True)
+    submitted_at = models.DateTimeField(null=True, blank=True)
 
     screening_decision = models.CharField(
         max_length=16, choices=ScreeningDecision.choices, blank=True
@@ -175,6 +178,11 @@ class Operation(models.Model):
     type = models.CharField(max_length=16, choices=Type.choices)
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)
     amount = models.PositiveIntegerField()
+    # The simulator's record ID and its signed reply, kept as evidence (SIMULATOR-CONTRACT.md
+    # section 2; FR-TXN-13: corrections need simulator evidence).
+    simulator_reference = models.CharField(max_length=32, blank=True)
+    evidence_body = models.TextField(blank=True)
+    evidence_signature = models.CharField(max_length=128, blank=True)
     reconciliation_checks = models.PositiveSmallIntegerField(default=0)
     last_checked_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

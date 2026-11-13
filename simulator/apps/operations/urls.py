@@ -6,6 +6,8 @@ so a retry or status query never makes a second financial effect.
 from django.http import JsonResponse
 from django.urls import path
 
+from apps.operations import views
+
 
 def todo(description):
     def view(request, **kwargs):
@@ -15,11 +17,9 @@ def todo(description):
 
 
 urlpatterns = [
-    path("authorise", todo("authorise by test card behaviour; unique on operation_id"),
-         name="sim-authorise"),
-    path("operations/<str:operation_id>", todo("status query by original operation ID"),
-         name="sim-operation"),
-    path("capture", todo("capture an authorisation"), name="sim-capture"),
-    path("cancel", todo("void an authorisation"), name="sim-cancel"),
-    path("refund", todo("refund against a captured operation"), name="sim-refund"),
+    path("authorise", views.authorise, name="sim-authorise"),
+    path("operations/<str:operation_id>", views.operation_status, name="sim-operation"),
+    path("capture", todo("capture an authorisation (sprint 3)"), name="sim-capture"),
+    path("cancel", todo("void an authorisation (sprint 3)"), name="sim-cancel"),
+    path("refund", todo("refund against a captured operation (sprint 5)"), name="sim-refund"),
 ]

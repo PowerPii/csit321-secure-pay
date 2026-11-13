@@ -95,8 +95,14 @@ DATABASES = {
 # The vault uses its own database role so that only the vault module can read card data.
 DATABASES["vault"] = {
     **DATABASES["default"],
+    # Same database as the gateway in the stack; a separate one can be named for local runs
+    # where both roles would otherwise share one django_migrations table.
+    "NAME": env("VAULT_DB_NAME", DATABASES["default"]["NAME"]),
     "USER": env("VAULT_DB_USER", "vault"),
     "PASSWORD": secret("vault_db_password", "vault"),
+    # In the stack the vault is a schema in the gateway database (search_path of the vault
+    # role). Tests give it a database of its own so its tables are created and isolated.
+    "TEST": {"NAME": env("VAULT_TEST_DB_NAME", "test_gateway_vault")},
 }
 DATABASE_ROUTERS = ["apps.vault.routers.VaultRouter"]
 
@@ -176,9 +182,23 @@ GATEWAY_RULES = {
         60, 300, 900, 1800, 3600, 7200, 14400, 28800, 43200, 43200, 43200, 43200,
     ),
     "RECONCILIATION_MAX_CHECKS": 6,
+    # Simulator call timeouts (SIMULATOR-CONTRACT.md proposal S1, awaiting team confirmation):
+    # no reply in time -> the payment is Unresolved and reconciliation asks about the same ID.
+    "SIMULATOR_CONNECT_TIMEOUT_SECONDS": 2,
+    "SIMULATOR_TIMEOUT_SECONDS": 10,
+    "SIMULATOR_SIGNATURE_TOLERANCE_SECONDS": 300,
 }
 
 SIMULATOR_URL = env("SIMULATOR_URL", "http://localhost:8001")
+# Gateway key for the simulator (`simk_...`) and the secret that signs its replies
+# (SIMULATOR-CONTRACT.md section 2, proposal S4). The dev defaults match the simulator's.
+SIMULATOR_API_KEY = secret("simulator_api_key", "simk_" + "devonly" * 5 + "devon" if DEBUG else None)
+SIMULATOR_SIGNING_SECRET = secret(
+    "simulator_signing_secret", "simsig_dev-only-signing-secret" if DEBUG else None
+)
+# CA bundle for the simulator's TLS certificate (Caddy's local CA in the Compose stack);
+# empty means the system trust store.
+SIMULATOR_CA_BUNDLE = env("SIMULATOR_CA_BUNDLE", "")
 # Public address of the hosted checkout; the payment's checkout_url is this + "/cs_...".
 CHECKOUT_BASE_URL = env("CHECKOUT_BASE_URL", "https://localhost:8443/pay")
 # Fernet key for secrets the gateway must read back (merchant signing secrets).
@@ -186,5 +206,10 @@ CHECKOUT_BASE_URL = env("CHECKOUT_BASE_URL", "https://localhost:8443/pay")
 FIELD_ENCRYPTION_KEY = secret(
     "field_encryption_key",
     base64.urlsafe_b64encode(b"dev-only-field-encryption-key!!!").decode() if DEBUG else None,
+)
+# Fernet key for card data in the vault; only apps.vault reads it.
+VAULT_ENCRYPTION_KEY = secret(
+    "vault_encryption_key",
+    base64.urlsafe_b64encode(b"dev-only-vault-encryption-key!!!"[:32]).decode() if DEBUG else None,
 )
 CARD_FINGERPRINT_KEY = secret("card_fingerprint_key", "dev-only-fingerprint-key" if DEBUG else None)

@@ -2,6 +2,7 @@
 import json
 import uuid
 from pathlib import Path
+from typing import ClassVar
 
 import pytest
 from django.core.cache import cache
@@ -81,3 +82,82 @@ def shop(make_merchant):
 @pytest.fixture
 def other_shop(make_merchant):
     return make_merchant(name="Other Shop")
+
+
+# --- a stand-in for the processing simulator ------------------------------------------------
+
+class FakeSimulator:
+    """Answers /sim/* like the real simulator's test cards, through httpx.MockTransport.
+
+    `mode` changes how replies come back: "normal", "bad_signature", "unsigned", "http_500".
+    """
+
+    APPROVE = frozenset({"4242424242424242", "5555555555554444"})
+    DECLINE: ClassVar = {"4000000000009995": "insufficient_funds",
+                         "4000000000000002": "card_declined"}
+    HANG = frozenset({"4000000000000119", "4000000000000127", "4000000000000135"})
+
+    def __init__(self, secret):
+        self.secret = secret
+        self.mode = "normal"
+        self.requests = []  # (method, path, json body or None)
+        self.records = {}
+
+    def record(self, body, status, reason=None):
+        number = body["card"]["number"]
+        return {
+            "operation_id": body["operation_id"], "object": "operation", "type": "authorise",
+            "status": status, "decline_reason": reason, "merchant_id": body["merchant_id"],
+            "payment_id": body["payment_id"], "authorisation_id": None, "refund_id": None,
+            "amount": body["amount"], "currency": "SGD",
+            "card": {"brand": "visa" if number.startswith("4") else "mastercard",
+                     "last4": number[-4:]},
+            "simulator_reference": "sim_" + "S" * 24,
+            "authorisation": ({"state": "open", "authorised_amount": body["amount"],
+                               "captured_amount": 0, "refunded_amount": 0}
+                              if status == "approved" else None),
+            "recorded_at": "2026-11-13T05:00:00Z",
+        }
+
+    def reply(self, data, status=200):
+        import httpx
+
+        from apps.events import signing
+
+        raw = json.dumps(data).encode()
+        headers = {"Content-Type": "application/json"}
+        if self.mode == "http_500":
+            return httpx.Response(500, content=b"{}", headers=headers)
+        if self.mode != "unsigned":
+            secret = "wrong-secret" if self.mode == "bad_signature" else self.secret
+            headers["Simulator-Signature"] = signing.sign(raw, secret)
+        return httpx.Response(status, content=raw, headers=headers)
+
+    def __call__(self, request):
+        import httpx
+
+        body = json.loads(request.content) if request.content else None
+        self.requests.append((request.method, request.url.path, body))
+        assert request.headers["Authorization"].startswith("Bearer simk_")
+        if request.url.path == "/sim/authorise":
+            number = body["card"]["number"]
+            if number in self.HANG:
+                raise httpx.ReadTimeout("no reply", request=request)
+            if number in self.APPROVE:
+                rec = self.record(body, "approved")
+            else:
+                rec = self.record(body, "declined", self.DECLINE.get(number, "card_declined"))
+            self.records[body["operation_id"]] = rec
+            return self.reply(rec)
+        raise AssertionError(f"unexpected call {request.url.path}")
+
+
+@pytest.fixture
+def fake_sim(settings, monkeypatch):
+    import httpx
+
+    from apps.payments import processor
+
+    sim = FakeSimulator(settings.SIMULATOR_SIGNING_SECRET)
+    monkeypatch.setattr(processor, "TRANSPORT", httpx.MockTransport(sim))
+    return sim

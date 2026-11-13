@@ -69,7 +69,7 @@ Every endpoint is routed but returns `501 Not Implemented` until someone builds 
 | Sprint | Goal | Done when |
 | --- | --- | --- |
 | 1 | Foundations: models for Merchant, ApiKey, Payment, Operation, IdempotencyRecord, OutboxEvent, AuditEvent; API key auth; `POST/GET /v1/payments` with idempotency | S5 passes as an API test (done 13 Nov 2026) |
-| 2 | Checkout + vault + simulator authorise; result pages; demo shop starts checkout | S1 passes without screening (stub policy = Allow) |
+| 2 | Checkout + vault + simulator authorise; result pages; demo shop starts checkout | S1 passes without screening (stub policy = Allow) (done 13 Nov 2026) |
 | 3 | Outbox worker, signed webhooks, merchant verifies and confirms; capture / cancel; 7-day expiry job | S1 passes fully |
 | 4 | Risk pipeline with rules + stub model; verification code via Mailpit; decision record | S2, S3 pass |
 | 5 | Reconciliation sweep, refunds with reservations | S4, S6 pass |

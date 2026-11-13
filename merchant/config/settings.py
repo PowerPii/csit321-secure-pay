@@ -104,3 +104,19 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG
 SESSION_COOKIE_HTTPONLY = True
+
+# --- SecurePay ----------------------------------------------------------------------------
+# The shop is an ordinary merchant: it holds an API key and a signing secret, both shown once
+# by the gateway's `manage.py create_merchant "Demo Shop"`, and calls the gateway's /v1 API.
+SECUREPAY_API_URL = env("SECUREPAY_API_URL", "http://localhost:8000")
+SECUREPAY_API_KEY = secret("securepay_api_key")
+SECUREPAY_SIGNING_SECRET = secret("securepay_signing_secret")
+# CA bundle for the gateway's certificate (Caddy's local CA in the Compose stack).
+SECUREPAY_CA_BUNDLE = env("SECUREPAY_CA_BUNDLE", "")
+SECUREPAY_TIMEOUT_SECONDS = float(env("SECUREPAY_TIMEOUT_SECONDS", "15"))
+# Signed replies more than this far from our clock are rejected (API-CONTRACT.md section 2).
+SECUREPAY_SIGNATURE_TOLERANCE_SECONDS = 300
+# Public HTTPS address of this shop; the payment's return_url is built from it.
+SHOP_BASE_URL = env("SHOP_BASE_URL", "https://shop.localhost")
+SHOP_NAME = "Demo Shop"
+CSRF_TRUSTED_ORIGINS = [SHOP_BASE_URL]  # forms post through Caddy over HTTPS

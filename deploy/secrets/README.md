@@ -10,3 +10,9 @@ for f in vault_encryption_key field_encryption_key; do
   python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())" > "$f"
 done
 ```
+
+| File | Used by | What |
+| --- | --- | --- |
+| `simulator_api_key` | gateway, simulator | Bearer key the gateway sends to the simulator (any random string) |
+| `simulator_signing_secret` | gateway, simulator | Signs the simulator's replies (any random string) |
+| `securepay_api_key`, `securepay_signing_secret` | merchant | The demo shop's SecurePay API key and signing secret. Random placeholders at first; replace them with the values `create_merchant` prints (see the main README), then restart `merchant`. |

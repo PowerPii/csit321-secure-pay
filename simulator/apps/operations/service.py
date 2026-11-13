@@ -1,0 +1,199 @@
+"""Recording operations under the one-record-per-operation_id rule (SIMULATOR-CONTRACT.md 3, 6)."""
+import hashlib
+import json
+import re
+from datetime import date
+
+from django.db import IntegrityError, transaction
+from django.utils import timezone
+
+from apps.common.http import ApiError, rfc3339
+from apps.common.ids import new_id
+from apps.ledger.models import post_hold
+from apps.operations.models import Authorisation, OperationRecord
+from apps.operations.test_cards import Behaviour, brand_for, digits_only, luhn_ok
+
+OPERATION_ID = re.compile(r"^op_[0-9A-Za-z]{24}$")
+MERCHANT_ID = re.compile(r"^mer_[0-9A-Za-z]{24}$")
+PAYMENT_ID = re.compile(r"^pay_[0-9A-Za-z]{24}$")
+CARD_NUMBER = re.compile(r"^[0-9]{13,19}$")
+CVC = re.compile(r"^[0-9]{3,4}$")
+AUTHORISE_FIELDS = {"operation_id", "merchant_id", "payment_id", "amount", "currency", "card"}
+CARD_FIELDS = {"number", "expiry_month", "expiry_year", "cvc"}
+
+
+def to_dict(record: OperationRecord) -> dict:
+    """The operation as contracts/schemas/simulator-operation.schema.json describes it."""
+    card = ({"brand": record.card_brand, "last4": record.card_last4}
+            if record.card_last4 else None)
+    authorisation = record.authorisation.to_dict() if record.authorisation_id else None
+    return {
+        "operation_id": record.operation_id,
+        "object": "operation",
+        "type": record.type,
+        "status": record.status,
+        "decline_reason": record.decline_reason or None,
+        "merchant_id": record.merchant_id,
+        "payment_id": record.payment_id,
+        "authorisation_id": record.authorisation_ref,
+        "refund_id": record.refund_id,
+        "amount": record.amount,
+        "currency": record.currency,
+        "card": card,
+        "simulator_reference": record.simulator_reference,
+        "authorisation": authorisation,
+        "recorded_at": rfc3339(record.recorded_at),
+    }
+
+
+def _bad(code, message, param=None):
+    return ApiError(400, code, message, param)
+
+
+def _is_int(value) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def parse_authorise(raw: bytes) -> dict:
+    try:
+        body = json.loads(raw or b"")
+    except (ValueError, UnicodeDecodeError):
+        raise _bad("invalid_json", "The request body is not valid JSON.") from None
+    if not isinstance(body, dict):
+        raise _bad("invalid_json", "The request body must be a JSON object.")
+    for name in AUTHORISE_FIELDS:
+        if name not in body:
+            raise _bad("missing_field", f"'{name}' is required.", name)
+    for name in body:
+        if name not in AUTHORISE_FIELDS:
+            raise _bad("invalid_field", f"Unknown field '{name}'.", name)
+    if not isinstance(body["operation_id"], str) or not OPERATION_ID.match(body["operation_id"]):
+        raise _bad("invalid_field", "'operation_id' must be op_ + 24 base62 characters.",
+                   "operation_id")
+    if not isinstance(body["merchant_id"], str) or not MERCHANT_ID.match(body["merchant_id"]):
+        raise _bad("invalid_field", "'merchant_id' is not a merchant ID.", "merchant_id")
+    if not isinstance(body["payment_id"], str) or not PAYMENT_ID.match(body["payment_id"]):
+        raise _bad("invalid_field", "'payment_id' is not a payment ID.", "payment_id")
+    if not _is_int(body["amount"]) or not 1 <= body["amount"] <= 1_000_000:
+        raise _bad("invalid_field", "'amount' must be 1 to 1000000 cents.", "amount")
+    if body["currency"] != "SGD":
+        raise _bad("currency_not_supported", "Only SGD is supported.", "currency")
+    card = body["card"]
+    if not isinstance(card, dict) or set(card) != CARD_FIELDS:
+        raise _bad("invalid_field", "'card' needs number, expiry_month, expiry_year and cvc.",
+                   "card")
+    if not isinstance(card["number"], str) or not CARD_NUMBER.match(card["number"]):
+        raise _bad("invalid_field", "'card.number' must be 13 to 19 digits.", "card.number")
+    if not luhn_ok(card["number"]):
+        raise _bad("invalid_card", "The card number fails the Luhn check.", "card.number")
+    if not _is_int(card["expiry_month"]) or not 1 <= card["expiry_month"] <= 12:
+        raise _bad("invalid_field", "'card.expiry_month' must be 1 to 12.", "card.expiry_month")
+    if not _is_int(card["expiry_year"]) or not 2000 <= card["expiry_year"] <= 2099:
+        raise _bad("invalid_field", "'card.expiry_year' must be 2000 to 2099.",
+                   "card.expiry_year")
+    if not isinstance(card["cvc"], str) or not CVC.match(card["cvc"]):
+        raise _bad("invalid_field", "'card.cvc' must be 3 or 4 digits.", "card.cvc")
+    return body
+
+
+def fingerprint(body: dict) -> str:
+    """Hash of the request without the card number and security code (section 3)."""
+    safe = {k: v for k, v in body.items() if k != "card"}
+    card = body.get("card") or {}
+    safe["card"] = {"expiry_month": card.get("expiry_month"),
+                    "expiry_year": card.get("expiry_year")}
+    canonical = json.dumps(safe, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode()).hexdigest()
+
+
+def card_expired(month: int, year: int, today: date | None = None) -> bool:
+    today = today or timezone.now().date()
+    return (year, month) < (today.year, today.month)
+
+
+class Existing(Exception):
+    """The operation_id already has a record; carries what to reply."""
+
+    def __init__(self, record, conflict_code=None):
+        super().__init__(record.operation_id)
+        self.record, self.conflict_code = record, conflict_code
+
+
+def check_existing(operation_id: str, request_fingerprint: str) -> None:
+    record = (OperationRecord.objects.select_related("authorisation")
+              .filter(operation_id=operation_id).first())
+    if record is None:
+        return
+    if record.status == OperationRecord.Status.NO_RECORD:
+        raise Existing(record, "operation_retired")
+    if record.request_fingerprint != request_fingerprint:
+        raise Existing(record, "operation_id_conflict")
+    raise Existing(record)
+
+
+def record_authorise(body: dict, behaviour: Behaviour, request_fingerprint: str
+                     ) -> OperationRecord:
+    """Insert the record (and the authorisation and ledger hold if approved) atomically.
+
+    Raises Existing if the ID was recorded or retired in the meantime.
+    """
+    card = body["card"]
+    pan = digits_only(card["number"])
+    approved = behaviour in (Behaviour.APPROVE, Behaviour.TIMEOUT, Behaviour.SLOW)
+    decline_reason = ""
+    if card_expired(card["expiry_month"], card["expiry_year"]):
+        approved, decline_reason = False, "expired_card"
+    elif behaviour is Behaviour.DECLINE_FUNDS:
+        decline_reason = "insufficient_funds"
+    elif not approved:
+        decline_reason = "card_declined"
+
+    record = OperationRecord(
+        operation_id=body["operation_id"],
+        type=OperationRecord.Type.AUTHORISE,
+        status=OperationRecord.Status.APPROVED if approved else OperationRecord.Status.DECLINED,
+        decline_reason=decline_reason,
+        merchant_id=body["merchant_id"],
+        payment_id=body["payment_id"],
+        amount=body["amount"],
+        currency="SGD",
+        card_brand=brand_for(pan),
+        card_last4=pan[-4:],
+        simulator_reference=new_id("sim"),
+        request_fingerprint=request_fingerprint,
+        recorded_at=timezone.now(),
+    )
+    try:
+        with transaction.atomic():
+            if approved:
+                record.authorisation = Authorisation.objects.create(
+                    operation_id=record.operation_id, merchant_id=record.merchant_id,
+                    payment_id=record.payment_id, authorised_amount=record.amount)
+            record.save(force_insert=True)
+            if approved:
+                post_hold(record.operation_id, record.operation_id, record.amount)
+    except IntegrityError:
+        # A status query retired the ID, or a duplicate won the race. Report what is there.
+        check_existing(body["operation_id"], request_fingerprint)
+        raise
+    return record
+
+
+def status_query(operation_id: str, op_type: str | None) -> OperationRecord:
+    """Return the record for the ID, retiring it as no_record if there is none (section 6)."""
+    for _ in range(3):
+        record = (OperationRecord.objects.select_related("authorisation")
+                  .filter(operation_id=operation_id).first())
+        if record is not None:
+            return record
+        try:
+            with transaction.atomic():
+                return OperationRecord.objects.create(
+                    operation_id=operation_id,
+                    type=op_type or OperationRecord.Type.AUTHORISE,
+                    status=OperationRecord.Status.NO_RECORD,
+                    recorded_at=timezone.now(),
+                )
+        except IntegrityError:
+            continue  # the operation (or another query) committed first; read it
+    raise RuntimeError("could not read or retire the operation")
