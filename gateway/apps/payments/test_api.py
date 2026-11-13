@@ -128,11 +128,6 @@ def test_card_numbers_are_refused_and_never_stored(shop, caplog):
     assert "4111" not in caplog.text
 
 
-def test_unbuilt_payment_routes_still_return_501(shop):
-    response = shop.post("/v1/payments/pay_x/refunds", {}, format="json")
-    assert response.status_code == 501
-
-
 # --- line items (added 13 Nov 2026) ----------------------------------------------------------
 
 ITEMS = [{"name": "Wireless mouse", "quantity": 1, "unit_amount": 2990},

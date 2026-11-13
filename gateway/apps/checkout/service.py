@@ -126,6 +126,8 @@ def to_dict(payment: Payment) -> dict:
     result = RESULTS[status]
     if payment.outcome_reason == OutcomeReason.SCREENING_UNAVAILABLE:
         result = "unavailable"  # a technical stop, not a fraud finding: "try again later"
+    elif payment.outcome_reason == OutcomeReason.NOT_PROCESSED:
+        result = "not_completed"  # the bank never got it: not a decline, nothing was taken
     return {
         "session_id": payment.checkout_session_id,
         "status": status.value,

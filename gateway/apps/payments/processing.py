@@ -44,8 +44,7 @@ def apply_authorise_answer(operation_id: int, answer: Answer, request_id: str = 
 
         now = timezone.now()
         if record is None:
-            operation.status = Operation.Status.UNRESOLVED
-            operation.save(update_fields=["status", "updated_at"])
+            operation.mark_unresolved()
             if payment.status != PaymentStatus.UNRESOLVED:
                 _move(payment, PaymentStatus.UNRESOLVED, EventType.PAYMENT_UNRESOLVED)
             action, details = "payment.unresolved", {"problem": answer.problem or

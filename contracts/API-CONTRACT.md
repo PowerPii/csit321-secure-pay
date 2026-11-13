@@ -62,7 +62,7 @@ Statuses mirror `gateway/apps/payments/states.py` (URS Figure 2.2.2.1).
 
 **A retried capture or cancel the processor never received.** If a request with the same Idempotency-Key is retried after reconciliation found that the simulator has no record of the original call, the reply is `409 operation_not_processed`: nothing changed, and the merchant may try again with a new Idempotency-Key.
 
-**Refunds** (`POST /v1/payments/{id}/refunds`, UC-24). Body: `amount` (cents) and optional `reason`. Only on `captured` payments (`409 payment_not_captured` otherwise). The gateway locks the payment row, checks `completed + reserved + amount <= captured_amount` and reserves the amount in the same transaction (FR-TXN-02, FR-TXN-03). Too much: `422 refund_exceeds_refundable`, and no refund object is created (the attempt still appears as "rejected" in the dashboard history, FR-TXN-14). Reply `201` with the Refund, whose status is `completed`, `failed` or `unresolved`. An unresolved refund keeps its reservation until reconciliation. `GET /v1/payments/{id}/refunds` lists them with the current `refundable_amount`; `GET /v1/refunds/{id}` reads one.
+**Refunds** (`POST /v1/payments/{id}/refunds`, UC-24). Body: `amount` (cents) and optional `reason`. Only on `captured` payments (`409 payment_not_captured` otherwise). The gateway locks the payment row, checks `completed + reserved + amount <= captured_amount` and reserves the amount in the same transaction (FR-TXN-02, FR-TXN-03). Too much: `422 refund_exceeds_refundable`, and no refund object is created (the attempt still appears as "rejected" in the dashboard history, FR-TXN-14). Reply `201` with the Refund, whose status is `completed`, `failed` or `unresolved`. An unresolved refund keeps its reservation until reconciliation; while it is unresolved, a new refund of the same payment gets `409 operation_in_progress` (`SIMULATOR-CONTRACT.md` section 3 rule 5). Refunds that are merely in flight do not block each other: the reservation keeps them within the captured amount. `GET /v1/payments/{id}/refunds` lists them with the current `refundable_amount`; `GET /v1/refunds/{id}` reads one.
 
 ## 4. Errors
 
@@ -89,7 +89,7 @@ Merchants branch on `code`, never on `message`.
 | 409 | conflict | `idempotency_key_reused` | Same key, different request (section 5) |
 | 409 | conflict | `idempotency_request_in_progress` | Same key while the first request is still running; has `Retry-After` (FR-CHK-10) |
 | 409 | conflict | `payment_not_authorised`, `payment_already_captured`, `payment_already_cancelled`, `authorisation_expired` | Capture or cancel from the wrong status |
-| 409 | conflict | `operation_in_progress` | A capture or cancel is still unresolved |
+| 409 | conflict | `operation_in_progress` | A capture or cancel is still unresolved, or (on a refund) an earlier refund of the payment is still unresolved (`SIMULATOR-CONTRACT.md` section 3 rule 5) |
 | 409 | conflict | `processor_rejected` | The processor refused a capture or cancel the gateway allowed; payment unchanged (P4) |
 | 409 | conflict | `operation_not_processed` | Retry of a capture or cancel the processor never received; use a new Idempotency-Key |
 | 409 | conflict | `payment_not_captured` | Refund on a payment that is not captured |

@@ -8,7 +8,8 @@ from apps.payments.models import Payment
 from apps.payments.serializers import payment_to_dict
 
 
-def record_payment_event(payment: Payment, event_type: EventType) -> OutboxEvent:
+def record_payment_event(payment: Payment, event_type: EventType,
+                         snapshot: dict | None = None) -> OutboxEvent:
     """Bump the payment's sequence and write the matching event, atomically with the caller.
 
     Call it after changing the payment's fields and with the payment row locked
@@ -36,7 +37,15 @@ def record_payment_event(payment: Payment, event_type: EventType) -> OutboxEvent
         "created_at": rfc3339(now),
         "payment_id": payment.public_id,
         "sequence": payment.sequence,
-        "data": {"object": payment_to_dict(payment)},
+        "data": {"object": snapshot if snapshot is not None else payment_to_dict(payment)},
     }
     event.save(update_fields=["payload"])
     return event
+
+
+def record_refund_event(refund, event_type: EventType) -> OutboxEvent:
+    """A refund.* event; call with the payment row locked, after saving the refund."""
+    from apps.refunds.serializers import refund_to_dict
+
+    payment = refund.payment
+    return record_payment_event(payment, event_type, snapshot=refund_to_dict(refund))

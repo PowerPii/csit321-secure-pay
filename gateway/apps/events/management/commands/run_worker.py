@@ -51,9 +51,12 @@ def deliver_outbox():
 
 
 def reconcile_unresolved():
-    """Sprint 5: query the simulator with the original operation ID at
+    """Query the simulator with the original operation ID at
     GATEWAY_RULES["RECONCILIATION_DELAYS_SECONDS"]; settle or escalate. Never sends a new
-    charge."""
+    charge. Also picks up operations a crashed process left without an answer (FR-TXN-15)."""
+    from apps.payments.reconciliation import reconcile_due
+
+    reconcile_due()
 
 
 def expire_authorisations():

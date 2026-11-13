@@ -162,8 +162,7 @@ def apply_settlement_answer(operation_id: int, answer: Answer, request_id: str =
         kind = operation.type
         if record is None:
             # The payment keeps its status; pending_operation shows the unresolved call.
-            operation.status = Operation.Status.UNRESOLVED
-            operation.save(update_fields=["status", "updated_at"])
+            operation.mark_unresolved()
             action = f"payment.{kind}_unresolved"
             details = {"problem": answer.problem or answer.conflict_code}
         else:

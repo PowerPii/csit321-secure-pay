@@ -48,9 +48,9 @@ def _pending_operation(payment: Payment):
 
 
 def payment_to_dict(payment: Payment) -> dict:
-    # Refund amounts come from the refunds app in sprint 5; until then nothing is refunded.
-    refunded = 0
-    reserved = 0
+    from apps.refunds.models import refund_totals
+
+    refunded, reserved = refund_totals(payment) if payment.captured_amount else (0, 0)
     refundable = (
         payment.captured_amount - refunded - reserved
         if payment.status == PaymentStatus.CAPTURED else 0

@@ -120,6 +120,13 @@ def cancel(operation: Operation, authorisation_id: str) -> Answer:
     return _call(operation, "POST", "/sim/cancel", json=body)
 
 
+def refund(operation: Operation, authorisation_id: str, refund_id: str) -> Answer:
+    """Refund `operation.amount` of a captured authorisation (section 4)."""
+    body = {"operation_id": operation.public_id, "authorisation_id": authorisation_id,
+            "refund_id": refund_id, "amount": operation.amount}
+    return _call(operation, "POST", "/sim/refund", json=body)
+
+
 def status_query(operation: Operation) -> Answer:
     """Ask about an operation by its original ID (section 6). Used by reconciliation."""
     return _call(operation, "GET", f"/sim/operations/{operation.public_id}",

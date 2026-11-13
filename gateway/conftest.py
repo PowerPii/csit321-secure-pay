@@ -117,6 +117,7 @@ class FakeSimulator:
     DECLINE: ClassVar = {"4000000000009995": "insufficient_funds",
                          "4000000000000002": "card_declined"}
     HANG = frozenset({"4000000000000119", "4000000000000127", "4000000000000135"})
+    LOST_REQUEST = "4000000000000135"  # nothing recorded; the others record an approval
 
     def __init__(self, secret):
         self.secret = secret
@@ -125,6 +126,9 @@ class FakeSimulator:
         self.records = {}
         self.auth_state = {}
         self.settle_mode = "normal"  # capture/cancel: "normal", "hang", "decline"
+        self.refund_mode = "normal"  # refund: "normal", "hang", "lost", "decline"
+        self.status_mode = "normal"  # status query: "normal", "fail" (503), "conflict"
+        self.refunded = {}  # authorisation operation ID -> approved refund total
 
     def record(self, body, status, reason=None):
         number = body["card"]["number"]
@@ -165,6 +169,8 @@ class FakeSimulator:
         if request.url.path == "/sim/authorise":
             number = body["card"]["number"]
             if number in self.HANG:
+                if number != self.LOST_REQUEST:  # lost response: recorded, never answered
+                    self.records[body["operation_id"]] = self.record(body, "approved")
                 raise httpx.ReadTimeout("no reply", request=request)
             if number in self.APPROVE:
                 rec = self.record(body, "approved")
@@ -176,7 +182,64 @@ class FakeSimulator:
             if self.settle_mode == "hang":
                 raise httpx.ReadTimeout("no reply", request=request)
             return self.reply(self.settle(request.url.path.rsplit("/", 1)[1], body))
+        if request.url.path == "/sim/refund":
+            return self.refund(request, body)
+        if request.url.path.startswith("/sim/operations/"):
+            return self.status_query(request.url.path.rsplit("/", 1)[1],
+                                     request.url.params.get("type"))
         raise AssertionError(f"unexpected call {request.url.path}")
+
+    def status_query(self, operation_id, op_type):
+        """Section 6: the record, or a new no_record entry that retires the ID."""
+        import httpx
+
+        if self.status_mode == "fail":
+            return httpx.Response(503, content=b"{}")
+        if self.status_mode == "conflict":
+            rec = self.records.get(operation_id) or {"operation_id": operation_id}
+            return self.reply({"error": {"code": "operation_id_conflict", "message": "x"},
+                               "operation": rec}, status=409)
+        if operation_id not in self.records:
+            self.records[operation_id] = {
+                "operation_id": operation_id, "object": "operation",
+                "type": op_type or "authorise", "status": "no_record", "decline_reason": None,
+                "merchant_id": None, "payment_id": None, "authorisation_id": None,
+                "refund_id": None, "amount": None, "currency": None, "card": None,
+                "simulator_reference": None, "authorisation": None,
+                "recorded_at": "2026-11-13T05:00:00Z"}
+        return self.reply(self.records[operation_id])
+
+    def refund(self, request, body):
+        import httpx
+
+        if body["operation_id"] in self.records:
+            return self.reply(self.records[body["operation_id"]])
+        if self.refund_mode == "lost":
+            raise httpx.ReadTimeout("no reply", request=request)
+        auth_id = body["authorisation_id"]
+        auth = self.records.get(auth_id)
+        captured = next((r["amount"] for r in self.records.values()
+                         if r.get("type") == "capture" and r.get("authorisation_id") == auth_id
+                         and r["status"] == "approved"), None)
+        done = self.refunded.get(auth_id, 0)
+        reason = None
+        if auth is None:
+            reason = "authorisation_not_found"
+        elif captured is None:
+            reason = "authorisation_not_captured"
+        elif done + body["amount"] > captured or self.refund_mode == "decline":
+            reason = "refund_exceeds_captured"
+        if reason is None:
+            self.refunded[auth_id] = done + body["amount"]
+        rec = {**(auth or {}), "operation_id": body["operation_id"], "type": "refund",
+               "status": "declined" if reason else "approved", "decline_reason": reason,
+               "authorisation_id": auth_id, "refund_id": body["refund_id"],
+               "amount": body["amount"], "card": None,
+               "simulator_reference": "sim_" + "U" * 24}
+        self.records[body["operation_id"]] = rec
+        if self.refund_mode == "hang":
+            raise httpx.ReadTimeout("no reply", request=request)
+        return self.reply(rec)
 
     def settle(self, op_type, body):
         """Capture or cancel against an authorisation this fake approved."""
