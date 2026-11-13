@@ -1,6 +1,7 @@
 from datetime import date, timedelta
 
 import pytest
+from cryptography.exceptions import InvalidTag
 from django.db import connections
 from django.utils import timezone
 
@@ -23,9 +24,23 @@ def test_tokenise_keeps_only_ciphertext_and_summary():
         dump, ciphertext = cur.fetchone()
     # Only the ciphertext holds the number and code; it decrypts only with the vault key.
     assert "4242424242424242" not in dump and '"987"' not in dump
-    assert vault._fernet().decrypt(ciphertext.encode()) == (
+    assert ciphertext.startswith("v1.")
+    assert vault._decrypt(ciphertext, summary.token) == (
         b'{"number": "4242424242424242", "cvc": "987"}')
     assert "4242424242424242" not in repr(summary)
+
+
+def test_ciphertext_is_bound_to_its_token():
+    a = vault.tokenise("4242424242424242", 12, 2030, "123", expires_at=later())
+    b = vault.tokenise("5555555555554444", 1, 2031, "456", expires_at=later())
+    stored_a = StoredCard.objects.using("vault").get(token=a.token)
+    # AES-256-GCM: a 256-bit key, a fresh nonce per card, and the token as associated data.
+    assert len(vault._key()) == 32
+    with pytest.raises(InvalidTag):
+        vault._decrypt(stored_a.ciphertext, b.token)
+    StoredCard.objects.using("vault").filter(token=b.token).update(ciphertext=stored_a.ciphertext)
+    with pytest.raises(InvalidTag):
+        vault.take(b.token)
 
 
 def test_take_returns_the_card_once_and_deletes_it():

@@ -1,6 +1,6 @@
 """Card data held between card entry and submission (architecture section 11).
 
-The number and security code are stored only as Fernet ciphertext under VAULT_ENCRYPTION_KEY,
+The number and security code are stored only as AES-256-GCM ciphertext under VAULT_ENCRYPTION_KEY,
 in the vault database role's own schema. The row is deleted when the payment is submitted
 (Fifa's decision: card data deleted after submit), or when the checkout session ends unused.
 """
@@ -9,7 +9,7 @@ from django.db import models
 
 class StoredCard(models.Model):
     token = models.CharField(max_length=32, unique=True, editable=False)  # tok_...
-    ciphertext = models.TextField(editable=False)  # Fernet({number, cvc})
+    ciphertext = models.TextField(editable=False)  # AES-256-GCM({number, cvc}), token as associated data
     brand = models.CharField(max_length=16)
     last4 = models.CharField(max_length=4)
     expiry_month = models.PositiveSmallIntegerField()

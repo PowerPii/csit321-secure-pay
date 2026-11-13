@@ -9,12 +9,14 @@ Nothing returned by `tokenise` contains the number or security code, so callers 
 and log the summary freely. `take` is the one place card data leaves the vault, to be sent
 to the simulator once.
 """
+import base64
 import json
+import os
 import re
 from dataclasses import dataclass
 from datetime import datetime
 
-from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
@@ -67,8 +69,32 @@ def brand_for(digits: str) -> str:
     return "unknown"
 
 
-def _fernet() -> Fernet:
-    return Fernet(settings.VAULT_ENCRYPTION_KEY)
+# Card data is encrypted with AES-256-GCM (URS FR-CHK-02, NFR-ENC-02). The stored value is
+# "v1." + base64(12-byte random nonce + ciphertext + 16-byte tag). The token is bound in as
+# associated data, so a ciphertext copied onto another row fails to decrypt.
+CIPHER_PREFIX = "v1."
+NONCE_BYTES = 12
+
+
+def _key() -> bytes:
+    """VAULT_ENCRYPTION_KEY is 32 random bytes, URL-safe base64 encoded (a 256-bit key)."""
+    key = base64.urlsafe_b64decode(settings.VAULT_ENCRYPTION_KEY)
+    if len(key) != 32:
+        raise ValueError("VAULT_ENCRYPTION_KEY must decode to 32 bytes (AES-256)")
+    return key
+
+
+def _encrypt(plaintext: bytes, token: str) -> str:
+    nonce = os.urandom(NONCE_BYTES)
+    sealed = AESGCM(_key()).encrypt(nonce, plaintext, token.encode())
+    return CIPHER_PREFIX + base64.b64encode(nonce + sealed).decode()
+
+
+def _decrypt(stored: str, token: str) -> bytes:
+    if not stored.startswith(CIPHER_PREFIX):
+        raise ValueError("unknown vault ciphertext format")
+    raw = base64.b64decode(stored[len(CIPHER_PREFIX):])
+    return AESGCM(_key()).decrypt(raw[:NONCE_BYTES], raw[NONCE_BYTES:], token.encode())
 
 
 def _int(value, field) -> int:
@@ -103,9 +129,10 @@ def validate(number, expiry_month, expiry_year, cvc, today=None) -> CardData:
 def tokenise(number, expiry_month, expiry_year, cvc, *, expires_at: datetime) -> CardSummary:
     card = validate(number, expiry_month, expiry_year, cvc)
     secret_part = json.dumps({"number": card.number, "cvc": card.cvc}).encode()
+    token = new_id("tok")
     stored = StoredCard.objects.using(DB).create(
-        token=new_id("tok"),
-        ciphertext=_fernet().encrypt(secret_part).decode(),
+        token=token,
+        ciphertext=_encrypt(secret_part, token),
         brand=brand_for(card.number),
         last4=card.number[-4:],
         expiry_month=card.expiry_month,
@@ -125,7 +152,7 @@ def take(token: str) -> CardData | None:
                   .filter(token=token, expires_at__gt=timezone.now()).first())
         if stored is None:
             return None
-        secret_part = json.loads(_fernet().decrypt(stored.ciphertext.encode()))
+        secret_part = json.loads(_decrypt(stored.ciphertext, stored.token))
         stored.delete()
     return CardData(number=secret_part["number"], cvc=secret_part["cvc"],
                     expiry_month=stored.expiry_month, expiry_year=stored.expiry_year)
