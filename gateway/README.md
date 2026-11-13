@@ -50,7 +50,9 @@ same-origin JSON API under `/checkout/`:
 | --- | --- |
 | `GET /checkout/{cs}` | Order summary and state (C3; C6/C7 after a reload). Expires the session after 1 hour (`payment.expired`) |
 | `POST /checkout/{cs}/card` | Card to the vault; the payment keeps token, brand, last four and fingerprint |
-| `POST /checkout/{cs}/submit` | Screening (stub Allow until sprint 4), operation row committed, then `/sim/authorise`; answers `authorised`, `declined` or `unresolved` |
+| `POST /checkout/{cs}/submit` | Screening, then: Allow -> operation row committed, then `/sim/authorise` (`authorised`, `declined` or `unresolved`); Verify -> `verification_required` and a code by email; Block -> `blocked` |
+| `POST /checkout/{cs}/verify` | `{code}` (C5). Right code: on to the simulator. Wrong: `400 code_incorrect`; the 3rd wrong code blocks (`verification_failed`). Old code: `400 code_expired` |
+| `POST /checkout/{cs}/verify/resend` | New code, replaces the old one; 30 s cooldown (`429 resend_too_soon`), at most 5 codes (`429 too_many_codes`) |
 | `GET /checkout/{cs}/result` | Same object as the session |
 
 | Where | What |
@@ -59,7 +61,26 @@ same-origin JSON API under `/checkout/`:
 | `apps/checkout/service.py` | The checkout flow and the customer-facing result (no fraud reasons) |
 | `apps/payments/processor.py` | Simulator client: bearer key, 2 s / 10 s timeouts (proposal S1), only signed replies count |
 | `apps/payments/processing.py` | Applies an answer (approved, declined, no_record, none) to the operation and payment, with outbox event and audit. Reconciliation reuses it in sprint 5 |
-| `apps/risk/screening.py` | Sprint 2 stub: always Allow |
+| `apps/risk/screening.py` | Runs the pipeline (sprint 4, below) and writes the decision record |
+
+## Fraud screening (sprint 4)
+
+`apps/risk` screens every payment when the customer pays, before the simulator: **features -> lists and rules -> model -> policy** (architecture section 7).
+
+| Where | What |
+| --- | --- |
+| `apps/risk/features.py` | Feature schema `fs-0.1`: amount plus prior-activity counts per card fingerprint, email hash and IP hash (10 min to 30 days), only from earlier attempts |
+| `apps/risk/pipeline.py` | `rules-0.1` (block list, review list, 5+ attempts on one card in 10 minutes -> block, over S$500 -> verify) and `policy-0.1` (score >= 0.5 verify, >= 0.9 block) |
+| `apps/risk/scoring.py` | Model interface. `StubModel` (`stub-0`, score 0) until a trained HistGradientBoosting artefact is installed (`model_artifacts/README.md`) |
+| `apps/risk/screening.py` | Savepoint + Postgres `statement_timeout` of 500 ms; any error or overrun -> `blocked`, `screening_unavailable`, decision `not_screened`, never sent to the simulator (FR-FRD-04) |
+| `apps/risk/models.py` | `ScreeningEvent`: one per attempt; score, reasons, feature values, model / rules / policy versions, time taken. `RiskListEntry`: block and review lists |
+| `apps/checkout/verification.py` | 6-digit codes (HMAC-hashed, 10 minutes), emailed through Mailpit |
+
+Analysts read decisions in the Django admin (Risk -> Screening events) until the dashboard (D4, D6) lands in sprint 6. Demo data: `python manage.py seed_risk_lists` (the Compose stack runs it on start) lists card **4000 0000 0000 0101** and `blocked@example.com` for blocking and `review@example.com` for verification. Any order over S$500 asks for a code too. The burst rule counts every attempt, including blocked ones, so after an outage test or many declines on one test card, wait 10 minutes or use another card.
+
+Confirmed by Fifa 13 Nov 2026: hard cut-off 500 ms with a p95 target of 200 ms; the card stays encrypted in the vault until the code is entered; resend after 30 s, at most 5 codes per payment.
+
+Measuring: `python manage.py benchmark_screening` screens 1,000 payments over 5,000 earlier events inside a rolled-back transaction and reports p50/p95/p99 against NFR-PER-02. Outage test (DEBUG only): `RISK_SIMULATE_OUTAGE=error` or `slow` makes every screening unavailable.
 
 Running locally: `python manage.py migrate && python manage.py migrate --database=vault`. If the
 vault role shares your database and role, set `VAULT_DB_NAME` to a second database so the two

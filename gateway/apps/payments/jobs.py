@@ -46,10 +46,12 @@ def _start_expiry(payment_id: str, actor):
 
 
 def expire_checkout_sessions(limit: int | None = None) -> int:
-    """payment.expired for checkout sessions that passed their hour without a card."""
+    """Checkout sessions past their hour: payment.expired if never submitted, Blocked
+    (verification_expired) if still waiting for a verification code (FR-CHK-21)."""
     from apps.checkout.service import expire_if_due
 
-    due = (Payment.objects.filter(status=PaymentStatus.CREATED,
+    due = (Payment.objects.filter(status__in=[PaymentStatus.CREATED,
+                                              PaymentStatus.VERIFICATION_REQUIRED],
                                   checkout_expires_at__lte=timezone.now())
            .select_related("merchant").order_by("checkout_expires_at")
            [:limit or settings.WORKER_BATCH_SIZE])

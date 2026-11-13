@@ -16,6 +16,8 @@ from django.utils import timezone
 
 from apps.audit.models import AuditEvent
 from apps.audit.models import record as audit
+from apps.checkout import verification
+from apps.checkout.models import VerificationChallenge
 from apps.common.errors import ApiError, invalid, not_found
 from apps.common.timefmt import rfc3339
 from apps.events.models import EventType
@@ -24,14 +26,15 @@ from apps.payments import processor
 from apps.payments.models import Operation, OutcomeReason, Payment
 from apps.payments.processing import apply_authorise_answer
 from apps.payments.states import PaymentStatus, check_transition
-from apps.risk.pipeline import Outcome
+from apps.risk.models import ScreeningOutcome
 from apps.risk.screening import screen_payment
 from apps.vault import service as vault
 
 SESSION_ID = re.compile(r"^cs_[0-9A-Za-z]{24}$")
 CARD_FIELDS = {"number", "expiry_month", "expiry_year", "cvc", "email"}
 
-# What the customer is told (C6, C7). Never a fraud reason (FR-MER-07 is for staff only).
+# What the customer is told (C5 to C7). Never a fraud reason (FR-MER-07 is for staff only);
+# a block for "screening unavailable" is shown as "unavailable" so the customer retries.
 RESULTS = {
     PaymentStatus.CREATED: "open",
     PaymentStatus.SCREENING: "processing",
@@ -64,16 +67,20 @@ def load(session_id: str) -> Payment:
 
 
 def expire_if_due(payment: Payment, request_id: str = "") -> Payment:
-    """End a checkout session that passed its hour without a submission (payment.expired).
+    """End a checkout session that passed its hour (FR-CHK-19, FR-CHK-21).
 
-    The worker also does this on a schedule (apps.payments.jobs); doing it on access means the page
-    never offers a session that has ended.
+    Not submitted: payment.expired. Still waiting for a verification code: Blocked with
+    verification_expired. The worker also does this on a schedule (apps.payments.jobs); doing
+    it on access means the page never offers a session that has ended.
     """
-    if payment.status != PaymentStatus.CREATED or timezone.now() < payment.checkout_expires_at:
+    waiting = (PaymentStatus.CREATED, PaymentStatus.VERIFICATION_REQUIRED)
+    if payment.status not in waiting or timezone.now() < payment.checkout_expires_at:
         return payment
     with transaction.atomic():
         payment = Payment.objects.select_for_update().select_related("merchant").get(
             pk=payment.pk)
+        if payment.status == PaymentStatus.VERIFICATION_REQUIRED:
+            return _end_verification_if_due(payment, request_id)
         if payment.status == PaymentStatus.CREATED and \
                 timezone.now() >= payment.checkout_expires_at:
             check_transition(PaymentStatus.CREATED, PaymentStatus.EXPIRED)
@@ -116,10 +123,13 @@ def to_dict(payment: Payment) -> dict:
     submitted = status not in (PaymentStatus.CREATED, PaymentStatus.EXPIRED)
     card = ({"brand": payment.card_brand, "last4": payment.card_last4}
             if payment.card_last4 else None)
+    result = RESULTS[status]
+    if payment.outcome_reason == OutcomeReason.SCREENING_UNAVAILABLE:
+        result = "unavailable"  # a technical stop, not a fraud finding: "try again later"
     return {
         "session_id": payment.checkout_session_id,
         "status": status.value,
-        "result": RESULTS[status],
+        "result": result,
         "merchant": {"name": payment.merchant.name},
         "amount": payment.amount,
         "currency": payment.currency,
@@ -134,6 +144,7 @@ def to_dict(payment: Payment) -> dict:
         "submitted_at": rfc3339(payment.submitted_at),
         "authorised_at": rfc3339(payment.authorised_at),
         "return_url": return_url_for(payment),
+        "verification": verification_to_dict(payment),
     }
 
 
@@ -184,11 +195,12 @@ def attach_card(payment: Payment, body: dict, request_id: str) -> Payment:
     return locked
 
 
-def submit(payment: Payment, request_id: str) -> Payment:
-    """Pay (C3 -> C4): screen, record the operation, call the simulator, apply the answer.
+def submit(payment: Payment, request_id: str, ip: str | None = None) -> Payment:
+    """Pay (C3 -> C4): screen, then allow (simulator), ask for a code (C5) or block (C7).
 
     Submitting twice is harmless: the second call returns the payment as it is.
     """
+    operation = card = None
     with transaction.atomic():
         payment = Payment.objects.select_for_update().select_related("merchant").get(
             pk=payment.pk)
@@ -200,16 +212,44 @@ def submit(payment: Payment, request_id: str) -> Payment:
             raise invalid("card_required", "Enter your card details first.")
         if not payment.customer_email:
             raise invalid("invalid_email", "Enter a valid email address.", param="email")
-        card = vault.take(payment.card_token)  # deleted from the vault from here on
-        if card is None:  # session ended or token purged: forget it and ask again
+        if not vault.has(payment.card_token):  # session ended or token purged: ask again
             payment.card_token = payment.card_brand = payment.card_last4 = ""  # nosec B105
             payment.card_fingerprint = ""
             payment.save()
+            card_lost = True
         else:
-            operation = _start_processing(payment, request_id)
-    if card is None:
+            card_lost = False
+            operation, card = _screen_and_act(payment, request_id, ip)
+    if card_lost:
         raise invalid("card_required", "Please enter your card details again.")
+    if operation is None:
+        return payment  # verification required, or blocked
+    return _authorise(operation, payment, card, request_id)
 
+
+def _screen_and_act(payment: Payment, request_id: str, ip: str | None):
+    """created -> screening -> processing | verification_required | blocked (FR-CHK-04)."""
+    check_transition(PaymentStatus.CREATED, PaymentStatus.SCREENING)
+    payment.status = PaymentStatus.SCREENING
+    payment.submitted_at = timezone.now()
+    screening = screen_payment(payment, ip=ip)
+    payment.screening_decision = screening.outcome.value
+    details = _screening_details(screening)
+    if screening.outcome == ScreeningOutcome.ALLOW:
+        card = vault.take(payment.card_token)  # deleted from the vault from here on
+        if card is None:  # purged between the check and now: undo everything, ask again
+            raise invalid("card_required", "Please enter your card details again.")
+        return _start_processing(payment, PaymentStatus.SCREENING, request_id, details), card
+    if screening.outcome == ScreeningOutcome.VERIFY:
+        _ask_for_code(payment, request_id, details)
+    else:
+        reason = (OutcomeReason.SCREENING_UNAVAILABLE if screening.decision is None
+                  else OutcomeReason(screening.decision.block_reason))
+        _block(payment, reason, request_id, details)
+    return None, None
+
+
+def _authorise(operation: Operation, payment: Payment, card, request_id: str) -> Payment:
     try:
         answer = processor.authorise(operation, payment, card)
     finally:
@@ -217,23 +257,156 @@ def submit(payment: Payment, request_id: str) -> Payment:
     return apply_authorise_answer(operation.pk, answer, request_id)
 
 
-def _start_processing(payment: Payment, request_id: str) -> Operation:
-    """created -> screening -> processing, and the operation row, in the caller's transaction."""
-    check_transition(PaymentStatus.CREATED, PaymentStatus.SCREENING)
-    payment.status = PaymentStatus.SCREENING
-    payment.submitted_at = timezone.now()
-    decision = screen_payment(payment)
-    if decision.outcome is not Outcome.ALLOW:  # sprint 4 handles verify and block
-        raise RuntimeError("only the stub Allow policy is wired in sprint 2")
-    payment.screening_decision = decision.outcome.value
-    check_transition(PaymentStatus.SCREENING, PaymentStatus.PROCESSING)
+def _screening_details(screening) -> dict:
+    """What the audit trail keeps about a decision (no scores: those stay in the record)."""
+    event = screening.event
+    return {"screening": screening.outcome.value, "screening_id": event.public_id,
+            "reasons": event.reasons, "model_version": event.model_version or None,
+            "policy_version": event.policy_version or None,
+            "rules_version": event.rules_version or None}
+
+
+def _start_processing(payment: Payment, current: PaymentStatus, request_id: str,
+                      details: dict) -> Operation:
+    """screening|verification_required -> processing, and the operation row, in the caller's
+    transaction (committed before the simulator call, SIMULATOR-CONTRACT.md 3.1)."""
+    check_transition(current, PaymentStatus.PROCESSING)
     payment.status = PaymentStatus.PROCESSING
     record_payment_event(payment, EventType.PAYMENT_PROCESSING)
-    # Committed with the status change, before the call (SIMULATOR-CONTRACT.md 3.1).
     operation = Operation.objects.create(payment=payment, type=Operation.Type.AUTHORISE,
                                          amount=payment.amount)
     audit("payment.submitted", **_actor(payment), request_id=request_id,
-          details={"screening": decision.outcome.value,
-                   "policy_version": decision.policy_version,
-                   "reasons": decision.reasons, "operation_id": operation.public_id})
+          details={**details, "operation_id": operation.public_id})
     return operation
+
+
+def _ask_for_code(payment: Payment, request_id: str, details: dict) -> None:
+    check_transition(PaymentStatus.SCREENING, PaymentStatus.VERIFICATION_REQUIRED)
+    payment.status = PaymentStatus.VERIFICATION_REQUIRED
+    record_payment_event(payment, EventType.PAYMENT_VERIFICATION_REQUIRED)
+    _, code = verification.issue(payment)
+    audit("payment.verification_required", **_actor(payment), request_id=request_id,
+          details=details)
+    transaction.on_commit(lambda: verification.send_code(payment, code))
+
+
+def _block(payment: Payment, reason: OutcomeReason, request_id: str, details: dict) -> None:
+    """Blocked before any financial effect; the card leaves the vault once committed."""
+    check_transition(PaymentStatus(payment.status), PaymentStatus.BLOCKED)
+    payment.status = PaymentStatus.BLOCKED
+    payment.outcome_reason = reason
+    record_payment_event(payment, EventType.PAYMENT_BLOCKED)
+    audit("payment.blocked", **_actor(payment), request_id=request_id,
+          details={**details, "outcome_reason": reason.value})
+    token = payment.card_token
+    transaction.on_commit(lambda: vault.discard(token))
+
+
+# --- simulated verification (C5) -------------------------------------------------------------
+
+CODE = re.compile(r"^[0-9]{6}$")
+
+
+def _locked_challenge(payment: Payment) -> VerificationChallenge:
+    return (VerificationChallenge.objects.select_for_update().select_related("payment")
+            .get(payment=payment))
+
+
+def verify(payment: Payment, body: dict, request_id: str) -> Payment:
+    """POST {code}. Right code: on to the simulator. Wrong: 400 code_incorrect, and the
+    third wrong code blocks the attempt (FR-CHK-21). Expired: 400 code_expired."""
+    code = body.get("code")
+    if set(body) - {"code"}:
+        raise invalid("invalid_field", "Only 'code' may be sent.")
+    if not isinstance(code, str) or not CODE.match(code.strip()):
+        raise invalid("invalid_code", "Enter the 6-digit code from the email.", param="code")
+    code = code.strip()
+    error = operation = card = None
+    with transaction.atomic():
+        payment = Payment.objects.select_for_update().select_related("merchant").get(
+            pk=payment.pk)
+        payment = _end_verification_if_due(payment, request_id)
+        if payment.status != PaymentStatus.VERIFICATION_REQUIRED:
+            return payment  # already verified, blocked or ended: show it as it is
+        challenge = _locked_challenge(payment)
+        if timezone.now() >= challenge.code_expires_at:
+            raise ApiError(400, "code_expired", "This code has expired. Ask for a new code.",
+                           param="code")
+        if not verification.matches(challenge, code):
+            challenge.wrong_attempts += 1
+            challenge.save(update_fields=["wrong_attempts"])
+            left = verification.attempts_remaining(challenge)
+            audit("payment.verification_failed_attempt", **_actor(payment),
+                  request_id=request_id, details={"attempts_remaining": left})
+            if left == 0:
+                _block(payment, OutcomeReason.VERIFICATION_FAILED, request_id,
+                       {"wrong_codes": challenge.wrong_attempts})
+            else:
+                error = ApiError(400, "code_incorrect",
+                                 f"That code isn't right. {left} attempt"
+                                 f"{'s' if left != 1 else ''} left.", param="code")
+        else:
+            challenge.verified_at = timezone.now()
+            challenge.save(update_fields=["verified_at"])
+            card = vault.take(payment.card_token)
+            if card is None:  # only if the session ended in the meantime
+                _block(payment, OutcomeReason.VERIFICATION_EXPIRED, request_id, {})
+            else:
+                audit("payment.verified", **_actor(payment), request_id=request_id)
+                operation = _start_processing(
+                    payment, PaymentStatus.VERIFICATION_REQUIRED, request_id,
+                    {"verified": True})
+    if error is not None:
+        raise error
+    if operation is None:
+        return payment
+    return _authorise(operation, payment, card, request_id)
+
+
+def resend(payment: Payment, request_id: str) -> Payment:
+    """A new code that replaces the old one (FR-CHK-06), with a short cooldown."""
+    with transaction.atomic():
+        payment = Payment.objects.select_for_update().select_related("merchant").get(
+            pk=payment.pk)
+        payment = _end_verification_if_due(payment, request_id)
+        if payment.status != PaymentStatus.VERIFICATION_REQUIRED:
+            return payment
+        challenge = _locked_challenge(payment)
+        available = verification.resend_available_at(challenge)
+        if available is None:
+            raise ApiError(429, "too_many_codes", "You've asked for the most codes we can send "
+                           "for this payment. Use the latest code or start again from the shop.")
+        now = timezone.now()
+        if now < available:
+            wait = max(1, int((available - now).total_seconds() + 0.999))
+            raise ApiError(429, "resend_too_soon", f"Please wait {wait} seconds before asking "
+                           "for another code.", retry_after=wait)
+        _, code = verification.issue(payment, challenge)
+        audit("payment.verification_code_resent", **_actor(payment), request_id=request_id,
+              details={"codes_sent": challenge.codes_sent})
+        transaction.on_commit(lambda: verification.send_code(payment, code))
+    return payment
+
+
+def _end_verification_if_due(payment: Payment, request_id: str = "") -> Payment:
+    """The checkout session ended before a correct code: Blocked (FR-CHK-21).
+
+    Caller holds the payment lock."""
+    if payment.status == PaymentStatus.VERIFICATION_REQUIRED and \
+            timezone.now() >= payment.checkout_expires_at:
+        _block(payment, OutcomeReason.VERIFICATION_EXPIRED, request_id, {"session_ended": True})
+    return payment
+
+
+def verification_to_dict(payment: Payment) -> dict | None:
+    if payment.status != PaymentStatus.VERIFICATION_REQUIRED:
+        return None
+    challenge = VerificationChallenge.objects.filter(payment=payment).first()
+    if challenge is None:
+        return None
+    return {
+        "sent_to": mask_email(payment.customer_email),
+        "code_expires_at": rfc3339(challenge.code_expires_at),
+        "attempts_remaining": verification.attempts_remaining(challenge),
+        "resend_available_at": rfc3339(verification.resend_available_at(challenge)),
+    }

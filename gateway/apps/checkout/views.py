@@ -12,6 +12,7 @@ from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
 
 from apps.checkout import service
+from apps.common.clientip import client_ip
 from apps.common.errors import invalid
 
 
@@ -56,7 +57,25 @@ class SubmitView(CheckoutView):
 
     def post(self, request, session_id):
         payment = service.load(session_id)
-        payment = service.submit(payment, request.request_id)
+        payment = service.submit(payment, request.request_id, ip=client_ip(request))
+        return Response(service.to_dict(payment))
+
+
+class VerifyView(CheckoutView):
+    """POST {code}: the 6-digit code from the email (C5)."""
+
+    def post(self, request, session_id):
+        payment = service.load(session_id)
+        payment = service.verify(payment, self.body(request), request.request_id)
+        return Response(service.to_dict(payment))
+
+
+class ResendView(CheckoutView):
+    """POST {}: email a new code, which replaces the old one."""
+
+    def post(self, request, session_id):
+        payment = service.load(session_id)
+        payment = service.resend(payment, request.request_id)
         return Response(service.to_dict(payment))
 
 

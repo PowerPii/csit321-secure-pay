@@ -11,7 +11,7 @@ function session(over: Partial<Session> = {}): Session {
     amount: 8990, currency: "SGD", order_reference: "ORD-1042", description: "Wireless mouse × 1", line_items: null,
     reference: null, email_required: false, customer_email_masked: "a•••@example.com", card: null,
     expires_at: new Date(Date.now() + 3600_000).toISOString(), submitted_at: null, authorised_at: null,
-    return_url: "https://shop.localhost/orders/1042/return?payment_id=pay_x", ...over,
+    return_url: "https://shop.localhost/orders/1042/return?payment_id=pay_x", verification: null, ...over,
   };
 }
 
@@ -91,6 +91,53 @@ describe("checkout page", () => {
     mockFetch({ [SID]: () => json(session({ status: "unresolved", result: "pending", reference: "SP-AAAA-BBBB" })) });
     render(<App path={`/pay/${SID}`} />);
     expect(await screen.findByText("We're confirming your payment")).toBeTruthy();
+  });
+
+  it("asks for the emailed code, shows a wrong code, then pays (C5)", async () => {
+    const waiting = (attempts: number) => session({
+      status: "verification_required", result: "verification_required", reference: "SP-AAAA-BBBB",
+      card: { brand: "visa", last4: "4242" },
+      verification: { sent_to: "a•••@example.com", code_expires_at: new Date(Date.now() + 600_000).toISOString(),
+        attempts_remaining: attempts, resend_available_at: new Date(Date.now() + 30_000).toISOString() },
+    });
+    let verifyReplies = 0;
+    let attempts = 3;
+    const calls = mockFetch({
+      "/verify": () => {
+        verifyReplies += 1;
+        if (verifyReplies === 1) {
+          attempts = 2;
+          return json({ error: { code: "code_incorrect", message: "That code isn't right. 2 attempts left.", param: "code" } }, 400);
+        }
+        return json(session({ status: "authorised", result: "approved", reference: "SP-AAAA-BBBB", authorised_at: "2026-11-13T05:00:00Z" }));
+      },
+      [SID]: () => json(waiting(attempts)),
+    });
+    render(<App path={`/pay/${SID}`} />);
+    expect(await screen.findByText("Check your email")).toBeTruthy();
+    expect(screen.getByText(/sent to a•••@example.com/)).toBeTruthy();
+    expect((screen.getByRole("button", { name: /Send a new code in/ }) as HTMLButtonElement).disabled).toBe(true);
+
+    fireEvent.change(screen.getByLabelText("Verification code"), { target: { value: "12a3" } });
+    fireEvent.click(screen.getByRole("button", { name: "Verify and pay S$ 89.90" }));
+    expect(await screen.findByText("Enter the 6-digit code from the email.")).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText("Verification code"), { target: { value: "111111" } });
+    fireEvent.click(screen.getByRole("button", { name: "Verify and pay S$ 89.90" }));
+    expect(await screen.findByText("That code isn't right. 2 attempts left.")).toBeTruthy();
+    await waitFor(() => expect(screen.getByText(/2 attempts left$/)).toBeTruthy());
+
+    fireEvent.change(screen.getByLabelText("Verification code"), { target: { value: "123456" } });
+    fireEvent.click(screen.getByRole("button", { name: "Verify and pay S$ 89.90" }));
+    expect(await screen.findByText("Payment successful")).toBeTruthy();
+    expect(calls.filter((c) => c.url.endsWith("/verify")).map((c) => c.body)).toEqual([{ code: "111111" }, { code: "123456" }]);
+  });
+
+  it("tells the customer to try later when screening was unavailable", async () => {
+    mockFetch({ [SID]: () => json(session({ status: "blocked", result: "unavailable", reference: "SP-AAAA-BBBB" })) });
+    render(<App path={`/pay/${SID}`} />);
+    expect(await screen.findByText("We couldn't check this payment right now")).toBeTruthy();
+    expect(screen.queryByText(/fraud/i)).toBeNull();
   });
 
   it("handles an unknown link", async () => {

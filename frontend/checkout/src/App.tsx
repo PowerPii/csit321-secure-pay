@@ -1,10 +1,9 @@
 // Hosted checkout. Served by the gateway under a strict CSP: no third-party scripts, and
 // the browser never decides merchant, amount or currency. Screens follow the Figma page
-// "Customer & merchant flows": C3 card entry, C4 checking, C6 approved, C7 not completed.
-// C5 (verification code) arrives with screening in sprint 4. No UI library, to keep the
-// bundle small and auditable.
+// "Customer & merchant flows": C3 card entry, C4 checking, C5 verification code, C6 approved,
+// C7 not completed. No UI library, to keep the bundle small and auditable.
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { addCard, ApiError, getSession, submit, type Session } from "./api";
+import { addCard, ApiError, getSession, resendCode, submit, verify, type Session } from "./api";
 import {
   brandName,
   countdown,
@@ -65,6 +64,9 @@ export default function App({ path = window.location.pathname }: { path?: string
     body = <Checking session={session} />;
   } else if (session.result === "open") {
     body = <CardForm sessionId={sessionId} session={session} onUpdate={update} formError={error} />;
+  } else if (session.result === "verification_required") {
+    status = "Verify your payment";
+    body = <VerifyCode sessionId={sessionId} session={session} onUpdate={update} />;
   } else if (session.result === "approved") {
     status = "Payment complete";
     body = <Approved session={session} />;
@@ -262,6 +264,114 @@ function Field({ label, error, id, children }: { label: string; error?: string; 
   );
 }
 
+function VerifyCode({
+  sessionId,
+  session,
+  onUpdate,
+}: {
+  sessionId: string;
+  session: Session;
+  onUpdate: (s: Session, checking?: boolean, error?: string) => void;
+}) {
+  const v = session.verification;
+  const [code, setCode] = useState("");
+  const [error, setError] = useState<string>();
+  const [notice, setNotice] = useState<string>();
+  const [busy, setBusy] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const t = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(t);
+  }, []);
+
+  useEffect(() => {
+    // The checkout session ended while waiting: reload to show the result.
+    if (Date.parse(session.expires_at) <= now) getSession(sessionId).then((s) => onUpdate(s)).catch(() => undefined);
+  }, [now, session.expires_at, sessionId, onUpdate]);
+
+  const fail = (err: unknown) => {
+    const e = err instanceof ApiError ? err : new ApiError(0, "unknown_error", "Something went wrong.");
+    setError(e.message);
+    setNotice(undefined);
+    // Refresh attempts left and the resend timer; the attempt may have ended too.
+    getSession(sessionId).then((s) => onUpdate(s)).catch(() => undefined);
+  };
+
+  async function onSubmit(ev: FormEvent) {
+    ev.preventDefault();
+    if (!/^\d{6}$/.test(code)) {
+      setError("Enter the 6-digit code from the email.");
+      return;
+    }
+    if (busy) return;
+    setBusy(true);
+    setError(undefined);
+    setVerifying(true); // "Checking your payment" while the bank answers
+    try {
+      onUpdate(await verify(sessionId, code));
+    } catch (err) {
+      setVerifying(false);
+      setCode("");
+      fail(err);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onResend() {
+    setBusy(true);
+    try {
+      const s = await resendCode(sessionId);
+      setError(undefined);
+      setCode("");
+      setNotice(`We sent a new code to ${s.verification?.sent_to ?? "your email"}. Earlier codes no longer work.`);
+      onUpdate(s);
+    } catch (err) {
+      fail(err);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!v || verifying) return <Checking session={session} />;
+  const codeLeft = Date.parse(v.code_expires_at) - now;
+  const resendIn = v.resend_available_at ? Date.parse(v.resend_available_at) - now : null;
+
+  return (
+    <form className="form" onSubmit={onSubmit} noValidate>
+      <h1>Check your email</h1>
+      <p className="muted">
+        To protect your card, enter the 6-digit code we sent to {v.sent_to ?? "your email"}.
+      </p>
+      {notice && <p className="muted small" role="status">{notice}</p>}
+      <Field label="Verification code" error={error} id="code">
+        <input id="code" inputMode="numeric" autoComplete="one-time-code" placeholder="123456"
+          maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))} />
+      </Field>
+      <p className="muted tiny">
+        {codeLeft > 0 ? `Code expires in ${countdown(v.code_expires_at, now)}` : "This code has expired. Ask for a new one."}
+        {" · "}
+        {v.attempts_remaining} attempt{v.attempts_remaining === 1 ? "" : "s"} left
+      </p>
+      <button className="btn primary" type="submit" disabled={busy}>
+        Verify and pay {money(session.amount)}
+      </button>
+      {resendIn === null ? (
+        <p className="muted tiny">No more codes can be sent for this payment.</p>
+      ) : (
+        <button className="btn secondary" type="button" onClick={onResend} disabled={busy || resendIn > 0}>
+          {resendIn > 0 ? `Send a new code in ${Math.ceil(resendIn / 1000)} s` : "Send a new code"}
+        </button>
+      )}
+      <a className="btn secondary" href={session.return_url}>
+        Cancel and return to {session.merchant.name}
+      </a>
+    </form>
+  );
+}
+
 function Checking({ session }: { session: Session }) {
   return (
     <div className="result">
@@ -329,6 +439,13 @@ const NOT_COMPLETED: Record<string, { icon: "cross" | "warn" | "clock"; title: s
     text: (m) => `We didn't hear back from the bank in time. Please don't pay again: ${m} will confirm the result once we know it.`,
     button: (m) => `Return to ${m}`,
     badge: "Awaiting bank confirmation",
+  },
+  unavailable: {
+    icon: "warn",
+    title: "We couldn't check this payment right now",
+    text: (m) => `No money was taken. Please try again in a few minutes, or return to ${m}.`,
+    button: (m) => `Return to ${m}`,
+    badge: "Not completed · try again later",
   },
   expired: {
     icon: "clock",
