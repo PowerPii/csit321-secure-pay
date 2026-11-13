@@ -148,13 +148,26 @@ GATEWAY_RULES = {
     "VERIFICATION_CODE_TTL_MINUTES": 10,
     "VERIFICATION_MAX_ATTEMPTS": 3,  # requirements FR CP-6, confirmed 5 Nov 2026
     "CHECKOUT_SESSION_TTL_MINUTES": 60,
-    "GUEST_STATUS_LINK_TTL_DAYS": 30,
+    # Guest status check (contracts/API-CONTRACT.md section 8; values confirmed 13 Nov 2026)
+    "GUEST_STATUS_CODE_TTL_MINUTES": 10,
+    "GUEST_STATUS_MAX_ATTEMPTS": 3,  # wrong codes before the check is locked
+    "GUEST_STATUS_LOCK_MINUTES": 15,
+    "GUEST_STATUS_SESSION_MINUTES": 15,  # how long an unlocked payment stays viewable
+    "GUEST_STATUS_CODE_REQUESTS_PER_PAIR": 3,  # per reference + email, per 15 minutes
+    "GUEST_STATUS_CODE_REQUESTS_PER_IP": 10,  # per IP address, per 15 minutes
+    "PASSWORD_RESET_LINK_TTL_MINUTES": 30,  # single use (contract section 9, confirmed 13 Nov 2026)
     "SCREENING_TARGET_P95_MS": 200,
     "SCREENING_TIMEOUT_MS": 500,  # on timeout: Blocked, reason screening_unavailable
     "STAFF_LOCKOUT_FAILURES": 5,
     "STAFF_LOCKOUT_MINUTES": 15,
     "WEBHOOK_SIGNATURE_TOLERANCE_SECONDS": 300,
-    "WEBHOOK_MAX_ATTEMPTS": 8,
+    # Webhook delivery (contract section 7, confirmed 13 Nov 2026): retry for 72 h from the first
+    # failure with these delays (+/-10% jitter), then a final attempt at 72 h; then undelivered.
+    "WEBHOOK_TIMEOUT_SECONDS": 10,
+    "WEBHOOK_RETRY_WINDOW_HOURS": 72,
+    "WEBHOOK_RETRY_DELAYS_SECONDS": (
+        60, 300, 900, 1800, 3600, 7200, 14400, 28800, 43200, 43200, 43200, 43200,
+    ),
     "RECONCILIATION_MAX_CHECKS": 6,
 }
 
