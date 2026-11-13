@@ -1,6 +1,6 @@
 # SecurePay merchant API contract (M2 draft)
 
-Status: **draft for team review**, 13 November 2026. Items marked **PROPOSAL** wait for the team's confirmation; everything else follows a decision already confirmed in the URS (Initial Version), the architecture recommendation or `docs/MVP-SCOPE.md`.
+Status: **v1 draft**, 13 November 2026. Proposals P1 to P3 (section 10) were confirmed by Fifa on 13 November 2026; everything else follows a decision already confirmed in the URS (Initial Version), the architecture recommendation or `docs/MVP-SCOPE.md`.
 
 The URS lists this contract as an open item for Week 9 (M2), owned by Muhammad Adeeb: operation identifiers, error responses, the webhook retry window, the reset-link lifetime and the simulator's handling of an operation it reported as not received. This draft covers the merchant-facing part and the guest status flow. The simulator contract is still to do (section 12).
 
@@ -149,7 +149,7 @@ The signature timestamp is set when each attempt is sent, not when the event was
 
 **Failure.** Anything else: timeout, connection or TLS error, a redirect, or any non-2xx status. All failures are retried the same way.
 
-**Retry window. PROPOSAL: 72 hours from the first failed attempt.** This matches the three-day horizon that Stripe and PayPal document (Codex research R3, 13 November 2026). It replaces the tentative 24-hour starting point from the review; a 24-hour window stays possible as a deliberately shorter prototype limit, but should not be described as industry practice. FR-TXN-07 says the window is fixed in this contract, so the URS needs no change either way.
+**Retry window: 72 hours from the first failed attempt** (P1, confirmed by Fifa 13 November 2026). This matches the three-day horizon that Stripe and PayPal document (Codex research R3, 13 November 2026). It replaces the tentative 24-hour starting point from the review. FR-TXN-07 says the window is fixed in this contract, so the URS needs no change either way.
 
 **Schedule.** Delays after each failed attempt, with ±10% random jitter:
 
@@ -175,27 +175,29 @@ Closes open point 1 of `docs/MVP-SCOPE.md`. Follows FR-ACC-05, FR-ACC-06 and UC-
 4. **See the payment.** On success the gateway sets an `sp_guest_status` cookie (HttpOnly, Secure, SameSite=Strict, path `/guest/status`) bound to that one payment for **15 minutes**, and returns a read-only view: reference, merchant name, amount, a customer-wording status, masked card, refunded amount and a timeline. No order contents, no fraud reasons. `GET /guest/status/payment` refreshes it; `POST /guest/status/sign-out` ends it.
 5. **Limits against abuse.** At most 3 code requests per reference and email per 15 minutes, and 10 per IP address per 15 minutes; above that `429 rate_limited`. Codes are stored hashed and are single use.
 
-Values marked confirmed come from the URS: 6 digits, 10 minutes, 3 wrong codes, 15-minute lock. **PROPOSAL:** the 15-minute view session and the request limits in step 5 are new; they are this contract's choice.
+Values marked confirmed come from the URS: 6 digits, 10 minutes, 3 wrong codes, 15-minute lock. The 15-minute view session and the request limits in step 5 were added by this contract (P3, confirmed by Fifa 13 November 2026).
 
-Suggested `GATEWAY_RULES` changes once confirmed: add `GUEST_STATUS_CODE_TTL_MINUTES = 10`, `GUEST_STATUS_MAX_ATTEMPTS = 3`, `GUEST_STATUS_LOCK_MINUTES = 15`, `GUEST_STATUS_SESSION_MINUTES = 15`; remove `GUEST_STATUS_LINK_TTL_DAYS`.
+`GATEWAY_RULES` holds these as `GUEST_STATUS_*`; `GUEST_STATUS_LINK_TTL_DAYS` is removed.
 
 ## 9. Password reset link (accounts)
 
 Not part of the merchant API, but the URS sends its lifetime to this contract (open items table). FR-ACC-07 requires time-limited, single-use links and the same message whether or not the email is registered.
 
-**PROPOSAL: the reset link is valid for 30 minutes from issue and works once** (Codex research R3). Neither OWASP nor NIST fixes 30 minutes: OWASP asks for single use and "an appropriate period", and NIST SP 800-63B-4 allows up to 24 hours for an emailed recovery code. 30 minutes is a design judgement that sits well inside that limit.
+**The reset link is valid for 30 minutes from issue and works once** (P2, confirmed by Fifa 13 November 2026; Codex research R3). Neither OWASP nor NIST fixes 30 minutes: OWASP asks for single use and "an appropriate period", and NIST SP 800-63B-4 allows up to 24 hours for an emailed recovery code. 30 minutes is a design judgement that sits well inside that limit.
 
 Rules: the token is 32 random bytes, sent only in the link and stored as a SHA-256 hash; it is consumed atomically on a successful reset; a new request invalidates earlier links; expiry is checked on the server. A reset ends all sessions (FR-ACC-08). A merchant operator also confirms with their TOTP code (FR-ACC-09); a reset never removes staff MFA. The reset page sets `Referrer-Policy: no-referrer` so the token does not leak to other sites. This is separate from the 10-minute checkout verification code, which does not change.
 
-Suggested `GATEWAY_RULES`: `PASSWORD_RESET_LINK_TTL_MINUTES = 30`.
+`GATEWAY_RULES`: `PASSWORD_RESET_LINK_TTL_MINUTES = 30`.
 
-## 10. Decisions this contract needs from the team
+## 10. Decisions taken for this contract
 
-| # | Proposal | Default if no answer | Settings change |
+All three were confirmed by Fifa on 13 November 2026 and are in `GATEWAY_RULES`.
+
+| # | Decision | Value | Settings |
 | --- | --- | --- | --- |
-| P1 | Webhook retry window 72 h, schedule in section 7 | 72 h | Replace `WEBHOOK_MAX_ATTEMPTS = 8` with `WEBHOOK_RETRY_WINDOW_HOURS = 72` and `WEBHOOK_RETRY_DELAYS_SECONDS`; add `WEBHOOK_TIMEOUT_SECONDS = 10` |
-| P2 | Password reset link 30 min, single use | 30 min | Add `PASSWORD_RESET_LINK_TTL_MINUTES = 30` |
-| P3 | Guest status: receipt link is not a credential; 15-minute view session; request limits | As written in section 8 | See section 8 |
+| P1 | Webhook retry window, schedule in section 7 | 72 h | `WEBHOOK_RETRY_WINDOW_HOURS`, `WEBHOOK_RETRY_DELAYS_SECONDS`, `WEBHOOK_TIMEOUT_SECONDS` (replaces `WEBHOOK_MAX_ATTEMPTS`) |
+| P2 | Password reset link, single use | 30 min | `PASSWORD_RESET_LINK_TTL_MINUTES` |
+| P3 | Guest status: receipt link is not a credential; view session; code request limits | 15 min; 3 per pair and 10 per IP per 15 min | `GUEST_STATUS_*` |
 
 ## 11. Readings of the URS to confirm
 
