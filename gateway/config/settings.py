@@ -5,6 +5,7 @@ Configuration comes from environment variables, and secrets from files
 mounted by Docker Compose under /run/secrets (see deploy/secrets/).
 Nothing secret is committed to the repository.
 """
+import base64
 import os
 from pathlib import Path
 
@@ -51,6 +52,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "apps.common.middleware.RequestIdMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -128,6 +130,8 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [],
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    # Every error in the contract format (contracts/schemas/error.schema.json).
+    "EXCEPTION_HANDLER": "apps.common.errors.exception_handler",
 }
 
 REST_FRAMEWORK.update(
@@ -144,6 +148,9 @@ GATEWAY_RULES = {
     "MIN_AMOUNT_CENTS": 50,  # S$0.50
     "MAX_AMOUNT_CENTS": 1_000_000,  # S$10,000
     "IDEMPOTENCY_TTL_HOURS": 24,
+    # A key left "in progress" by a crashed request is taken over after this long.
+    "IDEMPOTENCY_STALE_SECONDS": 60,
+    "API_RATE_LIMIT_PER_MINUTE": 100,  # per API key (NFR-AVA-02, contract section 2)
     "AUTH_EXPIRY_DAYS": 7,  # uncaptured authorisations are cancelled by the worker
     "VERIFICATION_CODE_TTL_MINUTES": 10,
     "VERIFICATION_MAX_ATTEMPTS": 3,  # requirements FR CP-6, confirmed 5 Nov 2026
@@ -172,4 +179,12 @@ GATEWAY_RULES = {
 }
 
 SIMULATOR_URL = env("SIMULATOR_URL", "http://localhost:8001")
+# Public address of the hosted checkout; the payment's checkout_url is this + "/cs_...".
+CHECKOUT_BASE_URL = env("CHECKOUT_BASE_URL", "https://localhost:8443/pay")
+# Fernet key for secrets the gateway must read back (merchant signing secrets).
+# Generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+FIELD_ENCRYPTION_KEY = secret(
+    "field_encryption_key",
+    base64.urlsafe_b64encode(b"dev-only-field-encryption-key!!!").decode() if DEBUG else None,
+)
 CARD_FINGERPRINT_KEY = secret("card_fingerprint_key", "dev-only-fingerprint-key" if DEBUG else None)
