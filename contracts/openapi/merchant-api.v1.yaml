@@ -84,17 +84,18 @@ paths:
     post:
       tags: [Payments]
       operationId: capturePayment
-      summary: Capture the full authorised amount (UC-25, FR-TXN-04)
+      summary: Capture all or part of the authorised amount (UC-25, FR-TXN-04)
       description: |
-        Only from `authorised`. Partial capture is not offered; refund the difference after
-        capture instead. The body is empty (`{}`).
+        Only from `authorised`, and only once. Send `{}` to capture the full amount, or
+        `{"amount": n}` with 1 <= n <= amount to capture less; the rest of the authorisation
+        is released and cannot be captured later. `captured_amount` holds the result.
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: false
         content:
           application/json:
-            schema: { type: object, additionalProperties: false }
+            schema: { $ref: '#/components/schemas/CapturePaymentRequest' }
       responses:
         '200':
           description: Captured. A `payment.captured` event follows.
@@ -120,6 +121,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/BusinessRule' }
         '429': { $ref: '#/components/responses/RateLimited' }
         '500': { $ref: '#/components/responses/ServerError' }
   /v1/payments/{payment_id}/cancel:
@@ -347,6 +349,15 @@ components:
           type: string
           maxLength: 200
           description: Optional. Shown on the checkout page and receipt.
+    CapturePaymentRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        amount:
+          type: integer
+          minimum: 1
+          maximum: 1000000
+          description: SGD cents to capture, at most the payment's amount. Leave out to capture all of it. More than the amount answers 422 `capture_exceeds_authorised`.
     CreateRefundRequest:
       type: object
       additionalProperties: false
@@ -396,7 +407,7 @@ components:
         application/json:
           schema: { $ref: '../schemas/error.schema.json' }
     BusinessRule:
-      description: 'Valid request refused by a business rule. Codes: amount_above_merchant_limit, refund_exceeds_refundable.'
+      description: 'Valid request refused by a business rule. Codes: amount_above_merchant_limit, capture_exceeds_authorised, refund_exceeds_refundable.'
       headers:
         SecurePay-Signature: { $ref: '#/components/headers/Signature' }
         SecurePay-Request-Id: { $ref: '#/components/headers/RequestId' }

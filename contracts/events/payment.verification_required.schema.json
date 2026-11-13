@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.securepay.local/events/payment.verification_required.schema.json",
+  "title": "payment.verification_required",
+  "description": "Screening asked for simulated verification; the customer has been emailed a code (valid 10 minutes). No action for the merchant; payment.processing or payment.blocked follows.",
+  "allOf": [
+    {
+      "$ref": "../schemas/event.schema.json"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "payment.verification_required"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "object": {
+              "$ref": "../schemas/payment.schema.json",
+              "properties": {
+                "status": {
+                  "const": "verification_required"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

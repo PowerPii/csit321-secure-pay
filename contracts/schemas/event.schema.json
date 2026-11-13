@@ -5,30 +5,71 @@
   "description": "Envelope of every webhook the gateway sends (FR-TXN-06). The per-type schemas in contracts/events/ narrow type and data.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["id", "object", "type", "created_at", "payment_id", "sequence", "data"],
+  "required": [
+    "id",
+    "object",
+    "type",
+    "created_at",
+    "payment_id",
+    "sequence",
+    "data"
+  ],
   "properties": {
-    "id": { "type": "string", "pattern": "^evt_[0-9A-Za-z]{24}$", "description": "Unique per event, the same on every delivery attempt. The merchant deduplicates on it." },
-    "object": { "const": "event" },
+    "id": {
+      "type": "string",
+      "pattern": "^evt_[0-9A-Za-z]{24}$",
+      "description": "Unique per event, the same on every delivery attempt. The merchant deduplicates on it."
+    },
+    "object": {
+      "const": "event"
+    },
     "type": {
       "enum": [
-        "payment.authorised", "payment.declined", "payment.blocked", "payment.unresolved",
-        "payment.captured", "payment.cancelled", "payment.expired",
-        "refund.completed", "refund.failed", "refund.unresolved"
+        "payment.processing",
+        "payment.verification_required",
+        "payment.authorised",
+        "payment.declined",
+        "payment.blocked",
+        "payment.unresolved",
+        "payment.captured",
+        "payment.cancelled",
+        "payment.expired",
+        "refund.completed",
+        "refund.failed",
+        "refund.unresolved"
       ]
     },
-    "created_at": { "type": "string", "format": "date-time", "description": "When the status change was committed. Not the signature timestamp, which is fresh on every attempt." },
-    "payment_id": { "type": "string", "pattern": "^pay_[0-9A-Za-z]{24}$", "description": "The payment this event belongs to, also for refund events." },
-    "sequence": { "type": "integer", "minimum": 1, "description": "Per-payment order shared by payment and refund events. Ignore an event whose sequence is not higher than the one you stored." },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the status change was committed. Not the signature timestamp, which is fresh on every attempt."
+    },
+    "payment_id": {
+      "type": "string",
+      "pattern": "^pay_[0-9A-Za-z]{24}$",
+      "description": "The payment this event belongs to, also for refund events."
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Per-payment order shared by payment and refund events. Ignore an event whose sequence is not higher than the one you stored."
+    },
     "data": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["object"],
+      "required": [
+        "object"
+      ],
       "properties": {
         "object": {
           "description": "Snapshot of the payment or refund at the moment of the change.",
           "oneOf": [
-            { "$ref": "payment.schema.json" },
-            { "$ref": "refund.schema.json" }
+            {
+              "$ref": "payment.schema.json"
+            },
+            {
+              "$ref": "refund.schema.json"
+            }
           ]
         }
       }
