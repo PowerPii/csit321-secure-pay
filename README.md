@@ -37,12 +37,22 @@ docker compose -f deploy/compose.yaml up --build
 
 # 4. register the demo shop as a merchant and give it its API key and signing secret
 docker compose -f deploy/compose.yaml exec gateway python manage.py create_merchant "Demo Shop" \
+  --webhook-url https://shop.localhost/webhooks/securepay \
   | tee /dev/stderr | awk '/API key:/{print $3 > "deploy/secrets/securepay_api_key"}
                            /Signing secret:/{print $3 > "deploy/secrets/securepay_signing_secret"}'
 docker compose -f deploy/compose.yaml restart merchant
 ```
 
 Then shop at https://shop.localhost and pay with a test card from `contracts/SIMULATOR-CONTRACT.md` section 5 (4242 4242 4242 4242 approves, 4000 0000 0000 0002 declines, 4000 0000 0000 0119 loses the answer).
+
+The gateway worker sends the shop a signed webhook for each status change; the shop confirms it with a signed `GET` before marking the order paid. To ship (capture) or cancel an order, as the merchant in demo story S1:
+
+```bash
+docker compose -f deploy/compose.yaml exec merchant python manage.py settle_order capture ORD-1001
+docker compose -f deploy/compose.yaml exec merchant python manage.py settle_order cancel ORD-1002
+```
+
+(or select the payment in the shop's Django admin and use the Capture / Cancel actions).
 
 For day-to-day work on one service, see that service's README (venv + `runserver`).
 

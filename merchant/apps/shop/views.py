@@ -136,7 +136,7 @@ def order_return(request, number: int):
     """The customer's browser coming back from SecurePay (return_url?payment_id=...).
 
     This is navigation only: the order is marked paid only from a signed GET of the payment
-    (or, from sprint 3, a verified webhook).
+    (or a verified webhook, confirmed the same way).
     """
     order = _owned_order(request, number)
     payment_id = request.GET.get("payment_id", "")
@@ -152,10 +152,12 @@ def order_detail(request, number: int):
     order = _owned_order(request, number)
     attempt = order.latest_attempt
     if attempt and not order.paid_at and attempt.status not in PaymentAttempt.FAILED:
-        payments.refresh(attempt)  # no webhooks until sprint 3: ask the gateway
+        payments.refresh(attempt)  # in case the webhook has not arrived yet
         attempt.refresh_from_db()
         order.refresh_from_db()
-    if order.paid_at:
+    if attempt and attempt.status == "cancelled":
+        state = "cancelled"  # voided by the shop or expired after 7 days
+    elif order.paid_at:
         state = "paid"
     elif attempt is None or not attempt.payment_id:
         state = "not_started"

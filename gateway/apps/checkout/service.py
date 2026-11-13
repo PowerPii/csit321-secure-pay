@@ -66,7 +66,7 @@ def load(session_id: str) -> Payment:
 def expire_if_due(payment: Payment, request_id: str = "") -> Payment:
     """End a checkout session that passed its hour without a submission (payment.expired).
 
-    The worker will also do this on a schedule (sprint 3); doing it on access means the page
+    The worker also does this on a schedule (apps.payments.jobs); doing it on access means the page
     never offers a session that has ended.
     """
     if payment.status != PaymentStatus.CREATED or timezone.now() < payment.checkout_expires_at:

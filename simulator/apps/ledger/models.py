@@ -31,3 +31,34 @@ def post_hold(operation_id: str, authorisation_id: str, amount: int) -> None:
         LedgerEntry(operation_id=operation_id, authorisation_id=authorisation_id, kind="hold",
                     account=LedgerEntry.Account.CARDHOLDER_HELD, amount=amount),
     ])
+
+
+def post_capture(operation_id: str, authorisation_id: str, authorised: int, amount: int) -> None:
+    """Charge `amount` from the hold to the merchant and release the rest to the cardholder."""
+    entries = [
+        LedgerEntry(operation_id=operation_id, authorisation_id=authorisation_id, kind="charge",
+                    account=LedgerEntry.Account.CARDHOLDER_HELD, amount=-amount),
+        LedgerEntry(operation_id=operation_id, authorisation_id=authorisation_id, kind="charge",
+                    account=LedgerEntry.Account.MERCHANT_SETTLEMENT, amount=amount),
+    ]
+    rest = authorised - amount
+    if rest:
+        entries += [
+            LedgerEntry(operation_id=operation_id, authorisation_id=authorisation_id,
+                        kind="release", account=LedgerEntry.Account.CARDHOLDER_HELD, amount=-rest),
+            LedgerEntry(operation_id=operation_id, authorisation_id=authorisation_id,
+                        kind="release", account=LedgerEntry.Account.CARDHOLDER_AVAILABLE,
+                        amount=rest),
+        ]
+    LedgerEntry.objects.bulk_create(entries)
+
+
+def post_release(operation_id: str, authorisation_id: str, amount: int) -> None:
+    """A cancel gives the whole hold back to the cardholder."""
+    LedgerEntry.objects.bulk_create([
+        LedgerEntry(operation_id=operation_id, authorisation_id=authorisation_id,
+                    kind="release", account=LedgerEntry.Account.CARDHOLDER_HELD, amount=-amount),
+        LedgerEntry(operation_id=operation_id, authorisation_id=authorisation_id,
+                    kind="release", account=LedgerEntry.Account.CARDHOLDER_AVAILABLE,
+                    amount=amount),
+    ])

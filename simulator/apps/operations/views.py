@@ -69,3 +69,28 @@ def operation_status(request, operation_id: str):
                        "refund.", "type")
     record = service.status_query(operation_id, op_type)
     return json_reply(service.to_dict(record), signed=True)
+
+
+def _settle(request, parse, op_type):
+    body = parse(request.body)
+    request_fingerprint = service.fingerprint(body)
+    try:
+        service.check_existing(body["operation_id"], request_fingerprint)
+        record = service.record_settlement(body, op_type, request_fingerprint)
+    except service.Existing as exc:
+        return _existing_reply(request, exc)
+    return json_reply(service.to_dict(record), signed=True)
+
+
+@csrf_exempt
+@require_POST
+@gateway_only
+def capture(request):
+    return _settle(request, service.parse_capture, OperationRecord.Type.CAPTURE)
+
+
+@csrf_exempt
+@require_POST
+@gateway_only
+def cancel(request):
+    return _settle(request, service.parse_cancel, OperationRecord.Type.CANCEL)

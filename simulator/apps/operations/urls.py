@@ -19,7 +19,7 @@ def todo(description):
 urlpatterns = [
     path("authorise", views.authorise, name="sim-authorise"),
     path("operations/<str:operation_id>", views.operation_status, name="sim-operation"),
-    path("capture", todo("capture an authorisation (sprint 3)"), name="sim-capture"),
-    path("cancel", todo("void an authorisation (sprint 3)"), name="sim-cancel"),
+    path("capture", views.capture, name="sim-capture"),
+    path("cancel", views.cancel, name="sim-cancel"),
     path("refund", todo("refund against a captured operation (sprint 5)"), name="sim-refund"),
 ]

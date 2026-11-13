@@ -56,6 +56,8 @@ services:
       - simulator_signing_secret
     networks: [data, gateway, edge]
 
+  # Delivers webhooks from the outbox, runs the 7-day auto-cancel (a simulator cancel) and
+  # ends checkout sessions past their hour (which discards any card left in the vault).
   gateway-worker:
     <<: *django
     build: ../gateway
@@ -64,12 +66,24 @@ services:
       <<: *django-env
       POSTGRES_DB: gateway
       POSTGRES_USER: gateway
+      SIMULATOR_URL: https://simulator.localhost
+      SIMULATOR_CA_BUNDLE: *caddy-root
+      WEBHOOK_CA_BUNDLE: *caddy-root
+      # The demo shop sits on a private Docker network behind Caddy. Never set in production.
+      WEBHOOK_ALLOWED_PRIVATE_HOSTS: shop.localhost
+    volumes:
+      - caddy_ca:/caddy-ca:ro
     secrets:
       - source: gateway_django_secret_key
         target: django_secret_key
       - source: gateway_db_password
         target: db_password
       - field_encryption_key  # decrypts merchant signing secrets to sign webhooks
+      - vault_db_password
+      - vault_encryption_key
+      - card_fingerprint_key
+      - simulator_api_key
+      - simulator_signing_secret
     networks: [data, gateway, edge]
 
   simulator:

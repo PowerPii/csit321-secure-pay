@@ -32,6 +32,7 @@ class FakeGateway:
         self.next_status = "authorised"
         self.amount_override = None
         self.counter = 0
+        self.settle_reply = None  # (status, body) for capture/cancel instead of success
 
     def payment(self, body, status="created", sequence=1):
         self.counter += 1
@@ -61,6 +62,21 @@ class FakeGateway:
                 self.by_key[key] = self.payment(body)
                 self.payments[self.by_key[key]["id"]] = (body, self.by_key[key])
             return self.reply(201, self.by_key[key])
+        if request.method == "POST":  # /v1/payments/{id}/capture or /cancel
+            _, _, _, pid, action = request.url.path.split("/")
+            key = (action, request.headers["Idempotency-Key"])
+            if key not in self.by_key:
+                created = self.payments[pid][1]
+                if self.settle_reply:
+                    self.by_key[key] = self.settle_reply
+                else:
+                    status = "captured" if action == "capture" else "cancelled"
+                    amount = (body or {}).get("amount", created["amount"])
+                    self.by_key[key] = (200, {**created, "status": status, "sequence": 4,
+                                              "checkout_url": None,
+                                              "captured_amount": amount
+                                              if action == "capture" else 0})
+            return self.reply(*self.by_key[key])
         pid = request.url.path.rsplit("/", 1)[-1]
         body, created = self.payments[pid]
         data = {**created, "status": self.next_status, "sequence": 3, "checkout_url": None}

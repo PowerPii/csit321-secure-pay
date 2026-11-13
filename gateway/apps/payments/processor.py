@@ -107,6 +107,19 @@ def authorise(operation: Operation, payment: Payment, card) -> Answer:
     return _call(operation, "POST", "/sim/authorise", json=body)
 
 
+def capture(operation: Operation, authorisation_id: str) -> Answer:
+    """Capture `operation.amount` of the authorisation (section 4); the rest is released."""
+    body = {"operation_id": operation.public_id, "authorisation_id": authorisation_id,
+            "amount": operation.amount}
+    return _call(operation, "POST", "/sim/capture", json=body)
+
+
+def cancel(operation: Operation, authorisation_id: str) -> Answer:
+    """Void the whole authorisation (merchant cancel or the 7-day auto-cancel)."""
+    body = {"operation_id": operation.public_id, "authorisation_id": authorisation_id}
+    return _call(operation, "POST", "/sim/cancel", json=body)
+
+
 def status_query(operation: Operation) -> Answer:
     """Ask about an operation by its original ID (section 6). Used by reconciliation."""
     return _call(operation, "GET", f"/sim/operations/{operation.public_id}",

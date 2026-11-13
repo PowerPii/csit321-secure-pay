@@ -6,9 +6,15 @@ SELECT ... FOR UPDATE SKIP LOCKED, sent outside the transaction, and retried wit
 bounded backoff. The same loop runs reconciliation sweeps, verification expiry and
 data purges.
 """
+import logging
 import time
 
 from django.core.management.base import BaseCommand
+from django.db import close_old_connections
+
+from apps.payments import jobs
+
+logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
@@ -21,37 +27,58 @@ class Command(BaseCommand):
     def handle(self, *args, interval, once, **options):
         self.stdout.write("worker started")
         while True:
-            self.run_pass()
+            run_pass()
             if once:
                 return
             time.sleep(interval)
 
-    def run_pass(self):
-        for job in JOBS:
+
+def run_pass() -> None:
+    """Run every job once. One job failing never stops the others or the loop."""
+    close_old_connections()
+    for job in JOBS:
+        try:
             job()
+        except Exception:
+            logger.exception("Worker job %s failed", job.__name__)
 
 
-# Each job claims its own rows with SELECT ... FOR UPDATE SKIP LOCKED, so several
-# workers can run safely. Fill these in as the models land (see docs/MVP-SCOPE.md).
 def deliver_outbox():
-    """Send due OutboxEvents as signed webhooks; back off; mark exhausted ones for staff."""
+    """Send due OutboxEvents as signed webhooks; back off; mark exhausted ones undelivered."""
+    from apps.events.delivery import deliver_due
+
+    deliver_due()
 
 
 def reconcile_unresolved():
-    """Query the simulator with the original operation ID; settle or escalate after
-    GATEWAY_RULES["RECONCILIATION_MAX_CHECKS"]. Never sends a new charge."""
+    """Sprint 5: query the simulator with the original operation ID at
+    GATEWAY_RULES["RECONCILIATION_DELAYS_SECONDS"]; settle or escalate. Never sends a new
+    charge."""
 
 
 def expire_authorisations():
     """Cancel authorisations older than GATEWAY_RULES["AUTH_EXPIRY_DAYS"]."""
+    jobs.expire_authorisations()
 
 
 def expire_checkout_and_verification():
-    """End checkout sessions and verification codes past their TTL (payment -> Expired/Blocked)."""
+    """End checkout sessions past their hour (payment -> expired). Verification codes:
+    sprint 4."""
+    jobs.expire_checkout_sessions()
 
 
 def purge_card_data():
     """Delete vault card data for attempts that ended without submission."""
+    from apps.vault.service import purge_expired
+
+    purge_expired()
+
+
+def purge_idempotency_records():
+    """Free Idempotency-Keys past their 24 hours (contract section 5)."""
+    from apps.payments.models import IdempotencyRecord
+
+    IdempotencyRecord.purge_expired()
 
 
 JOBS = [
@@ -60,4 +87,5 @@ JOBS = [
     expire_authorisations,
     expire_checkout_and_verification,
     purge_card_data,
+    purge_idempotency_records,
 ]
