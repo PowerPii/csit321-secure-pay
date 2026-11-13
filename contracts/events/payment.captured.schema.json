@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.securepay.local/events/payment.captured.schema.json",
+  "title": "payment.captured",
+  "description": "The authorisation was captured; the customer is charged.",
+  "allOf": [
+    {
+      "$ref": "../schemas/event.schema.json"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "payment.captured"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "object": {
+              "$ref": "../schemas/payment.schema.json",
+              "properties": {
+                "status": {
+                  "const": "captured"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.securepay.local/events/refund.unresolved.schema.json",
+  "title": "refund.unresolved",
+  "description": "The simulator did not answer the refund. The amount stays reserved until reconciliation sends refund.completed or refund.failed.",
+  "allOf": [
+    {
+      "$ref": "../schemas/event.schema.json"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "refund.unresolved"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "object": {
+              "$ref": "../schemas/refund.schema.json",
+              "properties": {
+                "status": {
+                  "const": "unresolved"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

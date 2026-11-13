@@ -1,0 +1,15 @@
+{
+  "id": "rfd_Aa1Bb2Cc3Dd4Ee5Ff6Gg7Hh8",
+  "object": "refund",
+  "reference": "RF-9TQ2-K4WZ",
+  "payment_id": "pay_3fK9sLq2Vx7RmT1bN8cWd4Ye",
+  "payment_reference": "SP-7KQ4-M2XD",
+  "amount": 1500,
+  "currency": "SGD",
+  "status": "unresolved",
+  "reason": "One item returned",
+  "failure_reason": null,
+  "created_at": "2026-11-14T03:10:00Z",
+  "updated_at": "2026-11-14T03:10:00Z",
+  "completed_at": null
+}

@@ -1,0 +1,10 @@
+{
+  "error": {
+    "type": "invalid_request",
+    "code": "code_incorrect",
+    "message": "That code is not right. You have 2 tries left.",
+    "param": "code",
+    "request_id": "req_Xc1Vb2Nm3Qw4Er5Ty6Ui7Op8"
+  },
+  "attempts_remaining": 2
+}

@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.securepay.local/events/payment.cancelled.schema.json",
+  "title": "payment.cancelled",
+  "description": "The authorisation was voided by the merchant (outcome.reason merchant_cancelled) or after 7 days uncaptured (authorisation_expired). No charge.",
+  "allOf": [
+    {
+      "$ref": "../schemas/event.schema.json"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "payment.cancelled"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "object": {
+              "$ref": "../schemas/payment.schema.json",
+              "properties": {
+                "status": {
+                  "const": "cancelled"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

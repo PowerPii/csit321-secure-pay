@@ -1,22 +1,32 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.securepay.local/events/payment.authorised.schema.json",
   "title": "payment.authorised",
-  "type": "object",
-  "required": ["id", "type", "created", "sequence", "data"],
-  "properties": {
-    "id": { "type": "string", "description": "Event ID, used by the merchant for deduplication" },
-    "type": { "const": "payment.authorised" },
-    "created": { "type": "string", "format": "date-time" },
-    "sequence": { "type": "integer", "minimum": 1, "description": "Per-payment order; merchants ignore older events" },
-    "data": {
+  "description": "The simulated bank authorised the payment. Capture it with POST /v1/payments/{id}/capture once you decide to fulfil; it is cancelled automatically after 7 days if not captured.",
+  "allOf": [
+    {
+      "$ref": "../schemas/event.schema.json"
+    },
+    {
       "type": "object",
-      "required": ["payment_id", "status", "amount", "currency"],
       "properties": {
-        "payment_id": { "type": "string" },
-        "status": { "const": "authorised" },
-        "amount": { "type": "integer", "description": "Minor units" },
-        "currency": { "type": "string", "pattern": "^[A-Z]{3}$" }
+        "type": {
+          "const": "payment.authorised"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "object": {
+              "$ref": "../schemas/payment.schema.json",
+              "properties": {
+                "status": {
+                  "const": "authorised"
+                }
+              }
+            }
+          }
+        }
       }
     }
-  }
+  ]
 }

@@ -1,0 +1,420 @@
+openapi: 3.1.0
+info:
+  title: SecurePay merchant API
+  version: 1.0.0-draft
+  summary: Payments, capture, cancel, refunds, status queries and webhooks for merchant servers.
+  description: |
+    Design-first contract for milestone M2. The prose rules (idempotency, signatures,
+    retry window, errors) are in `contracts/API-CONTRACT.md`; this file and that one must
+    agree. The gateway's generated schema (`gateway.yaml`, drf-spectacular) must match this
+    file once the endpoints are built.
+
+    Amounts are integer cents in SGD. Merchant identity always comes from the API key,
+    never from the request body (FR-MER-08). Another merchant's record answers 404.
+    Status: DRAFT. Values marked PROPOSAL in API-CONTRACT.md wait for the team's confirmation.
+servers:
+  - url: https://localhost:8443
+    description: Local Docker Compose stack behind Caddy (local CA)
+security:
+  - apiKey: []
+tags:
+  - name: Payments
+  - name: Refunds
+paths:
+  /v1/payments:
+    post:
+      tags: [Payments]
+      operationId: createPayment
+      summary: Create a payment and get a hosted checkout address (UC-57, FR-MER-11)
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreatePaymentRequest' }
+            example:
+              amount: 4590
+              currency: SGD
+              order_reference: ORD-10042
+              return_url: https://shop.localhost/orders/ORD-10042/return
+              customer_email: alex@example.com
+      responses:
+        '201':
+          description: Payment created in status `created`, with a checkout session valid for 1 hour.
+          headers:
+            SecurePay-Signature: { $ref: '#/components/headers/Signature' }
+            SecurePay-Request-Id: { $ref: '#/components/headers/RequestId' }
+            Idempotent-Replayed: { $ref: '#/components/headers/IdempotentReplayed' }
+          content:
+            application/json:
+              schema: { $ref: '../schemas/payment.schema.json' }
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/BusinessRule' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/ServerError' }
+  /v1/payments/{payment_id}:
+    parameters:
+      - $ref: '#/components/parameters/PaymentId'
+    get:
+      tags: [Payments]
+      operationId: getPayment
+      summary: Status query with a signed reply (UC-28, FR-TXN-10)
+      description: |
+        Use this before fulfilling an order instead of trusting the browser redirect.
+        `unresolved` means "do not ship yet": wait for a webhook or ask again.
+      responses:
+        '200':
+          description: The payment, signed.
+          headers:
+            SecurePay-Signature: { $ref: '#/components/headers/Signature' }
+            SecurePay-Request-Id: { $ref: '#/components/headers/RequestId' }
+          content:
+            application/json:
+              schema: { $ref: '../schemas/payment.schema.json' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /v1/payments/{payment_id}/capture:
+    parameters:
+      - $ref: '#/components/parameters/PaymentId'
+    post:
+      tags: [Payments]
+      operationId: capturePayment
+      summary: Capture the full authorised amount (UC-25, FR-TXN-04)
+      description: |
+        Only from `authorised`. Partial capture is not offered; refund the difference after
+        capture instead. The body is empty (`{}`).
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: false }
+      responses:
+        '200':
+          description: Captured. A `payment.captured` event follows.
+          headers:
+            SecurePay-Signature: { $ref: '#/components/headers/Signature' }
+            SecurePay-Request-Id: { $ref: '#/components/headers/RequestId' }
+            Idempotent-Replayed: { $ref: '#/components/headers/IdempotentReplayed' }
+          content:
+            application/json:
+              schema: { $ref: '../schemas/payment.schema.json' }
+        '202':
+          description: |
+            The simulator did not answer. The payment stays `authorised` with
+            `pending_operation.type = capture`; reconciliation finishes it and sends
+            `payment.captured` (or nothing changes if the simulator has no record, and the
+            pending operation is cleared). Do not retry with a new Idempotency-Key.
+          headers:
+            SecurePay-Signature: { $ref: '#/components/headers/Signature' }
+            SecurePay-Request-Id: { $ref: '#/components/headers/RequestId' }
+          content:
+            application/json:
+              schema: { $ref: '../schemas/payment.schema.json' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/ServerError' }
+  /v1/payments/{payment_id}/cancel:
+    parameters:
+      - $ref: '#/components/parameters/PaymentId'
+    post:
+      tags: [Payments]
+      operationId: cancelPayment
+      summary: Void an authorised payment (UC-25, FR-TXN-04, FR-TXN-05)
+      description: Only from `authorised`. A captured payment answers 409 `payment_already_captured`; refund it instead.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: false }
+      responses:
+        '200':
+          description: Cancelled. A `payment.cancelled` event follows.
+          headers:
+            SecurePay-Signature: { $ref: '#/components/headers/Signature' }
+            SecurePay-Request-Id: { $ref: '#/components/headers/RequestId' }
+            Idempotent-Replayed: { $ref: '#/components/headers/IdempotentReplayed' }
+          content:
+            application/json:
+              schema: { $ref: '../schemas/payment.schema.json' }
+        '202':
+          description: The simulator did not answer; `pending_operation.type = cancel`. Same rules as capture.
+          headers:
+            SecurePay-Signature: { $ref: '#/components/headers/Signature' }
+            SecurePay-Request-Id: { $ref: '#/components/headers/RequestId' }
+          content:
+            application/json:
+              schema: { $ref: '../schemas/payment.schema.json' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/ServerError' }
+  /v1/payments/{payment_id}/refunds:
+    parameters:
+      - $ref: '#/components/parameters/PaymentId'
+    post:
+      tags: [Refunds]
+      operationId: createRefund
+      summary: Refund all or part of a captured payment (UC-24, FR-TXN-01 to FR-TXN-03)
+      description: |
+        The gateway locks the payment row, checks that completed + reserved refunds + this
+        amount stay within the captured amount, reserves the amount, then calls the simulator.
+        Two concurrent requests that together exceed it: exactly one succeeds, the other gets
+        422 `refund_exceeds_refundable`.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateRefundRequest' }
+            example: { amount: 1500, reason: One item returned }
+      responses:
+        '201':
+          description: |
+            Refund created. `status` is `completed` or `failed` if the simulator answered,
+            `unresolved` if it did not (the amount stays reserved). A refund.* event follows.
+          headers:
+            SecurePay-Signature: { $ref: '#/components/headers/Signature' }
+            SecurePay-Request-Id: { $ref: '#/components/headers/RequestId' }
+            Idempotent-Replayed: { $ref: '#/components/headers/IdempotentReplayed' }
+          content:
+            application/json:
+              schema: { $ref: '../schemas/refund.schema.json' }
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/BusinessRule' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/ServerError' }
+    get:
+      tags: [Refunds]
+      operationId: listRefunds
+      summary: List a payment's refunds, oldest first (UC-59)
+      responses:
+        '200':
+          description: All refunds of the payment (at most a few, so no pagination).
+          headers:
+            SecurePay-Signature: { $ref: '#/components/headers/Signature' }
+            SecurePay-Request-Id: { $ref: '#/components/headers/RequestId' }
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [object, payment_id, refundable_amount, data]
+                properties:
+                  object: { const: list }
+                  payment_id: { type: string }
+                  refundable_amount: { type: integer, minimum: 0 }
+                  data:
+                    type: array
+                    items: { $ref: '../schemas/refund.schema.json' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /v1/refunds/{refund_id}:
+    parameters:
+      - name: refund_id
+        in: path
+        required: true
+        schema: { type: string, pattern: '^rfd_[0-9A-Za-z]{24}$' }
+    get:
+      tags: [Refunds]
+      operationId: getRefund
+      summary: Refund status with a signed reply (FR-TXN-14)
+      responses:
+        '200':
+          description: The refund, signed.
+          headers:
+            SecurePay-Signature: { $ref: '#/components/headers/Signature' }
+            SecurePay-Request-Id: { $ref: '#/components/headers/RequestId' }
+          content:
+            application/json:
+              schema: { $ref: '../schemas/refund.schema.json' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+webhooks:
+  paymentOrRefundEvent:
+    post:
+      summary: Status change notification sent to the merchant's approved HTTPS address (UC-26, FR-TXN-06 to FR-TXN-08)
+      description: |
+        Sent by the gateway worker from the outbox. Verify `SecurePay-Signature` over the raw
+        body, reject timestamps older than 5 minutes, deduplicate on the event `id`, ignore an
+        event whose `sequence` is not higher than the stored one, then reply 2xx within 10
+        seconds. Anything else is retried until the retry window ends (API-CONTRACT.md section 7).
+        Redirects are not followed.
+      security: []
+      parameters:
+        - name: SecurePay-Signature
+          in: header
+          required: true
+          schema: { type: string, pattern: '^t=[0-9]+,v1=[0-9a-f]{64}$' }
+        - name: SecurePay-Event-Id
+          in: header
+          required: true
+          schema: { type: string }
+        - name: SecurePay-Event-Type
+          in: header
+          required: true
+          schema: { type: string }
+        - name: SecurePay-Delivery-Attempt
+          in: header
+          required: true
+          description: 1 for the first attempt, then 2, 3, ...
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '../schemas/event.schema.json' }
+      responses:
+        '2XX':
+          description: Accepted. Any 2xx status counts; the body is ignored.
+components:
+  securitySchemes:
+    apiKey:
+      type: http
+      scheme: bearer
+      description: |
+        `Authorization: Bearer sp_test_<40 base62 chars>`. Shown once at creation, stored as a
+        digest (FR-MER-03). One active key per merchant in the MVP.
+  parameters:
+    PaymentId:
+      name: payment_id
+      in: path
+      required: true
+      schema: { type: string, pattern: '^pay_[0-9A-Za-z]{24}$' }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: |
+        Required on every POST. 8 to 255 printable ASCII characters, unique per logical
+        operation; a UUID v4 is recommended. Scoped to the merchant, kept 24 hours from first
+        use (FR-CHK-09). See API-CONTRACT.md section 5.
+      schema: { type: string, minLength: 8, maxLength: 255, pattern: '^[\x21-\x7E]+$' }
+  headers:
+    Signature:
+      description: '`t=<unix seconds>,v1=<hex HMAC-SHA256 of "t." + raw body>` with the merchant signing secret (FR-TXN-08).'
+      schema: { type: string, pattern: '^t=[0-9]+,v1=[0-9a-f]{64}$' }
+    RequestId:
+      description: Correlation ID for support and the audit log.
+      schema: { type: string, pattern: '^req_[0-9A-Za-z]{24}$' }
+    IdempotentReplayed:
+      description: '`true` when this is the stored response of an earlier request with the same key.'
+      schema: { type: string, enum: ['true'] }
+    RetryAfter:
+      description: Seconds to wait before trying again.
+      schema: { type: integer, minimum: 1 }
+  schemas:
+    CreatePaymentRequest:
+      type: object
+      additionalProperties: false
+      required: [amount, currency, order_reference, return_url]
+      properties:
+        amount:
+          type: integer
+          minimum: 50
+          maximum: 1000000
+          description: SGD cents. Above the merchant's own limit (FR-ADM-07, if set) answers 422 `amount_above_merchant_limit`.
+        currency: { const: SGD }
+        order_reference: { type: string, minLength: 1, maxLength: 64, pattern: '^[\x20-\x7E]+$' }
+        return_url:
+          type: string
+          format: uri
+          maxLength: 2048
+          description: HTTPS address the customer's browser goes back to. Navigation only, never proof of payment.
+        customer_email:
+          type: string
+          format: email
+          maxLength: 254
+          description: Optional. Prefills the checkout email; the customer can change it before paying. Receipts and the guest status check use the email confirmed at checkout.
+        description:
+          type: string
+          maxLength: 200
+          description: Optional. Shown on the checkout page and receipt.
+    CreateRefundRequest:
+      type: object
+      additionalProperties: false
+      required: [amount]
+      properties:
+        amount: { type: integer, minimum: 1, maximum: 1000000, description: SGD cents, at most the payment's refundable_amount. }
+        reason: { type: string, maxLength: 200 }
+  responses:
+    InvalidRequest:
+      description: 'Malformed body or a field out of range. Codes: invalid_json, missing_field, invalid_field, amount_too_small, amount_too_large, currency_not_supported, return_url_not_https, card_data_not_allowed, idempotency_key_missing, idempotency_key_invalid.'
+      headers:
+        SecurePay-Signature: { $ref: '#/components/headers/Signature' }
+        SecurePay-Request-Id: { $ref: '#/components/headers/RequestId' }
+      content:
+        application/json:
+          schema: { $ref: '../schemas/error.schema.json' }
+    Unauthenticated:
+      description: 'Missing, unknown or revoked API key (code api_key_invalid). Not signed, since the merchant is unknown.'
+      headers:
+        SecurePay-Request-Id: { $ref: '#/components/headers/RequestId' }
+      content:
+        application/json:
+          schema: { $ref: '../schemas/error.schema.json' }
+    Forbidden:
+      description: 'The merchant is not approved or is suspended (code merchant_not_active).'
+      headers:
+        SecurePay-Signature: { $ref: '#/components/headers/Signature' }
+        SecurePay-Request-Id: { $ref: '#/components/headers/RequestId' }
+      content:
+        application/json:
+          schema: { $ref: '../schemas/error.schema.json' }
+    NotFound:
+      description: 'No such record for this merchant, including another merchant''s record (code resource_not_found, FR-MER-08).'
+      headers:
+        SecurePay-Signature: { $ref: '#/components/headers/Signature' }
+        SecurePay-Request-Id: { $ref: '#/components/headers/RequestId' }
+      content:
+        application/json:
+          schema: { $ref: '../schemas/error.schema.json' }
+    Conflict:
+      description: 'Codes: idempotency_key_reused, idempotency_request_in_progress (with Retry-After), payment_not_authorised, payment_already_captured, payment_already_cancelled, authorisation_expired, operation_in_progress, payment_not_captured.'
+      headers:
+        SecurePay-Signature: { $ref: '#/components/headers/Signature' }
+        SecurePay-Request-Id: { $ref: '#/components/headers/RequestId' }
+        Retry-After: { $ref: '#/components/headers/RetryAfter' }
+      content:
+        application/json:
+          schema: { $ref: '../schemas/error.schema.json' }
+    BusinessRule:
+      description: 'Valid request refused by a business rule. Codes: amount_above_merchant_limit, refund_exceeds_refundable.'
+      headers:
+        SecurePay-Signature: { $ref: '#/components/headers/Signature' }
+        SecurePay-Request-Id: { $ref: '#/components/headers/RequestId' }
+      content:
+        application/json:
+          schema: { $ref: '../schemas/error.schema.json' }
+    RateLimited:
+      description: 'More than 100 requests in a minute for this key (NFR-AVA-02). Code rate_limited.'
+      headers:
+        Retry-After: { $ref: '#/components/headers/RetryAfter' }
+        SecurePay-Request-Id: { $ref: '#/components/headers/RequestId' }
+      content:
+        application/json:
+          schema: { $ref: '../schemas/error.schema.json' }
+    ServerError:
+      description: 'Unexpected failure (code internal_error). Not stored for idempotency: retry with the same key.'
+      headers:
+        SecurePay-Request-Id: { $ref: '#/components/headers/RequestId' }
+      content:
+        application/json:
+          schema: { $ref: '../schemas/error.schema.json' }

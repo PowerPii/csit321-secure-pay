@@ -1,0 +1,9 @@
+{
+  "error": {
+    "type": "conflict",
+    "code": "idempotency_key_reused",
+    "message": "This Idempotency-Key was used with a different request.",
+    "param": null,
+    "request_id": "req_Jk2Lm4Np6Qr8St0Uv2Wx4Yz6"
+  }
+}

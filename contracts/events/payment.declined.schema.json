@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.securepay.local/events/payment.declined.schema.json",
+  "title": "payment.declined",
+  "description": "The simulated bank declined the payment, or reconciliation found the simulator never processed it (outcome.reason not_processed). The customer was offered a new attempt.",
+  "allOf": [
+    {
+      "$ref": "../schemas/event.schema.json"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "payment.declined"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "object": {
+              "$ref": "../schemas/payment.schema.json",
+              "properties": {
+                "status": {
+                  "const": "declined"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

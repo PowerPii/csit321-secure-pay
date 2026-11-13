@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.securepay.local/schemas/error.schema.json",
+  "title": "Error",
+  "description": "Body of every 4xx and 5xx response from the merchant API and the guest status API.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["error"],
+  "properties": {
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "code", "message", "request_id"],
+      "properties": {
+        "type": {
+          "enum": ["invalid_request", "authentication", "permission", "not_found", "conflict", "business_rule", "rate_limit", "server"],
+          "description": "Broad class; one per HTTP status family (see API-CONTRACT.md section 4)."
+        },
+        "code": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$", "description": "Stable machine-readable code from the table in API-CONTRACT.md section 4. New codes may be added." },
+        "message": { "type": "string", "description": "Human-readable. May change; do not parse." },
+        "param": { "type": ["string", "null"], "description": "The request field at fault, if any." },
+        "request_id": { "type": "string", "pattern": "^req_[0-9A-Za-z]{24}$", "description": "Also sent as the SecurePay-Request-Id header. Quote it when asking for support; it is the correlation ID in the audit log (FR-TXN-16)." }
+      }
+    }
+  }
+}
