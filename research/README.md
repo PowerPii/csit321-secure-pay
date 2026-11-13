@@ -14,8 +14,8 @@ Training environment. Never deployed; it only produces versioned model artifacts
 Keep scikit-learn pinned to the same version as the gateway (`gateway/pyproject.toml`), since joblib artifacts don't load across versions.
 
 The research question itself (does earlier activity help?) is studied in the team folder's
-`02-research/fraud-experiment`, which keeps its own protocol and a sealed final holdout (days
-147+). Nothing here reads that holdout.
+`02-research/fraud-experiment`, with its own protocol. Its final period (days 147+) was evaluated
+once on 13 Nov 2026 and is consumed; nothing here reads it.
 
 ```bash
 # from the repo root

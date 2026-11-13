@@ -4,8 +4,9 @@
 
 This is the integration build for MVP sprint 7, not the research result. The research
 question (does earlier activity help?) is answered by the fraud experiment in the team's
-02-research/fraud-experiment folder, with its own protocol and sealed final holdout. This
-script only reuses that protocol's time splits and never reads the holdout: it refuses any
+02-research/fraud-experiment folder, with its own protocol and final period (days 147+, already
+evaluated once and consumed). This script only reuses that protocol's time splits and never
+reads the final period: it refuses any
 row at day 147 or later, so pass it a cut of train_transaction.csv with days 0 to 146 and the
 columns TransactionID, TransactionDT, TransactionAmt, isFraud, card1-card6, addr1.
 
@@ -72,7 +73,8 @@ def card_key(row) -> str:
 def load(path: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
     rows = pd.read_csv(path)
     if (rows.TransactionDT >= REPORT_END).any():
-        raise SystemExit("rows at day 147 or later found: the final holdout must stay sealed")
+        raise SystemExit("rows at day 147 or later found: the experiment's final period is not "
+                         "a training or tuning resource")
     if rows.TransactionID.duplicated().any():
         raise SystemExit("duplicate TransactionID")
     rows = rows.sort_values(["TransactionDT", "TransactionID"], kind="stable").reset_index(drop=True)
@@ -128,7 +130,7 @@ def main() -> None:
     block_t = max(threshold_at_fpr(y[tune], tune_scores, BLOCK_FPR), verify_t)
     report_scores = model.predict_proba(x[report])[:, 1]
     metrics = {
-        "data": "IEEE-CIS train_transaction days 0-146 (final holdout days 147+ not read)",
+        "data": "IEEE-CIS train_transaction days 0-146 (final period days 147+ not read)",
         "rows": {"fit": int(fit.sum()), "tune": int(tune.sum()), "report": int(report.sum())},
         "fraud_rate_fit": round(float(y[fit].mean()), 4),
         "setting": chosen, "trials": trials,
