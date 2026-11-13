@@ -28,8 +28,10 @@ Status: skeleton. Every MVP route is wired and returns `501 Not Implemented` unt
 cd deploy/secrets && for f in *.example; do python3 -c "import secrets; print(secrets.token_urlsafe(48))" > "${f%.example}"; done && cd ../..
 python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())" > deploy/secrets/vault_encryption_key
 
-# 2. checkout page bundle (Caddy serves it at https://gateway.localhost/pay/...)
+# 2. checkout page and staff dashboard bundles (Caddy serves them at
+#    https://gateway.localhost/pay/... and https://gateway.localhost/dashboard/)
 (cd frontend/checkout && npm install && npm run build)
+(cd frontend/dashboard && npm install && npm run build)
 
 # 3. whole stack
 docker compose -f deploy/compose.yaml up --build
@@ -41,13 +43,24 @@ docker compose -f deploy/compose.yaml exec gateway python manage.py create_merch
   | tee /dev/stderr | awk '/API key:/{print $3 > "deploy/secrets/securepay_api_key"}
                            /Signing secret:/{print $3 > "deploy/secrets/securepay_signing_secret"}'
 docker compose -f deploy/compose.yaml restart merchant
+
+# 5. staff accounts for the dashboard (password prompt, 12+ characters; the authenticator
+#    app is set up at the first sign-in from the QR code on the two-step page)
+docker compose -f deploy/compose.yaml exec gateway python manage.py create_staff ops@demoshop.sg \
+  --role merchant_operator --merchant mer_... --name "Aisha Rahman"   # the ID create_merchant printed
+docker compose -f deploy/compose.yaml exec gateway python manage.py create_staff analyst@securepay.sg \
+  --role fraud_analyst --name "Daniel Lim"
+docker compose -f deploy/compose.yaml exec gateway python manage.py create_staff admin@securepay.sg \
+  --role administrator --name "Mei Tan"
 ```
+
+Staff dashboard: https://gateway.localhost/dashboard/. Sign-in is a password and a 6-digit authenticator code; five failures (wrong password or wrong code) lock the account for 15 minutes and email the account holder (Mailpit). Sessions end after 15 idle minutes. Merchant operators see their own merchant's payments and capture, cancel and refund them; fraud analysts work the review queue across all merchants; administrators see every merchant read-only, approve merchants (the API key and signing secret are shown once), read the audit log and re-check escalated operations.
 
 Then shop at https://shop.localhost and pay with a test card from `contracts/SIMULATOR-CONTRACT.md` section 5 (4242 4242 4242 4242 approves, 4000 0000 0000 0002 declines, 4000 0000 0000 0119 loses the answer).
 
-Fraud screening (demo stories S2 and S3): an order over S$500, or the email `review@example.com`, asks for a 6-digit code, which arrives in Mailpit at https://mail.localhost; three wrong codes block the payment. Card 4000 0000 0000 0101 or the email `blocked@example.com` is blocked, and so is a sixth attempt on one card within 10 minutes. Screening decisions, with reasons and scores, are in the gateway's Django admin under Risk -> Screening events.
+Fraud screening (demo stories S2 and S3): an order over S$500, or the email `review@example.com`, asks for a 6-digit code, which arrives in Mailpit at https://mail.localhost; three wrong codes block the payment. Card 4000 0000 0000 0101 or the email `blocked@example.com` is blocked, and so is a sixth attempt on one card within 10 minutes. Screening decisions, with score, reasons, features and versions, are on each payment's page in the dashboard; blocked and verified attempts are in the fraud review queue, where analysts record a finding (confirmed fraud, false positive or inconclusive) without changing the payment.
 
-The gateway worker sends the shop a signed webhook for each status change; the shop confirms it with a signed `GET` before marking the order paid. To ship (capture) or cancel an order, as the merchant in demo story S1:
+The gateway worker sends the shop a signed webhook for each status change; the shop confirms it with a signed `GET` before marking the order paid. To ship (capture) or cancel an order, as the merchant in demo story S1, sign in to the dashboard as the merchant operator and use Capture or Cancel authorisation on the payment's page, or:
 
 ```bash
 docker compose -f deploy/compose.yaml exec merchant python manage.py settle_order capture ORD-1001
@@ -56,13 +69,13 @@ docker compose -f deploy/compose.yaml exec merchant python manage.py settle_orde
 
 (or select the payment in the shop's Django admin and use the Capture / Cancel actions).
 
-Refunds (demo story S6): each refund reserves its amount under a lock on the payment, so refunds that together exceed the captured amount cannot both go through, even at the same moment.
+Refunds (demo story S6): each refund reserves its amount under a lock on the payment, so refunds that together exceed the captured amount cannot both go through, even at the same moment. In the dashboard, use Refund on a captured payment (try the same refund in two tabs at once); or:
 
 ```bash
 docker compose -f deploy/compose.yaml exec merchant python manage.py settle_order refund ORD-1001 --amount 500 --reason "One item returned"
 ```
 
-Lost answers (demo story S4): pay with 4000 0000 0000 0119 (the bank approves but the answer is lost) or 4000 0000 0000 0127 (the answer comes too late). After 10 seconds the checkout page says "We're confirming your payment" and the payment is Unresolved. The gateway worker then asks the simulator about the same operation ID, 30 seconds later and then at 1, 2, 5, 10 and 20 minutes; the first check finds the approval, the payment becomes Authorised without a second charge, and the page updates itself. Card 4000 0000 0000 0135 loses the request instead: the check finds no record, retires the ID, and the payment ends Declined (`not_processed`). An operation still without an answer after the sixth check is escalated; administrators find it in the gateway's Django admin under Payments -> Operations (filter "escalated") and can re-check it with the simulator. Nobody can set an outcome by hand.
+Lost answers (demo story S4): pay with 4000 0000 0000 0119 (the bank approves but the answer is lost) or 4000 0000 0000 0127 (the answer comes too late). After 10 seconds the checkout page says "We're confirming your payment" and the payment is Unresolved. The gateway worker then asks the simulator about the same operation ID, 30 seconds later and then at 1, 2, 5, 10 and 20 minutes; the first check finds the approval, the payment becomes Authorised without a second charge, and the page updates itself. Card 4000 0000 0000 0135 loses the request instead: the check finds no record, retires the ID, and the payment ends Declined (`not_processed`). An operation still without an answer after the sixth check is escalated; administrators find it with the "Escalated operations" tile on the dashboard's payments page and use "Re-check with the simulator" on the payment. Nobody can set an outcome by hand.
 
 For day-to-day work on one service, see that service's README (venv + `runserver`).
 
