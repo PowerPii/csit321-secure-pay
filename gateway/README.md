@@ -78,6 +78,8 @@ same-origin JSON API under `/checkout/`:
 
 Analysts read decisions in the Django admin (Risk -> Screening events) until the dashboard (D4, D6) lands in sprint 6. Demo data: `python manage.py seed_risk_lists` (the Compose stack runs it on start) lists card **4000 0000 0000 0101** and `blocked@example.com` for blocking and `review@example.com` for verification. Any order over S$500 asks for a code too. The burst rule counts every attempt, including blocked ones, so after an outage test or many declines on one test card, wait 10 minutes or use another card.
 
+Confirmed by Fifa 13 Nov 2026: hard cut-off 500 ms with a p95 target of 200 ms; the card stays encrypted in the vault until the code is entered; resend after 30 s, at most 5 codes per payment.
+
 Measuring: `python manage.py benchmark_screening` screens 1,000 payments over 5,000 earlier events inside a rolled-back transaction and reports p50/p95/p99 against NFR-PER-02. Outage test (DEBUG only): `RISK_SIMULATE_OUTAGE=error` or `slow` makes every screening unavailable.
 
 Running locally: `python manage.py migrate && python manage.py migrate --database=vault`. If the

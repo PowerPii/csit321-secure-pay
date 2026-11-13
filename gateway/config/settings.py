@@ -160,7 +160,7 @@ GATEWAY_RULES = {
     "AUTH_EXPIRY_DAYS": 7,  # uncaptured authorisations are cancelled by the worker
     "VERIFICATION_CODE_TTL_MINUTES": 10,
     "VERIFICATION_MAX_ATTEMPTS": 3,  # wrong codes, then Blocked (FR-CHK-21, confirmed 5 Nov 2026)
-    # A new code replaces the old one (FR-CHK-06). Not set by the URS; proposed in sprint 4.
+    # A new code replaces the old one (FR-CHK-06). Not in the URS; confirmed by Fifa 13 Nov 2026.
     "VERIFICATION_RESEND_COOLDOWN_SECONDS": 30,
     "VERIFICATION_MAX_CODES": 5,  # codes sent per attempt, including the first
     "CHECKOUT_SESSION_TTL_MINUTES": 60,
