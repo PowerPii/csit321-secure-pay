@@ -1,2 +1,71 @@
+"""API key authentication and merchant status (API-CONTRACT.md section 2)."""
+import pytest
+from django.db import IntegrityError, transaction
+from django.utils import timezone
 
-# Create your tests here.
+from apps.events.signing import verify
+from apps.merchants.models import ApiKey, Merchant, digest_api_key
+
+pytestmark = pytest.mark.django_db
+
+
+def test_only_a_digest_of_the_key_is_stored(shop):
+    stored = ApiKey.objects.get(pk=shop.api_key.pk)
+    assert stored.digest == digest_api_key(shop.key)
+    assert shop.key not in {stored.digest, stored.hint}
+    assert shop.key.startswith("sp_test_") and len(shop.key) == 48
+
+
+def test_signing_secret_is_stored_encrypted(shop):
+    stored = Merchant.objects.get(pk=shop.merchant.pk)
+    assert shop.secret.startswith("whsec_")
+    assert shop.secret not in stored.signing_secret_encrypted
+    assert stored.signing_secret == shop.secret
+
+
+def test_one_active_key_per_merchant(shop):
+    with pytest.raises(IntegrityError), transaction.atomic():
+        ApiKey.issue(shop.merchant)
+
+
+@pytest.mark.parametrize("header", [
+    None, "Bearer", "Basic abc", "Bearer sp_test_short",
+    "Bearer sp_test_" + "A" * 40,  # well-formed but unknown
+])
+def test_missing_or_unknown_key_is_401_and_unsigned(client, db, header, error_schema):
+    headers = {"Authorization": header} if header else {}
+    response = client.get("/v1/payments/pay_" + "A" * 24, headers=headers)
+    assert response.status_code == 401
+    body = response.json()
+    error_schema.validate(body)
+    assert body["error"]["code"] == "api_key_invalid"
+    assert body["error"]["request_id"] == response["SecurePay-Request-Id"]
+    assert "SecurePay-Signature" not in response
+    assert response["WWW-Authenticate"].startswith("Bearer")
+
+
+def test_revoked_key_is_401(shop):
+    ApiKey.objects.filter(pk=shop.api_key.pk).update(revoked_at=timezone.now())
+    assert shop.get("/v1/payments/pay_" + "A" * 24).status_code == 401
+
+
+@pytest.mark.parametrize("status", ["pending", "rejected", "suspended"])
+def test_inactive_merchant_is_403_and_signed(make_merchant, status, error_schema):
+    shop = make_merchant(status=status)
+    response = shop.create_payment()
+    assert response.status_code == 403
+    error_schema.validate(response.json())
+    assert response.json()["error"]["code"] == "merchant_not_active"
+    assert verify(response.content, response["SecurePay-Signature"], shop.secret)
+
+
+def test_rate_limit_is_per_key(shop, other_shop, settings):
+    settings.GATEWAY_RULES = {**settings.GATEWAY_RULES, "API_RATE_LIMIT_PER_MINUTE": 3}
+    url = "/v1/payments/pay_" + "A" * 24
+    for _ in range(3):
+        assert shop.get(url).status_code == 404
+    limited = shop.get(url)
+    assert limited.status_code == 429
+    assert limited.json()["error"]["code"] == "rate_limited"
+    assert int(limited["Retry-After"]) >= 1
+    assert other_shop.get(url).status_code == 404  # other keys are not affected

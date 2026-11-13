@@ -1,2 +1,122 @@
+"""Merchants and their API keys (FR-MER-01 to FR-MER-03, FR-MER-10).
 
-# Create your models here.
+A merchant is created and approved by an administrator in the MVP (self-registration is a
+later Should item). Each merchant has one active API key and one signing secret.
+"""
+import hashlib
+
+from django.db import models
+from django.db.models import Q
+
+from apps.common import crypto
+from apps.common.ids import new_id, random_base62
+
+API_KEY_PREFIX = "sp_test_"
+API_KEY_BODY_LENGTH = 40
+SIGNING_SECRET_PREFIX = "whsec_"  # nosec B105
+
+
+class Merchant(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending"
+        ACTIVE = "active"
+        REJECTED = "rejected"
+        SUSPENDED = "suspended"
+
+    public_id = models.CharField(max_length=32, unique=True, editable=False)
+    name = models.CharField(max_length=120)
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)
+    # Encrypted `whsec_...`; signs webhooks and API replies (API-CONTRACT.md section 2).
+    signing_secret_encrypted = models.TextField(editable=False)
+    webhook_url = models.URLField(max_length=2048, blank=True)
+    webhook_url_approved = models.BooleanField(default=False)  # FR-ADM-13
+    # Per-merchant ceiling set by an administrator (FR-ADM-07); null = only the global limit.
+    max_amount_cents = models.PositiveIntegerField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(status__in=["pending", "active", "rejected", "suspended"]),
+                name="merchant_status_valid",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.name} ({self.public_id})"
+
+    # DRF treats the authenticated principal as request.user; a merchant authenticated by
+    # API key is the user of a merchant API request.
+    is_authenticated = True
+    is_anonymous = False
+
+    @property
+    def is_active_merchant(self) -> bool:
+        return self.status == self.Status.ACTIVE
+
+    @property
+    def signing_secret(self) -> str:
+        return crypto.decrypt(self.signing_secret_encrypted)
+
+    def save(self, *args, **kwargs):
+        if not self.public_id:
+            self.public_id = new_id("mer")
+        if not self.signing_secret_encrypted:
+            self.rotate_signing_secret()
+        super().save(*args, **kwargs)
+
+    def rotate_signing_secret(self) -> str:
+        """Set a new signing secret and return it. Show it to the merchant once."""
+        secret = SIGNING_SECRET_PREFIX + random_base62(32)
+        self.signing_secret_encrypted = crypto.encrypt(secret)
+        return secret
+
+
+def digest_api_key(key: str) -> str:
+    """SHA-256 of the full key. Enough for a 238-bit random key; lets us look it up by index."""
+    return hashlib.sha256(key.encode()).hexdigest()
+
+
+class ApiKeyQuerySet(models.QuerySet):
+    def active(self):
+        return self.filter(revoked_at__isnull=True)
+
+
+class ApiKey(models.Model):
+    """A merchant API key. Only the digest is stored; the key is shown once (FR-MER-03)."""
+
+    merchant = models.ForeignKey(Merchant, on_delete=models.PROTECT, related_name="api_keys")
+    public_id = models.CharField(max_length=32, unique=True, editable=False)
+    digest = models.CharField(max_length=64, unique=True, editable=False)
+    # First characters after the prefix, so staff can tell keys apart without seeing them.
+    hint = models.CharField(max_length=24, editable=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+    revoked_at = models.DateTimeField(null=True, blank=True)
+
+    objects = ApiKeyQuerySet.as_manager()
+
+    class Meta:
+        constraints = [
+            # One active key per merchant in the MVP (rotation is a later Should item).
+            models.UniqueConstraint(
+                fields=["merchant"], condition=Q(revoked_at__isnull=True),
+                name="one_active_api_key_per_merchant",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.hint}... ({'revoked' if self.revoked_at else 'active'})"
+
+    @classmethod
+    def issue(cls, merchant: Merchant) -> tuple["ApiKey", str]:
+        """Create a key for the merchant and return it with the plaintext, to show once."""
+        plaintext = API_KEY_PREFIX + random_base62(API_KEY_BODY_LENGTH)
+        api_key = cls.objects.create(
+            merchant=merchant,
+            public_id=new_id("key"),
+            digest=digest_api_key(plaintext),
+            hint=plaintext[: len(API_KEY_PREFIX) + 4],
+        )
+        return api_key, plaintext

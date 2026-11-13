@@ -44,6 +44,7 @@ services:
       - vault_db_password
       - vault_encryption_key
       - card_fingerprint_key
+      - field_encryption_key
     networks: [data, gateway, edge]
 
   gateway-worker:
@@ -59,6 +60,7 @@ services:
         target: django_secret_key
       - source: gateway_db_password
         target: db_password
+      - field_encryption_key  # decrypts merchant signing secrets to sign webhooks
     networks: [data, gateway, edge]
 
   simulator:
@@ -133,6 +135,7 @@ secrets:
   vault_db_password: { file: ./secrets/vault_db_password }
   vault_encryption_key: { file: ./secrets/vault_encryption_key }
   card_fingerprint_key: { file: ./secrets/card_fingerprint_key }
+  field_encryption_key: { file: ./secrets/field_encryption_key }
   simulator_django_secret_key: { file: ./secrets/simulator_django_secret_key }
   simulator_db_password: { file: ./secrets/simulator_db_password }
   merchant_django_secret_key: { file: ./secrets/merchant_django_secret_key }
