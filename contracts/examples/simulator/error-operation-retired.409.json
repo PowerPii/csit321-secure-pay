@@ -1,0 +1,26 @@
+{
+  "error": {
+    "type": "conflict",
+    "code": "operation_retired",
+    "message": "This operation_id was reported as no_record and can never be processed.",
+    "param": "operation_id",
+    "request_id": "req_EXAMPLE00000000000000030"
+  },
+  "operation": {
+    "operation_id": "op_EXAMPLE00000000000000014",
+    "object": "operation",
+    "type": "authorise",
+    "status": "no_record",
+    "decline_reason": null,
+    "merchant_id": null,
+    "payment_id": null,
+    "authorisation_id": null,
+    "refund_id": null,
+    "amount": null,
+    "currency": null,
+    "card": null,
+    "simulator_reference": null,
+    "authorisation": null,
+    "recorded_at": "2026-11-13T04:31:45Z"
+  }
+}
