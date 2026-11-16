@@ -2,8 +2,8 @@
 # One-time set-up of a fresh Ubuntu 24.04 server (deploy/RUNBOOK.md step 2): a DigitalOcean
 # droplet, a Google Cloud VM or an Oracle Cloud VM. Run as root (DigitalOcean) or with sudo
 # (Google Cloud, Oracle):
-#   curl -fsSL https://raw.githubusercontent.com/PowerPii/csit321-secure-pay/main/deploy/server-setup.sh -o setup.sh
-#   less setup.sh && sudo bash setup.sh
+#   sudo bash csit321-secure-pay/deploy/server-setup.sh
+# (the repository is private: clone it with a read-only deploy key first, RUNBOOK.md step 2)
 #
 # - security updates installed now and every day after (unattended-upgrades)
 # - Docker Engine + Compose plugin from Docker's own apt repository

@@ -7,6 +7,10 @@ before the trial ends (both covered below), with free
 Vercel and does not link here (decided 14 Nov 2026). Share the addresses with the team and
 assessors directly.
 
+**Current server (16 Nov 2026):** Google Cloud project `securepay-demo`, VM `securepay`
+(e2-medium, asia-southeast1), static IP `35.213.144.96`, domain `35-213-144-96.sslip.io`.
+First deploy: all smoke checks and all 11 integration tests passed on it.
+
 | Name | What | Who |
 | --- | --- | --- |
 | `https://gateway.<domain>` | Merchant API, hosted checkout (`/pay/...`), guest status (`/guest/status`), staff dashboard (`/dashboard/`) | Public; the dashboard needs a staff account with TOTP |
@@ -43,13 +47,17 @@ so move to DigitalOcean before then (copy the backups and secrets; the names cha
 3. Compute Engine > VM instances > **Create instance**:
    - Region **asia-southeast1 (Singapore)**, any zone
    - Machine **e2-medium** (2 vCPU, 4 GB), roughly US$25 to 30 a month from the credit
-   - Boot disk: **Ubuntu 24.04 LTS (x86/64)**, **30 GB**, balanced persistent disk
-   - Networking: tick **Allow HTTP traffic** and **Allow HTTPS traffic**; under the network
-     interface, set External IPv4 address to the static IP from step 2
+   - Boot disk: **Ubuntu 24.04 LTS**, the "x86/64, amd64 noble image" (not Minimal, not
+     Arm64), **30 GB** (the default 10 GB is too small), balanced persistent disk
+   - Networking: tick **Allow HTTP traffic** and **Allow HTTPS traffic**; open the network
+     interface, set Network Service Tier to the same tier as the static IP, and External IPv4
+     address to the static IP from step 2 (not "Ephemeral")
    - Security > Manage access > **Add item**: paste your laptop's public key
      (`~/.ssh/id_ed25519.pub`, ending in a comment such as `fifa`). That comment is the user
      name you sign in with: `ssh fifa@<ip>`.
-4. Nothing else: Google's firewall now allows 22, 80 and 443 (HTTP/3 on UDP 443 is optional).
+4. Check that both firewall boxes really are ticked (VM > Edit > Networking). If they are not,
+   Let's Encrypt cannot reach port 80 and Caddy logs "Timeout during connect (likely firewall
+   problem)"; tick them, Save, and `restart caddy`. HTTP/3 on UDP 443 is optional.
 
 The server-setup script notices that the external IP is NAT'd (the VM itself only holds a
 `10.x` address) and puts it on the loopback interface, so the worker's webhooks to the shop
@@ -63,36 +71,56 @@ stay inside the VM.
    **2 vCPU / 4 GB RAM** (about US$24 a month, paid from the credit), authentication **SSH key**,
    free monitoring on. Its public IPv4 is all you need; no reserved IP.
 
-## 2. Set up the server (once)
+## 2. Get the code and set up the server (once)
+
+The repository is private, so the server gets a **read-only deploy key** for it (a public
+`raw.githubusercontent.com` download answers 404). Sign in as your own user first:
 
 ```bash
-ssh fifa@203.0.113.5        # Google Cloud;  DigitalOcean: ssh root@203.0.113.5
-curl -fsSL https://raw.githubusercontent.com/PowerPii/csit321-secure-pay/main/deploy/server-setup.sh -o setup.sh
-less setup.sh               # read it first
-sudo bash setup.sh
+ssh fifa@203.0.113.5        # Google Cloud: the name in your SSH key's comment; DigitalOcean: root@
+ssh-keygen -t ed25519 -f ~/.ssh/deploy_key -N "" -C securepay-server
+cat ~/.ssh/deploy_key.pub
 ```
 
-It installs security updates (and turns on daily automatic ones), Docker with the Compose
-plugin, a `securepay` user that signs in with the same SSH key, SSH with keys only and no root
-sign-in, a firewall with only 22, 80 and 443 open, and 2 GB of swap. On clouds that NAT the
-public IP (Google Cloud, Oracle) it also puts that IP on the loopback interface so containers
-can reach the server's own public names (the worker's webhooks to the shop), and on Oracle it
-replaces the image's own reject-all iptables rules with that firewall. **Before closing the first session**, check in a second terminal that `ssh securepay@203.0.113.5` works.
+On GitHub: repository Settings > Deploy keys > **Add deploy key**, title `securepay-server`,
+paste the key, leave **Allow write access unticked** (the server only ever reads). Then:
 
-Team members get access by adding their public key to `/home/securepay/.ssh/authorized_keys`.
+```bash
+GIT_SSH_COMMAND="ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new" \
+  git clone git@github.com:PowerPii/csit321-secure-pay.git
+less csit321-secure-pay/deploy/server-setup.sh       # read it first
+sudo bash csit321-secure-pay/deploy/server-setup.sh
+```
 
-## 3. Get the code
+The setup installs security updates (and turns on daily automatic ones), Docker with the
+Compose plugin, a `securepay` user that signs in with the same SSH key, SSH with keys only and
+no root sign-in, a firewall with only 22, 80 and 443 open, and 2 GB of swap. On clouds that NAT
+the public IP (Google Cloud, Oracle) it also puts that IP on the loopback interface so
+containers can reach the server's own public names (the worker's webhooks to the shop), and on
+Oracle it replaces the image's own reject-all iptables rules with that firewall.
+
+## 3. Hand the code to the `securepay` user
+
+Still as your own user:
+
+```bash
+sudo mv ~/csit321-secure-pay /home/securepay/
+sudo install -m 600 -o securepay -g securepay ~/.ssh/deploy_key /home/securepay/.ssh/deploy_key
+sudo chown -R securepay:securepay /home/securepay/csit321-secure-pay
+sudo -u securepay git -C /home/securepay/csit321-secure-pay config core.sshCommand \
+  "ssh -i /home/securepay/.ssh/deploy_key -o StrictHostKeyChecking=accept-new"
+rm ~/.ssh/deploy_key ~/.ssh/deploy_key.pub
+```
+
+**Before closing this session**, check in a second terminal:
 
 ```bash
 ssh securepay@203.0.113.5
-git clone https://github.com/PowerPii/csit321-secure-pay.git
-cd csit321-secure-pay
+cd csit321-secure-pay && git pull && docker --version
 ```
 
-If the repository is private: `ssh-keygen -t ed25519 -f ~/.ssh/deploy_key -N ""`, add
-`~/.ssh/deploy_key.pub` as a **read-only deploy key** (repository Settings > Deploy keys), then
-`GIT_SSH_COMMAND="ssh -i ~/.ssh/deploy_key" git clone git@github.com:PowerPii/csit321-secure-pay.git`
-and `git config core.sshCommand "ssh -i ~/.ssh/deploy_key"` inside the clone.
+From here on everything runs as `securepay` inside `~/csit321-secure-pay`. Team members get
+access by adding their public key to `/home/securepay/.ssh/authorized_keys`.
 
 ## 4. Secrets and settings
 
@@ -165,6 +193,8 @@ bash deploy/smoke-check.sh 203-0-113-5.sslip.io
 It checks the health endpoint, the checkout, guest status and dashboard pages, that `/admin/`
 is 404 on the gateway and the shop, that the API needs a key, that the inbox needs a password,
 HTTP to HTTPS, the security headers, and that the simulator does not answer from outside.
+
+On the server itself works too (`bash deploy/smoke-check.sh <domain>`).
 
 Then the cross-service tests (S1 to S6, receipts, guest status, fault controls), from inside
 the server so they can reach the simulator's test controls and the inbox:
