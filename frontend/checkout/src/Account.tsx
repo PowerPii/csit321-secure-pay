@@ -43,6 +43,14 @@ export function tokenFromHash(hash: string): string | null {
   return token && /^[\w-]{20,100}$/.test(token) ? token : null;
 }
 
+/** Local checks for a new password and its confirmation, keyed by field name. */
+export function newPasswordProblems(value: string, repeat: string): Record<string, string> {
+  if (value.length < MIN_PASSWORD) return { password: tooShort() };
+  return repeat === value ? {} : { confirm: "The passwords do not match." };
+}
+
+const tooShort = () => `Use at least ${MIN_PASSWORD} characters.`;
+
 const asError = (err: unknown) =>
   err instanceof AccountApiError ? err : new AccountApiError(0, "unknown_error", "Something went wrong.", null, null);
 
@@ -243,8 +251,7 @@ function RegisterForm({ onSignedIn }: { onSignedIn: (c: Customer) => void }) {
     const e: Record<string, string> = {};
     if (!name.trim()) e.full_name = "Enter your full name.";
     if (!EMAIL_RE.test(email.trim())) e.email = "Enter a valid email address.";
-    if (password.length < MIN_PASSWORD) e.password = `Use at least ${MIN_PASSWORD} characters.`;
-    else if (confirm !== password) e.confirm = "The passwords do not match.";
+    Object.assign(e, newPasswordProblems(password, confirm));
     setErrors(e);
     if (Object.keys(e).length || busy) return;
     setBusy(true);
@@ -435,8 +442,7 @@ function PasswordPage({ onEnded, onDone }: { onEnded: () => void; onDone: (messa
     ev.preventDefault();
     const e: Record<string, string> = {};
     if (!current) e.current_password = "Enter your current password.";
-    if (password.length < MIN_PASSWORD) e.password = `Use at least ${MIN_PASSWORD} characters.`;
-    else if (confirm !== password) e.confirm = "The passwords do not match.";
+    Object.assign(e, newPasswordProblems(password, confirm));
     setErrors(e);
     if (Object.keys(e).length || busy) return;
     setBusy(true);
@@ -568,8 +574,7 @@ function SetPassword({ token, email, onInvalid, onDone }: { token: string; email
   async function onSubmit(ev: FormEvent) {
     ev.preventDefault();
     const e: Record<string, string> = {};
-    if (password.length < MIN_PASSWORD) e.password = `Use at least ${MIN_PASSWORD} characters.`;
-    else if (confirm !== password) e.confirm = "The passwords do not match.";
+    Object.assign(e, newPasswordProblems(password, confirm));
     setErrors(e);
     if (Object.keys(e).length || busy) return;
     setBusy(true);
