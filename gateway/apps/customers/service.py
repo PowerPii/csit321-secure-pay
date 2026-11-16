@@ -82,6 +82,15 @@ def _clean_email(value) -> str:
     return email
 
 
+def _clean_name(value) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise invalid("missing_field", "Enter your full name.", param="full_name")
+    name = " ".join(value.split())
+    if len(name) > 100:
+        raise invalid("invalid_field", "Use at most 100 characters.", param="full_name")
+    return name
+
+
 def _check_new_password(password, account: CustomerAccount) -> str:
     if not isinstance(password, str) or not password:
         raise invalid("missing_field", "Enter a password.", param="password")
@@ -160,20 +169,21 @@ def sign_out_everywhere(session: CustomerSession, request=None) -> int:
 
 def register(data, request=None) -> tuple[CustomerAccount, str, CustomerSession]:
     """FR-ACC-01. Creates the account and signs it in on this browser."""
-    data = _body_fields(data, ("full_name", "email", "password", "remember"))
-    name = data.get("full_name")
-    if not isinstance(name, str) or not name.strip():
-        raise invalid("missing_field", "Enter your full name.", param="full_name")
-    name = " ".join(name.split())
-    if len(name) > 100:
-        raise invalid("invalid_field", "Use at most 100 characters.", param="full_name")
+    data = _body_fields(data, ("full_name", "email", "password", "remember",
+                               "privacy_consent"))
+    name = _clean_name(data.get("full_name"))
     email = _clean_email(data.get("email"))
+    if data.get("privacy_consent") is not True:  # FR-ACC-12: consent before collecting
+        raise invalid("privacy_consent_required", "Agree to the privacy notice to create an "
+                      "account.", param="privacy_consent")
     if CustomerAccount.objects.filter(email__iexact=email).exists():
         raise email_taken()
     account = CustomerAccount(email=email, full_name=name)
     password = _check_new_password(data.get("password"), account)
     account.password = make_password(password)
     account.password_changed_at = timezone.now()
+    account.privacy_notice_version = _rules()["PRIVACY_NOTICE_VERSION"]
+    account.privacy_consent_at = timezone.now()
     try:
         with transaction.atomic():
             account.save()
@@ -254,7 +264,71 @@ def sign_in(data, request=None) -> tuple[CustomerAccount, str, CustomerSession]:
 def me(customer: CustomerAccount) -> dict:
     return {"id": customer.public_id, "full_name": customer.full_name,
             "email": customer.email,
-            "idle_minutes": _rules()["CUSTOMER_IDLE_MINUTES"]}
+            "idle_minutes": _rules()["CUSTOMER_IDLE_MINUTES"],
+            "idle_warning_minutes": _rules()["IDLE_WARNING_MINUTES"]}
+
+
+# --- personal data: see and correct (FR-ACC-13) -----------------------------------------
+
+def personal_data(customer: CustomerAccount) -> dict:
+    """Everything the gateway keeps about the customer as a person. Payments are listed in
+    the history; card numbers are never kept (only brand and last four digits)."""
+    from apps.common.timefmt import rfc3339
+
+    return {
+        "full_name": customer.full_name,
+        "email": customer.email,
+        "created_at": rfc3339(customer.created_at),
+        "last_sign_in_at": rfc3339(customer.last_sign_in_at),
+        "password_changed_at": rfc3339(customer.password_changed_at),
+        "details_changed_at": rfc3339(customer.details_changed_at),
+        "privacy_notice_version": customer.privacy_notice_version or None,
+        "privacy_consent_at": rfc3339(customer.privacy_consent_at),
+        "payments": _history_rows(customer).count(),
+        "active_sessions": CustomerSession.objects.filter(
+            customer=customer, ended_at__isnull=True).count(),
+    }
+
+
+def update_details(session: CustomerSession, data, request=None) -> dict:
+    """Correct the full name and/or email. The current password proves who is asking, even
+    on a browser someone left signed in. An email change is told to both addresses."""
+    data = _body_fields(data, ("current_password", "full_name", "email"))
+    customer = session.customer
+    current = data.get("current_password")
+    if not isinstance(current, str) or not check_password(current[:256], customer.password):
+        raise ApiError(400, "current_password_incorrect", "Your current password is not right.",
+                       param="current_password")
+    name = _clean_name(data["full_name"]) if "full_name" in data else customer.full_name
+    email = _clean_email(data["email"]) if "email" in data else customer.email
+    changed = [f for f, old, new in (("full_name", customer.full_name, name),
+                                     ("email", customer.email, email)) if old != new]
+    if not changed:
+        return personal_data(customer)
+    if "email" in changed and CustomerAccount.objects.filter(email__iexact=email).exclude(
+            pk=customer.pk).exists():
+        raise email_taken()
+    old_email = customer.email
+    try:
+        with transaction.atomic():
+            customer = CustomerAccount.objects.select_for_update().get(pk=customer.pk)
+            customer.full_name, customer.email = name, email
+            customer.details_changed_at = timezone.now()
+            customer.save(update_fields=["full_name", "email", "details_changed_at"])
+            _audit("customer.details_corrected", customer, request, fields=changed)
+            if "email" in changed:
+                # Reset links sent to the old address stop working.
+                AccountToken.objects.filter(customer=customer, used_at__isnull=True).update(
+                    used_at=timezone.now())
+                for address in (old_email, email):
+                    mail.notice(address, "your account email was changed",
+                                f"Hello {customer.full_name},\n\nThe email address of your "
+                                f"SecurePay account was changed from {old_email} to {email}."
+                                "\n\nIf this was not you, reset your password straight away "
+                                "and contact us.")
+    except IntegrityError:
+        raise email_taken() from None
+    return personal_data(customer)
 
 
 # --- password change and reset ---------------------------------------------------------

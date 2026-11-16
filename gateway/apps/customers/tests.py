@@ -28,7 +28,8 @@ def post(client, path, body=None):
 
 def register(client=None, email=EMAIL, password=PASSWORD, **extra):
     client = client or APIClient()
-    body = {"full_name": "Jane Tan", "email": email, "password": password, **extra}
+    body = {"full_name": "Jane Tan", "email": email, "password": password,
+            "privacy_consent": True, **extra}
     return client, post(client, "register", body)
 
 
@@ -50,7 +51,7 @@ def pay(shop, browser, number="4242424242424242"):
 
     payment = Payment.objects.get(public_id=shop.create_payment(valid_body()).json()["id"])
     base = f"/checkout/{payment.checkout_session_id}"
-    card = {"number": number, "expiry_month": 12, "expiry_year": 2030, "cvc": "123"}
+    card = {"number": number, "expiry_month": 12, "expiry_year": 2030, "cvc": "123", "privacy_consent": True}
     assert browser.post(f"{base}/card", card, format="json").status_code == 200
     assert browser.post(f"{base}/submit", {}, format="json").status_code == 200
     payment.refresh_from_db()
@@ -92,9 +93,12 @@ def test_register_refuses_weak_passwords(password):
 
 
 @pytest.mark.parametrize("body,param", [
-    ({"email": EMAIL, "password": PASSWORD}, "full_name"),
+    ({"email": EMAIL, "password": PASSWORD, "privacy_consent": True}, "full_name"),
     ({"full_name": "Jane", "email": "not-an-email", "password": PASSWORD}, "email"),
     ({"full_name": "Jane", "email": EMAIL, "password": PASSWORD, "admin": True}, "admin"),
+    ({"full_name": "Jane", "email": EMAIL, "password": PASSWORD}, "privacy_consent"),
+    ({"full_name": "Jane", "email": EMAIL, "password": PASSWORD, "privacy_consent": "yes"},
+     "privacy_consent"),
 ])
 def test_register_names_the_field_to_correct(body, param):
     response = post(APIClient(), "register", body)
@@ -332,3 +336,99 @@ def test_declined_payment_is_listed_as_declined(customer, shop, fake_sim):
     pay(shop, browser, "4000000000000002")
     (row,) = browser.get("/customer/payments").json()["data"]
     assert row["status_label"] == "Declined"
+
+
+# --- idle warning, consent, personal data (FR-ACC-10 to FR-ACC-13) ------------------------
+
+def test_me_tells_the_page_when_to_warn(customer):
+    client, _ = sign_in()
+    body = client.get("/customer/me").json()
+    assert body["idle_warning_minutes"] == 13 and body["idle_minutes"] == 15
+
+
+def test_registration_records_the_privacy_notice_agreed_to(customer):
+    assert customer.privacy_notice_version == "2026-11-16"
+    assert customer.privacy_consent_at is not None
+
+
+def test_checkout_needs_consent_to_the_privacy_notice(shop, fake_sim):
+    from conftest import valid_body
+
+    payment = Payment.objects.get(public_id=shop.create_payment(valid_body()).json()["id"])
+    base = f"/checkout/{payment.checkout_session_id}"
+    card = {"number": "4242424242424242", "expiry_month": 12, "expiry_year": 2030, "cvc": "123"}
+    refused = APIClient().post(f"{base}/card", card, format="json")
+    assert refused.status_code == 400
+    assert refused.json()["error"]["code"] == "privacy_consent_required"
+    payment.refresh_from_db()
+    assert payment.card_token == ""  # nothing collected
+    ok = APIClient().post(f"{base}/card", {**card, "privacy_consent": True}, format="json")
+    assert ok.status_code == 200
+    payment.refresh_from_db()
+    assert payment.privacy_notice_version == "2026-11-16"
+
+
+def test_checkout_does_not_depend_on_the_sign_in(customer, shop, fake_sim):
+    """FR-ACC-11: the sign-in timing out mid-checkout never stops or charges the payment;
+    the payment just does not join the history."""
+    from conftest import valid_body
+
+    browser, _ = sign_in()
+    payment = Payment.objects.get(public_id=shop.create_payment(valid_body()).json()["id"])
+    base = f"/checkout/{payment.checkout_session_id}"
+    card = {"number": "4242424242424242", "expiry_month": 12, "expiry_year": 2030,
+            "cvc": "123", "privacy_consent": True}
+    assert browser.post(f"{base}/card", card, format="json").status_code == 200
+    CustomerSession.objects.update(last_seen_at=timezone.now() - timedelta(minutes=20))
+    assert browser.post(f"{base}/submit", {}, format="json").status_code == 200
+    payment.refresh_from_db()
+    assert payment.status == "authorised" and payment.customer_id is None
+
+
+def test_customer_sees_their_personal_data(customer):
+    client, _ = sign_in()
+    body = client.get("/customer/profile").json()
+    assert body["full_name"] == "Jane Tan" and body["email"] == EMAIL
+    assert body["privacy_notice_version"] == "2026-11-16"
+    assert body["payments"] == 0 and body["active_sessions"] == 2
+    assert APIClient().get("/customer/profile").status_code == 401
+
+
+def test_correcting_details_needs_the_current_password(customer):
+    client, _ = sign_in()
+    wrong = post(client, "profile", {"current_password": "not it at all", "full_name": "J Tan"})
+    assert wrong.status_code == 400
+    assert wrong.json()["error"]["code"] == "current_password_incorrect"
+    customer.refresh_from_db()
+    assert customer.full_name == "Jane Tan"
+
+
+def test_correct_name_and_email(customer):
+    client, _ = sign_in()
+    response = post(client, "profile", {"current_password": PASSWORD, "full_name": " Jane  Lim ",
+                                        "email": "Jane.Lim@Example.com"})
+    assert response.status_code == 200
+    assert response.json()["full_name"] == "Jane Lim"
+    assert response.json()["email"] == "jane.lim@example.com"
+    notices = OutboundEmail.objects.filter(kind="account_notice")
+    assert set(notices.values_list("to", flat=True)) == {EMAIL, "jane.lim@example.com"}
+    assert sign_in(email="jane.lim@example.com")[1].status_code == 200
+    assert sign_in()[1].status_code == 401
+    assert AuditEvent.objects.filter(action="customer.details_corrected").exists()
+
+
+def test_cannot_take_another_customers_email(customer):
+    register(email="sam@example.com")
+    client, _ = sign_in()
+    response = post(client, "profile", {"current_password": PASSWORD, "email": "SAM@example.com"})
+    assert response.status_code == 409 and response.json()["error"]["code"] == "email_taken"
+
+
+def test_email_change_withdraws_reset_links(customer):
+    client = APIClient()
+    post(client, "password-reset/request", {"email": EMAIL})
+    token = reset_token()
+    signed_in, _ = sign_in()
+    post(signed_in, "profile", {"current_password": PASSWORD, "email": "new@example.com"})
+    response = post(client, "password-reset/confirm", {"token": token, "password": NEW_PASSWORD})
+    assert response.status_code == 400 and response.json()["error"]["code"] == "link_invalid"

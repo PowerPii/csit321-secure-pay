@@ -7,6 +7,20 @@ export interface Customer {
   full_name: string;
   email: string;
   idle_minutes: number;
+  idle_warning_minutes: number;
+}
+
+export interface PersonalData {
+  full_name: string;
+  email: string;
+  created_at: string;
+  last_sign_in_at: string | null;
+  password_changed_at: string | null;
+  details_changed_at: string | null;
+  privacy_notice_version: string | null;
+  privacy_consent_at: string | null;
+  payments: number;
+  active_sessions: number;
 }
 
 export interface HistoryRow {
@@ -66,7 +80,10 @@ export const getMe = () => call<Customer>("me");
 export const signIn = (email: string, password: string, remember: boolean) =>
   post<Customer>("sign-in", { email, password, remember });
 export const register = (full_name: string, email: string, password: string) =>
-  post<Customer>("register", { full_name, email, password });
+  post<Customer>("register", { full_name, email, password, privacy_consent: true });
+export const getProfile = () => call<PersonalData>("profile");
+export const updateProfile = (current_password: string, full_name: string, email: string) =>
+  post<PersonalData>("profile", { current_password, full_name, email });
 export const signOut = () => post<void>("sign-out");
 export const signOutEverywhere = () => post<void>("sign-out-everywhere");
 export const changePassword = (current_password: string, password: string) =>

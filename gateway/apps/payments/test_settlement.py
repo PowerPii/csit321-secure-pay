@@ -25,7 +25,7 @@ def authorised(shop, fake_sim):
     browser = APIClient()
     base = f"/checkout/{payment.checkout_session_id}"
     card = {"number": "4242424242424242", "expiry_month": 12, "expiry_year": 2030,
-            "cvc": "123"}
+            "cvc": "123", "privacy_consent": True}
     assert browser.post(f"{base}/card", card, format="json").status_code == 200
     assert browser.post(f"{base}/submit", {}, format="json").status_code == 200
     payment.refresh_from_db()

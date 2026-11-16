@@ -140,7 +140,7 @@ def session_id(payment: dict) -> str:
 def pay(browser, payment: dict, card: str, timeout: float = 30) -> dict:
     """What the checkout page does: vault the card, then submit. Returns the session view."""
     base = f"/checkout/{session_id(payment)}"
-    card_body = {"number": card, "expiry_month": 12, "expiry_year": 2030, "cvc": "123"}
+    card_body = {"number": card, "expiry_month": 12, "expiry_year": 2030, "cvc": "123", "privacy_consent": True}
     response = browser.post(f"{base}/card", json=card_body)
     assert response.status_code == 200, response.text
     response = browser.post(f"{base}/submit", json={}, timeout=timeout)

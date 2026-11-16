@@ -11,6 +11,7 @@ urlpatterns = [
          name="customer-sign-out-everywhere"),
     path("me", views.MeView.as_view(), name="customer-me"),
     path("password", views.PasswordView.as_view(), name="customer-password"),
+    path("profile", views.ProfileView.as_view(), name="customer-profile"),
     path("payments", views.PaymentsView.as_view(), name="customer-payments"),
     path("payments/<str:reference>", views.PaymentDetailView.as_view(),
          name="customer-payment"),

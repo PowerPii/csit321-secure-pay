@@ -35,7 +35,7 @@ def captured_payment(shop, amount=None):
     browser = APIClient()
     base = f"/checkout/{payment.checkout_session_id}"
     card = {"number": "4242424242424242", "expiry_month": 12, "expiry_year": 2030,
-            "cvc": "123"}
+            "cvc": "123", "privacy_consent": True}
     browser.post(f"{base}/card", card, format="json")
     browser.post(f"{base}/submit", {}, format="json")
     body = {"amount": amount} if amount else {}

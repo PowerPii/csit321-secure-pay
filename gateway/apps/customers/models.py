@@ -29,6 +29,11 @@ class CustomerAccount(models.Model):
     locked_until = models.DateTimeField(null=True, blank=True)
     last_sign_in_at = models.DateTimeField(null=True, blank=True)
     password_changed_at = models.DateTimeField(null=True, blank=True)
+    # FR-ACC-12: the privacy notice agreed to at sign-up, and when.
+    privacy_notice_version = models.CharField(max_length=16, blank=True)
+    privacy_consent_at = models.DateTimeField(null=True, blank=True)
+    # FR-ACC-13: when the customer last corrected their details.
+    details_changed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

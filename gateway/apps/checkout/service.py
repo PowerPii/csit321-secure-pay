@@ -9,6 +9,7 @@ import re
 from email.utils import parseaddr
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import EmailValidator
 from django.db import transaction
@@ -32,7 +33,7 @@ from apps.risk.screening import screen_payment
 from apps.vault import service as vault
 
 SESSION_ID = re.compile(r"^cs_[0-9A-Za-z]{24}$")
-CARD_FIELDS = {"number", "expiry_month", "expiry_year", "cvc", "email"}
+CARD_FIELDS = {"number", "expiry_month", "expiry_year", "cvc", "email", "privacy_consent"}
 
 # What the customer is told (C5 to C7). Never a fraud reason (FR-MER-07 is for staff only);
 # a block for "screening unavailable" is shown as "unavailable" so the customer retries.
@@ -168,6 +169,10 @@ def attach_card(payment: Payment, body: dict, request_id: str) -> Payment:
     for name in body:
         if name not in CARD_FIELDS:
             raise invalid("invalid_field", f"Unknown field '{name}'.", param=name)
+    # FR-ACC-12: the page shows the privacy notice; nothing is collected without consent.
+    if body.get("privacy_consent") is not True:
+        raise invalid("privacy_consent_required", "Agree to the privacy notice to pay.",
+                      param="privacy_consent")
     email = None
     if not payment.customer_email:
         email = _clean_email(body.get("email"))
@@ -191,6 +196,7 @@ def attach_card(payment: Payment, body: dict, request_id: str) -> Payment:
         locked.card_fingerprint = summary.fingerprint
         if email:
             locked.customer_email = email
+        locked.privacy_notice_version = settings.GATEWAY_RULES["PRIVACY_NOTICE_VERSION"]
         locked.save()
         audit("checkout.card_added", **_actor(locked), request_id=request_id,
               details={"brand": summary.brand, "last4": summary.last4})

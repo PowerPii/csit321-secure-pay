@@ -59,6 +59,8 @@ export interface Staff {
   role: Role;
   role_label: string;
   merchant: { id: string; name: string; status?: Merchant["status"] } | null;
+  idle_minutes?: number; // FR-ACC-10: signed out after this many idle minutes
+  idle_warning_minutes?: number; // ... and warned this many minutes in
 }
 
 export interface Card { brand: string; last4: string }

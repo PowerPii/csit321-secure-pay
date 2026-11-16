@@ -2,12 +2,14 @@
 // signed-in user at the bottom, a top bar with payment search and the merchant scope.
 // Below the md breakpoint the sidebar becomes a drawer behind a menu button.
 import {
-  Alert, Box, Button, Drawer, IconButton, InputBase, List, ListItemButton, ListItemText, Paper, Stack, Typography,
+  Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Drawer, IconButton, InputBase, List, ListItemButton, ListItemText, Paper, Stack, Typography,
   useMediaQuery, useTheme,
 } from "@mui/material";
-import { useState, type FormEvent } from "react";
+import { useCallback, useState, type FormEvent } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { api } from "../api/client";
 import { CAN, useSignOut, useStaff } from "../auth";
+import { minSec, useIdleSignOut } from "../idle";
 
 const SIDEBAR = 232;
 
@@ -47,7 +49,7 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       <Paper sx={{ p: 1.5, bgcolor: "transparent" }}>
         <Typography fontWeight={600} variant="body2" noWrap title={staff.email}>{staff.name}</Typography>
         <Typography variant="body2" color="text.secondary">{staff.role_label}</Typography>
-        <Button size="small" onClick={signOut} sx={{ mt: 0.5, px: 0 }}>Sign out</Button>
+        <Button size="small" onClick={() => signOut()} sx={{ mt: 0.5, px: 0 }}>Sign out</Button>
       </Paper>
     </Stack>
   );
@@ -71,6 +73,35 @@ function SearchBox() {
         sx={{ fontSize: 14 }}
       />
     </Paper>
+  );
+}
+
+/** FR-ACC-10: warn at 13 idle minutes, sign out at 15 (the server's session limit). */
+function IdleWarning() {
+  const staff = useStaff();
+  const signOut = useSignOut();
+  const keepAlive = useCallback(() => { api("/me").catch(() => undefined); }, []);
+  const onEnd = useCallback(() => { signOut("idle"); }, [signOut]);
+  const { warning, secondsLeft, stay } = useIdleSignOut({
+    enabled: true,
+    warnMinutes: staff.idle_warning_minutes ?? 13,
+    endMinutes: staff.idle_minutes ?? 15,
+    keepAlive,
+    onEnd,
+  });
+  return (
+    <Dialog open={warning} aria-labelledby="idle-title" aria-describedby="idle-text">
+      <DialogTitle id="idle-title">Are you still there?</DialogTitle>
+      <DialogContent>
+        <DialogContentText id="idle-text">
+          You will be signed out in {minSec(secondsLeft)} because of inactivity.
+        </DialogContentText>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={() => signOut()}>Sign out</Button>
+        <Button variant="contained" onClick={stay} autoFocus>Stay signed in</Button>
+      </DialogActions>
+    </Dialog>
   );
 }
 
@@ -118,6 +149,7 @@ export default function Layout() {
           )}
           <Outlet />
         </Box>
+        <IdleWarning />
       </Box>
     </Box>
   );

@@ -15,16 +15,21 @@ import {
   confirmReset,
   getMe,
   getPayment,
+  getProfile,
   getPayments,
   register,
   requestReset,
   signIn,
   signOut,
   signOutEverywhere,
+  updateProfile,
   type Customer,
   type HistoryRow,
   type PaymentDetail,
+  type PersonalData,
 } from "./accountApi";
+import { minSec, useIdleSignOut } from "./idle";
+import { ConsentBox } from "./Privacy";
 import { brandName, formatDate, money } from "./format";
 
 export type Page = "sign-in" | "payments" | "profile" | "password" | "reset";
@@ -103,6 +108,21 @@ export default function Account({ path = window.location.pathname, hash = window
     go("sign-in", "You have signed out.");
   }
 
+  // FR-ACC-10: warn at 13 idle minutes, sign out at 15 (the server's limit too).
+  const keepAlive = useCallback(() => { getMe().catch(() => undefined); }, []);
+  const onIdleEnd = useCallback(() => {
+    signOut().catch(() => undefined);
+    setMe(null);
+    go("sign-in", "You were signed out after 15 minutes without activity.");
+  }, [go]);
+  const idle = useIdleSignOut({
+    enabled: !!me && page !== "reset",
+    warnMinutes: me?.idle_warning_minutes ?? 13,
+    endMinutes: me?.idle_minutes ?? 15,
+    keepAlive,
+    onEnd: onIdleEnd,
+  });
+
   let right: ReactNode = "My account";
   if (page === "reset") right = "Account recovery";
   else if (me) right = (
@@ -130,7 +150,10 @@ export default function Account({ path = window.location.pathname, hash = window
         <section className="account-main">
           {notice && <p className="muted small" role="status">{notice}</p>}
           {page === "payments" && <History onEnded={ended} />}
-          {page === "profile" && <Profile me={me} onSignedOut={() => { setMe(null); go("sign-in", "You have signed out on every device."); }} onEnded={ended} />}
+          {page === "profile" && (
+            <Profile onChanged={(d) => setMe((m) => (m ? { ...m, full_name: d.full_name, email: d.email } : m))}
+              onSignedOut={() => { setMe(null); go("sign-in", "You have signed out on every device."); }} onEnded={ended} />
+          )}
           {page === "password" && <PasswordPage onEnded={ended} onDone={(m) => setNotice(m)} />}
         </section>
       </div>
@@ -143,6 +166,18 @@ export default function Account({ path = window.location.pathname, hash = window
         <span className="topbar-status">{right}</span>
       </header>
       <main className="account-page">{body}</main>
+      {idle.warning && (
+        <div className="idle-backdrop">
+          <div className="idle-dialog" role="alertdialog" aria-modal="true" aria-labelledby="idle-title" aria-describedby="idle-text">
+            <h2 id="idle-title">Are you still there?</h2>
+            <p id="idle-text" className="muted">You will be signed out in {minSec(idle.secondsLeft)} because of inactivity.</p>
+            <div className="btn-row">
+              <button className="btn secondary" type="button" onClick={onSignOut}>Sign out</button>
+              <button className="btn primary" type="button" onClick={idle.stay} autoFocus>Stay signed in</button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
@@ -243,12 +278,14 @@ function RegisterForm({ onSignedIn }: { onSignedIn: (c: Customer) => void }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [consent, setConsent] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
 
   async function onSubmit(ev: FormEvent) {
     ev.preventDefault();
     const e: Record<string, string> = {};
+    if (!consent) e.privacy_consent = "Agree to the privacy notice to create an account.";
     if (!name.trim()) e.full_name = "Enter your full name.";
     if (!EMAIL_RE.test(email.trim())) e.email = "Enter a valid email address.";
     Object.assign(e, newPasswordProblems(password, confirm));
@@ -283,6 +320,9 @@ function RegisterForm({ onSignedIn }: { onSignedIn: (c: Customer) => void }) {
       <Field label="Confirm password" error={errors.confirm} id="reg-confirm">
         <input id="reg-confirm" type="password" autoComplete="new-password" placeholder="Repeat password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
       </Field>
+      <ConsentBox checked={consent} onChange={setConsent} error={errors.privacy_consent}>
+        I agree that SecurePay keeps my name, email and payment history for my account, as the privacy notice says.
+      </ConsentBox>
       <button className="btn primary" type="submit" disabled={busy}>Create account</button>
     </form>
   );
@@ -406,8 +446,20 @@ function formatDay(iso: string): string {
 
 // --- profile and password -------------------------------------------------------------------
 
-function Profile({ me, onSignedOut, onEnded }: { me: Customer; onSignedOut: () => void; onEnded: () => void }) {
+function Profile({ onChanged, onSignedOut, onEnded }: {
+  onChanged: (d: PersonalData) => void;
+  onSignedOut: () => void;
+  onEnded: () => void;
+}) {
+  const [data, setData] = useState<PersonalData | null>(null);
+  const [editing, setEditing] = useState(false);
   const [error, setError] = useState<string>();
+  const [notice, setNotice] = useState<string>();
+
+  useEffect(() => {
+    getProfile().then(setData).catch((err) => (asError(err).status === 401 ? onEnded() : setError(asError(err).message)));
+  }, [onEnded]);
+
   async function everywhere() {
     try {
       await signOutEverywhere();
@@ -417,17 +469,100 @@ function Profile({ me, onSignedOut, onEnded }: { me: Customer; onSignedOut: () =
       else setError(asError(err).message);
     }
   }
+
+  if (!data) return error ? <p className="alert" role="alert">{error}</p> : <p className="muted">Loading…</p>;
+  const when = (iso: string | null) => (iso ? formatDate(iso) : "—");
   return (
     <div className="form">
       <h1>Profile</h1>
-      <dl className="box">
-        <Row label="Full name">{me.full_name}</Row>
-        <Row label="Email">{me.email}</Row>
-      </dl>
+      <p className="muted small">Everything SecurePay keeps about you as a person. Your payments are in Payment history.</p>
+      {notice && <p className="muted small" role="status">{notice}</p>}
+      {editing ? (
+        <EditDetails data={data} onEnded={onEnded} onCancel={() => setEditing(false)}
+          onSaved={(d) => {
+            setData(d);
+            setEditing(false);
+            setNotice("Your details have been updated.");
+            onChanged(d);
+          }} />
+      ) : (
+        <>
+          <dl className="box">
+            <Row label="Full name">{data.full_name}</Row>
+            <Row label="Email">{data.email}</Row>
+            <Row label="Account created">{when(data.created_at)}</Row>
+            <Row label="Last sign-in">{when(data.last_sign_in_at)}</Row>
+            <Row label="Password changed">{when(data.password_changed_at)}</Row>
+            <Row label="Details corrected">{when(data.details_changed_at)}</Row>
+            <Row label="Privacy notice agreed">
+              {data.privacy_notice_version ? `Version ${data.privacy_notice_version}, ${when(data.privacy_consent_at)}` : "—"}
+            </Row>
+            <Row label="Payments in history">{data.payments}</Row>
+            <Row label="Signed-in devices">{data.active_sessions}</Row>
+          </dl>
+          <button className="btn secondary" type="button" onClick={() => { setNotice(undefined); setEditing(true); }}>
+            Correct my details
+          </button>
+        </>
+      )}
       {error && <p className="alert" role="alert">{error}</p>}
       <p className="muted small">Lost a device, or signed in on a shared computer? This ends every signed-in session of your account, including this one.</p>
       <button className="btn secondary" type="button" onClick={everywhere}>Sign out on every device</button>
     </div>
+  );
+}
+
+function EditDetails({ data, onSaved, onCancel, onEnded }: {
+  data: PersonalData;
+  onSaved: (d: PersonalData) => void;
+  onCancel: () => void;
+  onEnded: () => void;
+}) {
+  const [name, setName] = useState(data.full_name);
+  const [email, setEmail] = useState(data.email);
+  const [current, setCurrent] = useState("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState(false);
+
+  async function onSubmit(ev: FormEvent) {
+    ev.preventDefault();
+    const e: Record<string, string> = {};
+    if (!name.trim()) e.full_name = "Enter your full name.";
+    if (!EMAIL_RE.test(email.trim())) e.email = "Enter a valid email address.";
+    if (!current) e.current_password = "Enter your current password to confirm it's you.";
+    setErrors(e);
+    if (Object.keys(e).length || busy) return;
+    setBusy(true);
+    try {
+      onSaved(await updateProfile(current, name.trim(), email.trim()));
+    } catch (err) {
+      const x = asError(err);
+      if (x.status === 401) onEnded();
+      else setErrors({ [x.param ?? "form"]: x.message });
+      setCurrent("");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form className="form box step" onSubmit={onSubmit} noValidate>
+      {errors.form && <p className="alert" role="alert">{errors.form}</p>}
+      <Field label="Full name" error={errors.full_name} id="pd-name">
+        <input id="pd-name" autoComplete="name" maxLength={100} value={name} onChange={(e) => setName(e.target.value)} />
+      </Field>
+      <Field label="Email" error={errors.email} id="pd-email">
+        <input id="pd-email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+      </Field>
+      <p className="muted tiny">If you change your email, we tell both the old and the new address.</p>
+      <Field label="Current password" error={errors.current_password} id="pd-current">
+        <input id="pd-current" type="password" autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} />
+      </Field>
+      <div className="btn-row">
+        <button className="btn secondary" type="button" onClick={onCancel}>Cancel</button>
+        <button className="btn primary" type="submit" disabled={busy}>Save details</button>
+      </div>
+    </form>
   );
 }
 

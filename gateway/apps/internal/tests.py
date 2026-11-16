@@ -20,7 +20,7 @@ def pay(shop, card="4242424242424242", **body):
     browser = APIClient()
     base = f"/checkout/{payment.checkout_session_id}"
     browser.post(f"{base}/card", {"number": card, "expiry_month": 12, "expiry_year": 2030,
-                                  "cvc": "123"}, format="json")
+                                  "cvc": "123", "privacy_consent": True}, format="json")
     browser.post(f"{base}/submit", {}, format="json")
     payment.refresh_from_db()
     return payment

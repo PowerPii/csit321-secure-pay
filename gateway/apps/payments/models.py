@@ -60,6 +60,8 @@ class Payment(models.Model):
     # The customer who was signed in when the payment was submitted (FR-ACC-04). Guests: null.
     customer = models.ForeignKey("customers.CustomerAccount", on_delete=models.SET_NULL,
                                  null=True, blank=True, related_name="payments")
+    # FR-ACC-12: the privacy notice version the customer agreed to when entering the card.
+    privacy_notice_version = models.CharField(max_length=16, blank=True)
     description = models.CharField(max_length=200, blank=True)
     # [{name, quantity, unit_amount}] as the merchant sent them; they add up to `amount`.
     line_items = models.JSONField(null=True, blank=True)

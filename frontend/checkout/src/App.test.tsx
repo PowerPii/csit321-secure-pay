@@ -86,10 +86,15 @@ describe("checkout page", () => {
     fireEvent.change(screen.getByLabelText("CVV"), { target: { value: "123" } });
     fireEvent.change(screen.getByLabelText("Name on card"), { target: { value: "Tan Wei Ming" } });
     fireEvent.click(screen.getByRole("button", { name: "Pay S$ 89.90" }));
+    // FR-ACC-12: nothing is sent until the privacy notice is agreed to.
+    expect(await screen.findByText("Agree to the privacy notice to pay.")).toBeTruthy();
+    expect(calls.filter((c) => c.url.endsWith("/card"))).toHaveLength(0);
+    fireEvent.click(screen.getByRole("checkbox", { name: /I agree that SecurePay uses my details/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Pay S$ 89.90" }));
     expect(await screen.findByText("Payment successful")).toBeTruthy();
     expect(screen.getByText("SP-7Q2K-91XD")).toBeTruthy();
     const cardCall = calls.find((c) => c.url.endsWith("/card"))!;
-    expect(cardCall.body).toEqual({ number: "4242424242424242", expiry_month: 12, expiry_year: 2030, cvc: "123" });
+    expect(cardCall.body).toEqual({ number: "4242424242424242", expiry_month: 12, expiry_year: 2030, cvc: "123", privacy_consent: true });
   });
 
   it("explains a decline in plain words (C7)", async () => {

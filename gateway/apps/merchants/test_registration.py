@@ -309,7 +309,7 @@ def test_new_merchant_signs_up_verifies_is_approved_gets_a_key_and_receives_a_we
     browser = APIClient()
     base = f"/checkout/{payment.checkout_session_id}"
     browser.post(f"{base}/card", {"number": "4242424242424242", "expiry_month": 12,
-                                  "expiry_year": 2030, "cvc": "123"}, format="json")
+                                  "expiry_year": 2030, "cvc": "123", "privacy_consent": True}, format="json")
     browser.post(f"{base}/submit", {}, format="json")
     payment.refresh_from_db()
     assert payment.status == "authorised"

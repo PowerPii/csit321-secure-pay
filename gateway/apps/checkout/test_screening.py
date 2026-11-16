@@ -26,7 +26,7 @@ BIG = 60_000  # S$600, over the S$500 verification rule
 
 
 def card(number=PAN):
-    return {"number": number, "expiry_month": 12, "expiry_year": 2030, "cvc": "123"}
+    return {"number": number, "expiry_month": 12, "expiry_year": 2030, "cvc": "123", "privacy_consent": True}
 
 
 @pytest.fixture
