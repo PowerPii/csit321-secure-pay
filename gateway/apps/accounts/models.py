@@ -27,6 +27,11 @@ class Role(models.TextChoices):
 
 
 class StaffAccount(models.Model):
+    class Status(models.TextChoices):
+        ACTIVE = "active"
+        SUSPENDED = "suspended"  # can be reinstated
+        DEACTIVATED = "deactivated"  # permanent; the history stays
+
     public_id = models.CharField(max_length=32, unique=True, editable=False)  # stf_...
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
                                 related_name="staff_account")
@@ -39,9 +44,17 @@ class StaffAccount(models.Model):
     locked_until = models.DateTimeField(null=True, blank=True)
     last_sign_in_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    # FR-ADM-02: suspended or deactivated by an administrator, with a reason. The Django user
+    # is made inactive at the same time, which ends its sessions on their next request.
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.ACTIVE)
+    status_reason = models.CharField(max_length=200, blank=True)
+    status_changed_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         constraints = [
+            models.CheckConstraint(
+                condition=Q(status__in=["active", "suspended", "deactivated"]),
+                name="staff_status_valid"),
             models.CheckConstraint(
                 condition=Q(role__in=[r.value for r in Role]), name="staff_role_valid"),
             models.CheckConstraint(

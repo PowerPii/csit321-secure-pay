@@ -178,11 +178,18 @@ REST_FRAMEWORK.update(
 GATEWAY_RULES = {
     "CURRENCY": "SGD",
     "MIN_AMOUNT_CENTS": 50,  # S$0.50
-    "MAX_AMOUNT_CENTS": 1_000_000,  # S$10,000
+    # S$10,000: the hard ceiling. An administrator can set a lower gateway-wide limit, and a
+    # lower one per merchant, in the dashboard (FR-ADM-07).
+    "MAX_AMOUNT_CENTS": 1_000_000,
     "IDEMPOTENCY_TTL_HOURS": 24,
     # A key left "in progress" by a crashed request is taken over after this long.
     "IDEMPOTENCY_STALE_SECONDS": 60,
+    # Defaults; an administrator can change both in the dashboard (FR-ADM-12, UC-44).
     "API_RATE_LIMIT_PER_MINUTE": 100,  # per API key (NFR-AVA-02, contract section 2)
+    "IP_RATE_LIMIT_PER_MINUTE": 300,  # per client IP address on the merchant API
+    # UC-44: this many rejected requests from one key or IP within the window -> security alert.
+    "RATE_LIMIT_ALERT_VIOLATIONS": 20,
+    "RATE_LIMIT_ALERT_WINDOW_MINUTES": 10,
     "AUTH_EXPIRY_DAYS": 7,  # uncaptured authorisations are cancelled by the worker
     "VERIFICATION_CODE_TTL_MINUTES": 10,
     "VERIFICATION_MAX_ATTEMPTS": 3,  # wrong codes, then Blocked (FR-CHK-21, confirmed 5 Nov 2026)

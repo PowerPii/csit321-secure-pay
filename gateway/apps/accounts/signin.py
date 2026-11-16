@@ -64,7 +64,8 @@ def locked_error(account: StaffAccount) -> ApiError:
 
 def _find(email: str) -> StaffAccount | None:
     return (StaffAccount.objects.select_related("user", "merchant")
-            .filter(user__email__iexact=email.strip(), user__is_active=True).first())
+            .filter(user__email__iexact=email.strip(), user__is_active=True,
+                    status=StaffAccount.Status.ACTIVE).first())
 
 
 def _record_failure(account: StaffAccount, request, stage: str) -> bool:
@@ -155,6 +156,11 @@ def check_password(request, email: str, password: str) -> dict:
             raise locked_error(StaffAccount.objects.get(pk=account.pk))
         raise invalid_credentials()
 
+    if account.merchant is not None and account.merchant.status in ("suspended", "deactivated"):
+        _audit("staff.sign_in_refused", account, request, merchant_status=account.merchant.status)
+        raise ApiError(403, "merchant_suspended", f"{account.merchant.name} is "
+                       f"{account.merchant.status}, so its dashboard is closed. Contact SecurePay "
+                       "support.")
     request.session.cycle_key()  # no session fixation across the sign-in
     request.session[PENDING_KEY] = {"account": account.pk, "at": time.time()}
     device = confirmed_device(account)

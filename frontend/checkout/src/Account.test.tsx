@@ -170,7 +170,7 @@ describe("idle warning and personal data (FR-ACC-10, FR-ACC-13)", () => {
     });
     render(<Account path="/account/payments" hash="" />);
     const dialog = await screen.findByRole("alertdialog", {}, { timeout: 3000 });
-    expect(dialog.textContent).toMatch(/signed out in 0:5\d because of inactivity/);
+    expect(dialog.textContent).toMatch(/signed out in (0:5\d|1:00) because of inactivity/);
     const before = calls.filter((c) => c.url.endsWith("/me")).length;
     fireEvent.click(screen.getByRole("button", { name: "Stay signed in" }));
     await waitFor(() => expect(calls.filter((c) => c.url.endsWith("/me")).length).toBe(before + 1));

@@ -5,7 +5,12 @@ from django.template.response import SimpleTemplateResponse
 from rest_framework.views import APIView
 
 from apps.events import signing
-from apps.merchants.auth import ApiKeyAuthentication, ApiKeyRateThrottle, IsActiveMerchant
+from apps.merchants.auth import (
+    ApiKeyAuthentication,
+    ApiKeyRateThrottle,
+    IsActiveMerchant,
+    MerchantIpRateThrottle,
+)
 from apps.merchants.models import ApiKey
 
 
@@ -16,7 +21,28 @@ class MerchantAPIView(APIView):
 
     authentication_classes: ClassVar = [ApiKeyAuthentication]
     permission_classes: ClassVar = [IsActiveMerchant]
-    throttle_classes: ClassVar = [ApiKeyRateThrottle]
+    throttle_classes: ClassVar = [ApiKeyRateThrottle, MerchantIpRateThrottle]
+
+    def check_throttles(self, request):
+        """As DRF's, but each rejection is recorded as a violation (UC-44)."""
+        from apps.common.clientip import client_ip
+        from apps.security.limits import record_violation
+
+        waits = []
+        for throttle in self.get_throttles():
+            if not throttle.allow_request(request, self):
+                wait = throttle.wait()
+                waits.append(wait)
+                api_key = request.auth if isinstance(request.auth, ApiKey) else None
+                merchant_id = api_key.merchant.public_id if api_key else ""
+                if isinstance(throttle, ApiKeyRateThrottle) and api_key:
+                    record_violation(request, source=api_key.public_id, scope="api_key",
+                                     merchant_id=merchant_id, wait=wait)
+                else:
+                    record_violation(request, source=client_ip(request) or "unknown",
+                                     scope="ip", merchant_id=merchant_id, wait=wait)
+        if waits:
+            self.throttled(request, max((w for w in waits if w is not None), default=None))
 
     def finalize_response(self, request, response, *args, **kwargs):
         response = super().finalize_response(request, response, *args, **kwargs)

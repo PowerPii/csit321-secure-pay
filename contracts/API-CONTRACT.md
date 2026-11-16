@@ -30,7 +30,7 @@ The URS lists this contract as an open item for Week 9 (M2), owned by Muhammad A
 - **Signing secret.** Each merchant also gets a signing secret (`whsec_...`), shown once and stored encrypted (FR-MER-03). It signs both webhooks and API replies.
 - **Signature header.** `SecurePay-Signature: t=<unix seconds>,v1=<hex HMAC-SHA256>` where the HMAC is computed over the bytes `"<t>." + raw body`. The body carries the reference, amount, status and timestamp, so the signature covers everything FR-TXN-08 names. This is the scheme already in `gateway/apps/events/signing.py`.
 - **Which replies are signed.** Every response to a request with a valid API key, including errors (FR-TXN-08, FR-TXN-10, MVP-SCOPE open point 3). `401` replies are not signed because the merchant is unknown. Merchants verify the signature and reject a timestamp more than 300 seconds from their clock (NFR-INT-01).
-- **Rate limit.** 100 requests per minute per key (NFR-AVA-02). Above that: `429 rate_limited` with `Retry-After` in seconds. Other keys are not affected.
+- **Rate limit.** 100 requests per minute per key (NFR-AVA-02) and 300 per client IP address, unless an administrator changed them (FR-ADM-12). Above that: `429 rate_limited` with `Retry-After` in seconds. Other keys are not affected by one key's limit.
 - **Request ID.** Every response has `SecurePay-Request-Id: req_...`, also in error bodies. It is the correlation ID in the audit log and payment timeline (FR-TXN-16).
 
 ## 3. Payment lifecycle through the API
@@ -93,10 +93,11 @@ Merchants branch on `code`, never on `message`.
 | 409 | conflict | `processor_rejected` | The processor refused a capture or cancel the gateway allowed; payment unchanged (P4) |
 | 409 | conflict | `operation_not_processed` | Retry of a capture or cancel the processor never received; use a new Idempotency-Key |
 | 409 | conflict | `payment_not_captured` | Refund on a payment that is not captured |
+| 422 | business_rule | `amount_above_limit` | Above the gateway-wide limit per payment set by an administrator (FR-ADM-07); checked before screening |
 | 422 | business_rule | `amount_above_merchant_limit` | Above the merchant's own limit set by an administrator (FR-ADM-07) |
 | 422 | business_rule | `capture_exceeds_authorised` | Capture amount larger than the authorised amount |
 | 422 | business_rule | `refund_exceeds_refundable` | Refund larger than the remaining refundable amount |
-| 429 | rate_limit | `rate_limited` | Over 100 requests a minute; has `Retry-After` |
+| 429 | rate_limit | `rate_limited` | Over the rate limit (100 a minute per key, 300 per IP, by default); has `Retry-After` |
 | 500 | server | `internal_error` | Unexpected failure; retry with the same Idempotency-Key |
 | 503 | server | `service_unavailable` | Gateway restarting or database unavailable; has `Retry-After` |
 

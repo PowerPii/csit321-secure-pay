@@ -155,7 +155,8 @@ class OwnWebhookView(_OwnMerchantView):
             raise invalid("missing_field", "Enter the webhook URL.", param="webhook_url")
         with transaction.atomic():
             merchant = self._locked_merchant()
-            if merchant.status in (Merchant.Status.REJECTED, Merchant.Status.SUSPENDED):
+            if merchant.status in (Merchant.Status.REJECTED, Merchant.Status.SUSPENDED,
+                                   Merchant.Status.DEACTIVATED):
                 raise ApiError(409, "merchant_not_active", "This merchant cannot change its "
                                "webhook address.")
             if url == merchant.webhook_url:

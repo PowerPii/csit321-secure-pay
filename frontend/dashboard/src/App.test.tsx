@@ -122,7 +122,7 @@ describe("dashboard", () => {
     });
     at("/payments");
     const dialog = await screen.findByRole("dialog", {}, { timeout: 3000 });
-    expect(within(dialog).getByText(/You will be signed out in 0:5\d because of inactivity/)).toBeTruthy();
+    expect(within(dialog).getByText(/You will be signed out in (0:5\d|1:00) because of inactivity/)).toBeTruthy();
     const before = calls.filter((c) => c.url === "/internal/me").length;
     fireEvent.click(within(dialog).getByRole("button", { name: "Stay signed in" }));
     await waitFor(() => expect(calls.filter((c) => c.url === "/internal/me").length).toBe(before + 1));

@@ -35,6 +35,7 @@ def merchant_to_dict(merchant: Merchant) -> dict:
         "id": merchant.public_id,
         "name": merchant.name,
         "status": merchant.status,
+        "status_reason": merchant.status_reason or None,
         "webhook_url": merchant.webhook_url or None,
         "webhook_url_approved": merchant.webhook_url_approved,
         "max_amount_cents": merchant.max_amount_cents,

@@ -23,6 +23,7 @@ class AlertKind(models.TextChoices):
     STAFF_LOCKED = "staff_locked", "Staff account locked"
     CUSTOMER_LOCKED = "customer_locked", "Customer account locked"
     CROSS_MERCHANT_ACCESS = "cross_merchant_access", "Repeated cross-merchant access"
+    RATE_LIMIT_EXCEEDED = "rate_limit_exceeded", "Repeated rate-limit violations"
 
 
 class SecurityAlert(models.Model):
@@ -67,3 +68,21 @@ class SecurityAlert(models.Model):
         if not self.public_id:
             self.public_id = new_id("sal")
         super().save(*args, **kwargs)
+
+
+class GatewayLimits(models.Model):
+    """Limits an administrator sets from the dashboard (FR-ADM-07, FR-ADM-12; UC-37, UC-44).
+
+    One row (pk=1). Empty fields fall back to GATEWAY_RULES, so a fresh database behaves as
+    before. The amount limit can only lower the hard ceiling in GATEWAY_RULES
+    (MAX_AMOUNT_CENTS), never raise it. Every change is audited with old and new values.
+    """
+
+    max_amount_cents = models.PositiveIntegerField(null=True, blank=True)
+    api_key_requests_per_minute = models.PositiveIntegerField(null=True, blank=True)
+    ip_requests_per_minute = models.PositiveIntegerField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.CharField(max_length=32, blank=True)  # stf_...
+
+    def __str__(self):
+        return "Gateway limits"

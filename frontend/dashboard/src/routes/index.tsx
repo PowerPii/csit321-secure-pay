@@ -10,3 +10,4 @@ export { Merchants, AuditLog } from "./Admin";
 export { Register, VerifyEmail, ForgotPassword, ResetPassword } from "./Account";
 export { default as ApiKeys } from "./ApiKeys";
 export { SecurityAlerts } from "./Security";
+export { Accounts, LimitsPage } from "./Manage";
