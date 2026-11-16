@@ -46,23 +46,23 @@ Statuses mirror `gateway/apps/payments/states.py` (URS Figure 2.2.2.1).
 | `unresolved` | Simulator did not answer; reconciliation decides. **Do not ship** | GET |
 | `declined`, `blocked`, `cancelled`, `expired` | Final, no charge. `outcome.reason` says why | GET |
 
-**Create** (`POST /v1/payments`, UC-57). Body: `amount`, `currency`, `order_reference`, `return_url` (HTTPS), optional `customer_email`, `description` and `line_items`. `line_items` is a list of `{name, quantity, unit_amount}` (1 to 50 items, amounts in cents) that the hosted checkout shows as the order summary (wireframe C3); the items must add up to `amount` exactly, otherwise `400 line_items_total_mismatch`. Added 13 November 2026 at Fifa's request; optional, so existing merchants are unaffected. The gateway fixes merchant, amount and currency here; checkout can never change them (FR-CHK-03). Reply `201` with the Payment, including `reference`, `checkout_url` and `checkout_expires_at`. The merchant sends the customer to `checkout_url`.
+**Create** (`POST /v1/payments`, UC-53). Body: `amount`, `currency`, `order_reference`, `return_url` (HTTPS), optional `customer_email`, `description` and `line_items`. `line_items` is a list of `{name, quantity, unit_amount}` (1 to 50 items, amounts in cents) that the hosted checkout shows as the order summary (wireframe C3); the items must add up to `amount` exactly, otherwise `400 line_items_total_mismatch`. Added 13 November 2026 at Fifa's request; optional, so existing merchants are unaffected. The gateway fixes merchant, amount and currency here; checkout can never change them (FR-CHK-03). Reply `201` with the Payment, including `reference`, `checkout_url` and `checkout_expires_at`. The merchant sends the customer to `checkout_url`.
 
-**Return to the shop.** After checkout the browser goes to `return_url?payment_id=pay_...`. This is navigation only. The shop fulfils only after a verified `payment.authorised` webhook or a signed `GET /v1/payments/{id}` (UC-28, C6 in the URS).
+**Return to the shop.** After checkout the browser goes to `return_url?payment_id=pay_...`. This is navigation only. The shop fulfils only after a verified `payment.authorised` webhook or a signed `GET /v1/payments/{id}` (UC-27, C6 in the URS).
 
-**Status query** (`GET /v1/payments/{id}`, UC-28). Signed reply with the current Payment.
+**Status query** (`GET /v1/payments/{id}`, UC-27). Signed reply with the current Payment.
 
-**Capture** (`POST /v1/payments/{id}/capture`, UC-25). Send `{}` to capture the full amount, or `{"amount": n}` to capture less, as Stripe and Adyen allow. A payment is captured once: the uncaptured rest of the authorisation is released, and `captured_amount` records what was charged. More than the authorised amount: `422 capture_exceeds_authorised`. From any status other than `authorised` the reply is `409` with `payment_already_captured`, `payment_already_cancelled`, `authorisation_expired` or `payment_not_authorised` (FR-TXN-05).
+**Capture** (`POST /v1/payments/{id}/capture`, UC-24). Send `{}` to capture the full amount, or `{"amount": n}` to capture less, as Stripe and Adyen allow. A payment is captured once: the uncaptured rest of the authorisation is released, and `captured_amount` records what was charged. More than the authorised amount: `422 capture_exceeds_authorised`. From any status other than `authorised` the reply is `409` with `payment_already_captured`, `payment_already_cancelled`, `authorisation_expired` or `payment_not_authorised` (FR-TXN-05).
 
-**Cancel** (`POST /v1/payments/{id}/cancel`, UC-25). Same rules. On a captured payment the reply is `409 payment_already_captured`; refund instead.
+**Cancel** (`POST /v1/payments/{id}/cancel`, UC-24). Same rules. On a captured payment the reply is `409 payment_already_captured`; refund instead.
 
-**No answer from the simulator on capture or cancel.** The reply is `202` with the payment still `authorised` and `pending_operation: {type, status: "unresolved"}`. Reconciliation (UC-29) then settles it with the original operation ID: on success the payment becomes `captured` or `cancelled` and the event is sent; if the simulator has no record, the operation is retired and `pending_operation` is cleared, so the merchant may try again with a new Idempotency-Key. While an operation is pending, another capture or cancel gets `409 operation_in_progress`. The 7-day auto-cancel waits for a pending capture to settle.
+**No answer from the simulator on capture or cancel.** The reply is `202` with the payment still `authorised` and `pending_operation: {type, status: "unresolved"}`. Reconciliation (UC-28) then settles it with the original operation ID: on success the payment becomes `captured` or `cancelled` and the event is sent; if the simulator has no record, the operation is retired and `pending_operation` is cleared, so the merchant may try again with a new Idempotency-Key. While an operation is pending, another capture or cancel gets `409 operation_in_progress`. The 7-day auto-cancel waits for a pending capture to settle.
 
 **The processor refuses a capture or cancel the gateway allowed.** The gateway checks the rules first, so this means the gateway's and the simulator's records disagree (`SIMULATOR-CONTRACT.md` section 7). The reply is `409 processor_rejected`; the payment is unchanged and stays `authorised`, no event is sent, and the disagreement is logged and audited for staff. Do not retry with a new key; check the payment with `GET` and contact support. Added 13 November 2026, confirmed by Fifa (decision P4).
 
 **A retried capture or cancel the processor never received.** If a request with the same Idempotency-Key is retried after reconciliation found that the simulator has no record of the original call, the reply is `409 operation_not_processed`: nothing changed, and the merchant may try again with a new Idempotency-Key.
 
-**Refunds** (`POST /v1/payments/{id}/refunds`, UC-24). Body: `amount` (cents) and optional `reason`. Only on `captured` payments (`409 payment_not_captured` otherwise). The gateway locks the payment row, checks `completed + reserved + amount <= captured_amount` and reserves the amount in the same transaction (FR-TXN-02, FR-TXN-03). Too much: `422 refund_exceeds_refundable`, and no refund object is created (the attempt still appears as "rejected" in the dashboard history, FR-TXN-14). Reply `201` with the Refund, whose status is `completed`, `failed` or `unresolved`. An unresolved refund keeps its reservation until reconciliation; while it is unresolved, a new refund of the same payment gets `409 operation_in_progress` (`SIMULATOR-CONTRACT.md` section 3 rule 5; confirmed by Fifa 13 November 2026). Refunds that are merely in flight do not block each other: the reservation keeps them within the captured amount. `GET /v1/payments/{id}/refunds` lists them with the current `refundable_amount`; `GET /v1/refunds/{id}` reads one.
+**Refunds** (`POST /v1/payments/{id}/refunds`, UC-23). Body: `amount` (cents) and optional `reason`. Only on `captured` payments (`409 payment_not_captured` otherwise). The gateway locks the payment row, checks `completed + reserved + amount <= captured_amount` and reserves the amount in the same transaction (FR-TXN-02, FR-TXN-03). Too much: `422 refund_exceeds_refundable`, and no refund object is created (the attempt still appears as "rejected" in the dashboard history, FR-TXN-14). Reply `201` with the Refund, whose status is `completed`, `failed` or `unresolved`. An unresolved refund keeps its reservation until reconciliation; while it is unresolved, a new refund of the same payment gets `409 operation_in_progress` (`SIMULATOR-CONTRACT.md` section 3 rule 5; confirmed by Fifa 13 November 2026). Refunds that are merely in flight do not block each other: the reservation keeps them within the captured amount. `GET /v1/payments/{id}/refunds` lists them with the current `refundable_amount`; `GET /v1/refunds/{id}` reads one.
 
 ## 4. Errors
 
@@ -137,7 +137,7 @@ The 24-hour key window is separate from the webhook retry window in section 7. T
 
 Envelope (`schemas/event.schema.json`): `id`, `object: "event"`, `type`, `created_at` (when the change was committed), `payment_id`, `sequence`, `data.object` (a full snapshot). `payment.verification_required`, `payment.processing`, `payment.expired` and `refund.unresolved` are new compared with the list in the architecture document.
 
-**Ordering.** Events can arrive out of order. `sequence` counts every notified change of a payment and its refunds, starting at 1, and equals `Payment.sequence` at that moment. Ignore an event whose `sequence` is not higher than the one you stored; if you see a gap, call `GET /v1/payments/{id}` (UC-26).
+**Ordering.** Events can arrive out of order. `sequence` counts every notified change of a payment and its refunds, starting at 1, and equals `Payment.sequence` at that moment. Ignore an event whose `sequence` is not higher than the one you stored; if you see a gap, call `GET /v1/payments/{id}` (UC-25).
 
 **Outbox.** The event row is written in the same database transaction as the status change. Delivery results never change a payment or refund (FR-TXN-07).
 
@@ -170,15 +170,15 @@ The signature timestamp is set when each attempt is sent, not when the event was
 
 That is 14 attempts in all: the first, 12 retries by about 63 h 51 min, and a final attempt at the 72-hour mark. In tests the worker reads the schedule from settings and runs on an accelerated clock, so nobody waits three days.
 
-**After the window.** The delivery is marked `undelivered`, kept (never deleted) and shown on the dashboard (UC-26). The merchant can still query the status. Manual replay from the dashboard is a later Should item, not part of the MVP; a replay keeps the original event `id`.
+**After the window.** The delivery is marked `undelivered`, kept (never deleted) and shown on the dashboard (UC-25). The merchant can still query the status. Manual replay from the dashboard is a later Should item, not part of the MVP; a replay keeps the original event `id`.
 
 **Recording.** Each attempt stores its time, attempt number, HTTP status or error class, and duration (FR-TXN-07). Response bodies are not stored.
 
-**Merchant side (the demo store does this, FR-SIM-07).** Verify the signature over the raw bytes before parsing; reject a timestamp more than 300 seconds off; keep seen event IDs for **at least 7 days** (longer than the 72-hour window plus room for a manual replay); ignore lower sequences; reply 2xx quickly and do slow work afterwards; confirm with `GET /v1/payments/{id}` before shipping.
+**Merchant side (the demo store does this, FR-SIM-06).** Verify the signature over the raw bytes before parsing; reject a timestamp more than 300 seconds off; keep seen event IDs for **at least 7 days** (longer than the 72-hour window plus room for a manual replay); ignore lower sequences; reply 2xx quickly and do slow work afterwards; confirm with `GET /v1/payments/{id}` before shipping.
 
 ## 8. Guest status with an emailed one-time code
 
-Closes open point 1 of `docs/MVP-SCOPE.md`. Follows FR-ACC-05, FR-ACC-06 and UC-08 in the final URS, and Fifa's decision of 5 November 2026 (reference + checkout email + emailed one-time code). OpenAPI: `openapi/guest-status.v1.yaml`.
+Closes open point 1 of `docs/MVP-SCOPE.md`. Follows FR-ACC-05, FR-ACC-06 and UC-07 in the final URS, and Fifa's decision of 5 November 2026 (reference + checkout email + emailed one-time code). OpenAPI: `openapi/guest-status.v1.yaml`.
 
 1. **Receipt link.** The receipt for a guest payment (FR-CHK-15) links to `/guest/status?ref=SP-XXXX-XXXX`. The link only fills in the reference; it is not a credential. This replaces the 30-day status token in the architecture recommendation and the `checkout/status/<token>` route in the skeleton.
 2. **Ask for a code.** The guest enters the reference and checkout email. `POST /guest/status/code` always answers `202` with a `challenge_id` and the same message, whether or not they match (FR-ACC-06). The code email goes through the outbox, so timing does not reveal a match. If they match, a **6-digit code valid for 10 minutes** is emailed to the checkout address; a new request replaces the old code.
@@ -221,7 +221,7 @@ Fifa asked that each reading follow common industry practice. Checked against St
 
 1. **Webhooks on every status change (FR-TXN-06).** Stripe also notifies in-progress states (`payment_intent.requires_action`, `payment_intent.processing`), so this contract sends `payment.verification_required` and `payment.processing` too. `created` (the merchant just made it) and `screening` (internal, milliseconds) are not sent.
 2. **Rejected refunds (FR-TXN-14).** Like Stripe, a refund above the refundable amount is an error reply and creates no refund object; "requested" and "rejected" appear only in the dashboard history.
-3. **Partial capture (UC-25).** Stripe (`amount_to_capture`) and Adyen both allow capturing less than the authorised amount, so this contract does too (section 3), once per payment.
+3. **Partial capture (UC-24).** Stripe (`amount_to_capture`) and Adyen both allow capturing less than the authorised amount, so this contract does too (section 3), once per payment.
 4. **Amount check (FR-CHK-03, MVP-SCOPE open point 2).** As with a Stripe PaymentIntent, the amount is fixed when the merchant creates the payment, and that record is what checkout is checked against.
 
 ## 12. Not covered yet

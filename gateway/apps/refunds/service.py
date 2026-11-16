@@ -1,4 +1,4 @@
-"""Creating refunds and applying the simulator's answers (UC-24, SIMULATOR-CONTRACT.md 7).
+"""Creating refunds and applying the simulator's answers (UC-23, SIMULATOR-CONTRACT.md 7).
 
 Same three steps as capture and cancel (apps/payments/settlement.py):
 

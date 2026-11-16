@@ -1,4 +1,4 @@
-"""Reconciliation: status checks on operations the simulator did not answer (UC-29, UC-43).
+"""Reconciliation: status checks on operations the simulator did not answer (UC-28, UC-42).
 
 SIMULATOR-CONTRACT.md section 7, schedule S2 (confirmed by Fifa 13 Nov 2026):
 
@@ -11,7 +11,7 @@ SIMULATOR-CONTRACT.md section 7, schedule S2 (confirmed by Fifa 13 Nov 2026):
   status change, the outbox event and the audit entry. `no_record` retires the ID, so the
   payment is declined `not_processed` (or the capture, cancel or refund is not processed).
 * Still no answer after the sixth check (about 38.5 minutes): escalated to administrators
-  (UC-43), well inside the 1-hour bound of NFR-AVA-03. A `409 operation_id_conflict` is
+  (UC-42), well inside the 1-hour bound of NFR-AVA-03. A `409 operation_id_conflict` is
   escalated at once. An administrator's re-check (FR-TXN-13) is the same status query;
   nobody can set an outcome by hand.
 * Restart sweep (FR-TXN-15): an operation still `pending` long after any call could have
@@ -124,7 +124,7 @@ def check(operation_pk: int, actor: tuple[str, str] = SYSTEM, request_id: str = 
             operation.save(update_fields=["last_checked_at", "reconciliation_checks",
                                           "updated_at"])
         elif answer.kind is AnswerKind.CONFLICT:
-            # operation_id_conflict: the two systems disagree about the ID itself (UC-43).
+            # operation_id_conflict: the two systems disagree about the ID itself (UC-42).
             _escalate(operation, now, actor, request_id, problem=answer.conflict_code)
         elif manual:
             operation.save(update_fields=["last_checked_at", "updated_at"])
@@ -150,7 +150,7 @@ def check(operation_pk: int, actor: tuple[str, str] = SYSTEM, request_id: str = 
 
 
 def _escalate(operation: Operation, now, actor, request_id: str, problem: str) -> None:
-    """Hand the operation to administrators (UC-43). It stays unresolved: only a signed
+    """Hand the operation to administrators (UC-42). It stays unresolved: only a signed
     answer from the simulator can settle it, through an administrator's re-check."""
     operation.escalated_at = now
     operation.next_check_at = None

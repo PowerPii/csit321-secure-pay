@@ -219,7 +219,7 @@ def check_code(request, code: str) -> StaffAccount:
 
 
 def confirm_with_totp(request, account: StaffAccount, code, action: str) -> None:
-    """Step-up MFA for a sensitive action by a signed-in staff member (FR-MER-04, UC-18).
+    """Step-up MFA for a sensitive action by a signed-in staff member (FR-MER-04, UC-17).
 
     The current code from the authenticator app must be entered again. A wrong code cancels
     the action and counts towards the same lockout as sign-in; the failure that locks the

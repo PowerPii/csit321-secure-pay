@@ -1,4 +1,4 @@
-"""Analyst search of payment history and the block list (FR-FRD-06, FR-FRD-09; UC-54, UC-55).
+"""Analyst search of payment history and the block list (FR-FRD-06, FR-FRD-09; UC-48, UC-51).
 
 * GET fraud/search?by=card|email|ip&value=&page= : screened attempts that share a card, an
   email address or an IP address, newest first. For a card, `value` is the card fingerprint

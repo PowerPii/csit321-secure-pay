@@ -1,7 +1,7 @@
 // Integrity and keys, for administrators: card data self-checks with the PCI DSS practice
-// each supports (FR-ADM-15, UC-47), payment hashes and the audit hash chain (FR-ADM-09,
+// each supports (FR-ADM-15, UC-46), payment hashes and the audit hash chain (FR-ADM-09,
 // NFR-INT-02), the key report with rotation after re-entering the authenticator code
-// (FR-ADM-14, NFR-ENC-03, UC-46), and the 12-month personal data clean-up (NFR-PRI-01).
+// (FR-ADM-14, NFR-ENC-03, UC-45), and the 12-month personal data clean-up (NFR-PRI-01).
 // No wireframe: reuses the Section, table and dialog patterns of the other admin pages.
 import {
   Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Stack, Table, TableBody,

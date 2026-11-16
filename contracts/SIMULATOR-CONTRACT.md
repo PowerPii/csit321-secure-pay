@@ -66,11 +66,11 @@ The card number decides what happens to an authorisation. Any expiry in the futu
 | 4000 0000 0000 0002 | Visa | Decline, generic | `200 declined` |
 | 4000 0000 0000 0119 | Visa | Lost response: records the approval, never replies | Timeout; status query finds `approved` (demo story S4) |
 | 4000 0000 0000 0127 | Visa | Slow: records the approval, replies after 15 s | Timeout; the late reply arrives after the gateway gave up and is ignored; status query finds `approved` |
-| 4000 0000 0000 0135 | Visa | **New.** Lost request: records nothing, never replies | Timeout; status query finds `no_record`; payment declined `not_processed` (UC-29) |
+| 4000 0000 0000 0135 | Visa | **New.** Lost request: records nothing, never replies | Timeout; status query finds `no_record`; payment declined `not_processed` (UC-28) |
 
 Capture, cancel and refund have no card, so their faults come from fault rules (section 7).
 
-## 6. Status query and the "no record" rule (FR-SIM-03, UC-29)
+## 6. Status query and the "no record" rule (FR-SIM-03, UC-28)
 
 `GET /sim/operations/{operation_id}?type=<type>` returns the record for that ID.
 
@@ -90,12 +90,12 @@ Only a signed `200` (or the record inside a signed `409`) is evidence. Anything 
 | `200 declined` | `declined`, reason `card_declined` (expired card and insufficient funds included; the dashboard shows the detail) | stays `authorised`, `pending_operation` cleared, discrepancy logged | `failed`, `declined_by_processor`, reservation released |
 | `200 no_record` (status query only) | `declined`, reason `not_processed` | stays `authorised`, operation retired, `pending_operation` cleared; merchant may retry with a new Idempotency-Key | `failed`, `not_processed`, reservation released |
 | `409 operation_retired` | Gateway bug (it never resends). Apply the `no_record` inside the reply and alert | same | same |
-| `409 operation_id_conflict` | Gateway bug. Leave unresolved, escalate (UC-43) | same | same |
+| `409 operation_id_conflict` | Gateway bug. Leave unresolved, escalate (UC-42) | same | same |
 | Timeout, connection error, `5xx`, `400`, `401`, bad signature | `unresolved` (FR-CHK-11) | `pending_operation` unresolved | `unresolved`, reservation kept |
 
 Each change goes through `check_transition`, writes the outbox row in the same transaction (`API-CONTRACT.md` section 6) and an audit entry quoting `simulator_reference` and the request ID.
 
-**Reconciliation schedule (FR-TXN-11, FR-TXN-12, NFR-AVA-03).** The worker queries each unresolved operation by its original `operation_id` after 30 s, 1 min, 2 min, 5 min, 10 min and 20 min (±10% jitter), which is 6 checks (`RECONCILIATION_MAX_CHECKS = 6`, already in settings) ending about 38.5 minutes after the timeout. Still no signed answer after the sixth check: the operation is escalated to administrators (UC-43). That meets NFR-AVA-03, which needs every unresolved payment final or escalated within 1 hour. An administrator's re-check (FR-TXN-13) is the same status query; nobody can set an outcome by hand.
+**Reconciliation schedule (FR-TXN-11, FR-TXN-12, NFR-AVA-03).** The worker queries each unresolved operation by its original `operation_id` after 30 s, 1 min, 2 min, 5 min, 10 min and 20 min (±10% jitter), which is 6 checks (`RECONCILIATION_MAX_CHECKS = 6`, already in settings) ending about 38.5 minutes after the timeout. Still no signed answer after the sixth check: the operation is escalated to administrators (UC-42). That meets NFR-AVA-03, which needs every unresolved payment final or escalated within 1 hour. An administrator's re-check (FR-TXN-13) is the same status query; nobody can set an outcome by hand.
 
 **On start-up** the gateway marks every operation it committed but has no answer for as unresolved and queues an immediate status query before it sends anything else for that payment (FR-TXN-15).
 
@@ -149,9 +149,9 @@ All done by sprint 8 (13 November 2026): fault controls in `simulator/apps/fault
 | --- | --- |
 | FR-SIM-01 | 4, 5 |
 | FR-SIM-02 | 8, 9 |
-| FR-SIM-03, UC-29 | 3, 6, 7 |
-| FR-SIM-04, UC-24, UC-25 | 4 |
+| FR-SIM-03, UC-28 | 3, 6, 7 |
+| FR-SIM-04, UC-23, UC-24 | 4 |
 | FR-CHK-07, FR-CHK-11 | 3, 7 |
-| FR-TXN-11, FR-TXN-12, FR-TXN-13, FR-TXN-15, UC-43 | 7 |
+| FR-TXN-11, FR-TXN-12, FR-TXN-13, FR-TXN-15, UC-42 | 7 |
 | NFR-AVA-03 | 7, 8 |
 | NFR-CON-02, NFR-ENC-01 | 2 |

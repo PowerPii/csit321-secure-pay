@@ -2,7 +2,7 @@
 
 The shop never sees card data. It creates a payment with its API key, sends the customer
 to SecurePay's hosted checkout, and marks an order paid only after a signed answer from
-the gateway says the payment is authorised (API-CONTRACT.md section 3, UC-28).
+the gateway says the payment is authorised (API-CONTRACT.md section 3, UC-27).
 """
 import uuid
 

@@ -400,7 +400,7 @@ class RefundView(StaffAPIView):
 
 
 class OperationRecheckView(StaffAPIView):
-    """FR-TXN-13 / UC-43: an administrator asks the simulator again about an unresolved
+    """FR-TXN-13 / UC-42: an administrator asks the simulator again about an unresolved
     operation, by its original ID. Only a signed answer can settle it; nobody sets an
     outcome by hand."""
 

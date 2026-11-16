@@ -1,11 +1,11 @@
-"""Raise a security alert (FR-ADM-08, UC-40).
+"""Raise a security alert (FR-ADM-08, UC-39).
 
     raise_alert(kind, severity=..., source=..., summary=..., details=...) -> SecurityAlert
 
 An open alert of the same kind and source seen within SECURITY_ALERT_GROUP_MINUTES takes the
 new event: its count goes up and nothing else is sent. Otherwise a new alert is created and
 every active administrator is emailed through the outbox, which retries a failed send and
-keeps the alert on the dashboard either way (UC-40 alternative flow). The dashboard polls the
+keeps the alert on the dashboard either way (UC-39 alternative flow). The dashboard polls the
 open count every 5 s, so an alert shows within 10 s (NFR-PER-03).
 
 Call it inside the transaction that records the event, or on its own; it never raises for a

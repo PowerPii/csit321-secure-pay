@@ -95,8 +95,8 @@ class WebhookAttempt(models.Model):
 class OutboundEmail(models.Model):
     """An email, written in the transaction that decides to send it.
 
-    Receipts (FR-CHK-15, UC-05) and guest status codes (API-CONTRACT.md section 8) go
-    through here, so a failed send is retried and recorded (UC-05 alternative flow), and a
+    Receipts (FR-CHK-15, UC-04) and guest status codes (API-CONTRACT.md section 8) go
+    through here, so a failed send is retried and recorded (UC-04 alternative flow), and a
     guest status reply takes the same time whether or not a code is sent. The body is kept
     only as ciphertext (FIELD_ENCRYPTION_KEY) and is wiped once the email is sent, given up
     or past `discard_after`; a one-time code never stays in the database longer than that.

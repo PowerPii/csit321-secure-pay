@@ -24,7 +24,7 @@ class MerchantAPIView(APIView):
     throttle_classes: ClassVar = [ApiKeyRateThrottle, MerchantIpRateThrottle]
 
     def check_throttles(self, request):
-        """As DRF's, but each rejection is recorded as a violation (UC-44)."""
+        """As DRF's, but each rejection is recorded as a violation (UC-43)."""
         from apps.common.clientip import client_ip
         from apps.security.limits import record_violation
 

@@ -40,7 +40,7 @@ def apply_authorise_answer(operation_id: int, answer: Answer, request_id: str = 
         elif answer.kind is AnswerKind.CONFLICT:
             logger.error("Simulator reports %s for %s", answer.conflict_code,
                          operation.public_id)
-            record = None  # operation_id_conflict: leave it unresolved and escalate (UC-43)
+            record = None  # operation_id_conflict: leave it unresolved and escalate (UC-42)
 
         now = timezone.now()
         if record is None:

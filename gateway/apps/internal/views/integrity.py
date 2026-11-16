@@ -6,7 +6,7 @@
 * POST integrity/run {kind} : run a check or the clean-up now (FR-ADM-09, FR-ADM-15,
   NFR-PRI-01). 409 run_in_progress if the worker is running the same kind.
 * POST security/keys/rotate {purpose, code} : rotate a data key after re-entering the
-  authenticator code (FR-ADM-14, UC-46). The old key stays for decryption only.
+  authenticator code (FR-ADM-14, UC-45). The old key stays for decryption only.
 """
 from rest_framework.response import Response
 

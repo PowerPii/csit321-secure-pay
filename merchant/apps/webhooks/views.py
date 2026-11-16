@@ -1,4 +1,4 @@
-"""POST /webhooks/securepay: the shop's webhook endpoint (API-CONTRACT.md section 7, FR-SIM-07).
+"""POST /webhooks/securepay: the shop's webhook endpoint (API-CONTRACT.md section 7, FR-SIM-06).
 
 1. Verify the signature over the raw bytes before parsing; reject a stale timestamp.
 2. Ignore an event ID we already accepted (repeats and replays).

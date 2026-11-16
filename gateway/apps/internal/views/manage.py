@@ -1,5 +1,5 @@
 """Administrator account management and limits (FR-ADM-02 to FR-ADM-05, FR-ADM-07,
-FR-ADM-12; UC-34, UC-35, UC-37, UC-44).
+FR-ADM-12; UC-33, UC-34, UC-36, UC-43).
 
 Staff accounts:
 * GET  staff?q= : search by name or email.
@@ -9,7 +9,7 @@ Staff accounts:
   Deactivation is permanent; a suspended account can be reinstated.
 * POST staff/{id}/role {role, merchant_id?} : applies from the account's next request
   (the role is read on every request). Refused if it would remove the last administrator.
-  Non-administrators get 403 and the attempt is logged (UC-35).
+  Non-administrators get 403 and the attempt is logged (UC-34).
 
 Merchants:
 * POST merchants/{id}/status {action: suspend|deactivate|reinstate, reason, confirm: true}
@@ -178,7 +178,7 @@ class StaffRoleView(_AdminView):
             super().check_permissions(request)
         except exceptions.PermissionDenied:
             account = getattr(request, "_auth", None)
-            if isinstance(account, StaffAccount):  # signed in, not an administrator (UC-35)
+            if isinstance(account, StaffAccount):  # signed in, not an administrator (UC-34)
                 self._log_denied(request, account)
             raise
 

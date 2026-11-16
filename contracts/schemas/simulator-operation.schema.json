@@ -20,7 +20,7 @@
     "type": { "enum": ["authorise", "capture", "cancel", "refund"] },
     "status": {
       "enum": ["approved", "declined", "no_record"],
-      "description": "approved and declined are final outcomes. no_record means the simulator never received the operation before a status query asked for it; the operation_id is now retired and a late arrival is rejected with 409 operation_retired (FR-SIM-03, UC-29). A record never changes status once written."
+      "description": "approved and declined are final outcomes. no_record means the simulator never received the operation before a status query asked for it; the operation_id is now retired and a late arrival is rejected with 409 operation_retired (FR-SIM-03, UC-28). A record never changes status once written."
     },
     "decline_reason": {
       "description": "Set only when status is declined.",

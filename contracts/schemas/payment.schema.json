@@ -80,7 +80,7 @@
     "refundable_amount": {
       "type": "integer",
       "minimum": 0,
-      "description": "captured_amount less completed and reserved refunds (UC-59). 0 unless status is captured."
+      "description": "captured_amount less completed and reserved refunds (UC-55). 0 unless status is captured."
     },
     "refunded_amount": {
       "type": "integer",
@@ -179,7 +179,7 @@
       ]
     },
     "pending_operation": {
-      "description": "A capture or cancel that was sent to the processing simulator without an answer yet. The payment keeps its previous status until reconciliation settles it (UC-25, UC-29). null otherwise.",
+      "description": "A capture or cancel that was sent to the processing simulator without an answer yet. The payment keeps its previous status until reconciliation settles it (UC-24, UC-28). null otherwise.",
       "oneOf": [
         {
           "type": "null"
@@ -230,7 +230,7 @@
     "checkout_expires_at": {
       "type": "string",
       "format": "date-time",
-      "description": "created_at + 1 hour (FR-CHK-19)."
+      "description": "created_at + 1 hour (FR-CHK-16)."
     },
     "authorisation_expires_at": {
       "type": [
@@ -307,7 +307,7 @@
         "merchant_cancelled",
         "authorisation_expired"
       ],
-      "description": "The first six are BlockReason in states.py. card_declined: the simulated bank said no. not_processed: reconciliation found no record at the simulator (UC-29). checkout_expired: no card submitted within 1 hour. merchant_cancelled / authorisation_expired: the two ways an authorisation is cancelled."
+      "description": "The first six are BlockReason in states.py. card_declined: the simulated bank said no. not_processed: reconciliation found no record at the simulator (UC-28). checkout_expired: no card submitted within 1 hour. merchant_cancelled / authorisation_expired: the two ways an authorisation is cancelled."
     },
     "LineItem": {
       "type": "object",

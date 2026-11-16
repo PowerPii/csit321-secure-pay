@@ -1,4 +1,4 @@
-"""Security alerts for administrators (FR-ADM-08, UC-40; NFR-PER-03).
+"""Security alerts for administrators (FR-ADM-08, UC-39; NFR-PER-03).
 
 * GET  security/alerts?status=open|resolved|all&kind=&page= : newest activity first.
 * GET  security/alerts/open-count : the sidebar badge; polled every 5 s.

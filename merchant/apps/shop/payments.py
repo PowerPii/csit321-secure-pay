@@ -76,7 +76,7 @@ def apply_payment(attempt: PaymentAttempt, data: dict, order: Order) -> bool:
 
 
 def refresh(attempt: PaymentAttempt) -> None:
-    """Ask the gateway for the current, signed status (UC-28). Quietly keeps the old one
+    """Ask the gateway for the current, signed status (UC-27). Quietly keeps the old one
     if the gateway cannot be reached."""
     if not attempt.payment_id:
         return

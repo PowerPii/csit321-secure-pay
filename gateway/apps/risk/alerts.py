@@ -1,4 +1,4 @@
-"""Fraud alerts (FR-FRD-08, UC-51; a Could requirement).
+"""Fraud alerts (FR-FRD-08, UC-50; a Could requirement).
 
     raise_fraud_alert(event) -> FraudAlert | None
 

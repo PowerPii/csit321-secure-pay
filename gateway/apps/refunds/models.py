@@ -1,4 +1,4 @@
-"""Refunds and reservations (FR-TXN-01 to FR-TXN-03, UC-24, API-CONTRACT.md section 3).
+"""Refunds and reservations (FR-TXN-01 to FR-TXN-03, UC-23, API-CONTRACT.md section 3).
 
 Rule: completed + reserved <= captured amount, checked and reserved under a row lock on the
 payment, so two refunds at the same time can never together exceed it (demo story S6).

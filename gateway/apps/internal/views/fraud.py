@@ -1,11 +1,11 @@
-"""Fraud alerts and fraud reports (FR-FRD-08, FR-FRD-10; UC-51, UC-53; Could requirements).
+"""Fraud alerts and fraud reports (FR-FRD-08, FR-FRD-10; UC-50, UC-52; Could requirements).
 
 Alerts: one per flagged payment (apps.risk.alerts). Each analyst or administrator has their own
 read state, so the unread count is personal. The dashboard polls `alerts/unread` every 5 s.
 
 Reports: counts of screened and flagged payments for a chosen period, by decision, risk level
 (model score band), finding and top reason, with a day or week trend, and the same report as
-CSV. Every generation and export is recorded in the audit log (UC-53 postcondition).
+CSV. Every generation and export is recorded in the audit log (UC-52 postcondition).
 """
 import csv
 import io
@@ -29,7 +29,7 @@ from apps.internal.views.reviews import FLAGGED, _decision_filter, case_row
 from apps.merchants.models import Merchant
 from apps.risk.models import FraudAlert, FraudAlertRead, ScreeningEvent, ScreeningOutcome
 
-# --- alerts (UC-51) -------------------------------------------------------------------------
+# --- alerts (UC-50) -------------------------------------------------------------------------
 
 
 def _alerts():
@@ -104,7 +104,7 @@ class AlertReadAllView(StaffAPIView):
         return Response({"marked": len(reads), "unread": 0})
 
 
-# --- reports (UC-53) ------------------------------------------------------------------------
+# --- reports (UC-52) ------------------------------------------------------------------------
 
 DEFAULT_DAYS = 30
 MAX_DAYS = 366

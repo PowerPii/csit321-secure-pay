@@ -1,4 +1,4 @@
-"""Card data security self-checks (FR-ADM-15, NFR-PRI-02; UC-47).
+"""Card data security self-checks (FR-ADM-15, NFR-PRI-02; UC-46).
 
     run(started_by="") -> MaintenanceRun   every check; alert administrators if one fails
 

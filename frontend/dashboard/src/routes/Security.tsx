@@ -1,4 +1,4 @@
-// Security alerts for administrators (FR-ADM-08, UC-40). No wireframe: it reuses the D6 list
+// Security alerts for administrators (FR-ADM-08, UC-39). No wireframe: it reuses the D6 list
 // and the audit log table. Repeats of the same event are grouped into one alert with a count;
 // an administrator opens an alert, reviews the related audit entries and resolves it with a note.
 import {

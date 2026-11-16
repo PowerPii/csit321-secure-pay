@@ -4,7 +4,7 @@ info:
   version: 1.0.0-draft
   summary: Browser API behind screen C9. A guest checks one payment with its reference, checkout email and an emailed one-time code.
   description: |
-    Implements FR-ACC-05, FR-ACC-06 and UC-08, and closes open point 1 in docs/MVP-SCOPE.md.
+    Implements FR-ACC-05, FR-ACC-06 and UC-07, and closes open point 1 in docs/MVP-SCOPE.md.
     Used only by `frontend/checkout` (same origin as the gateway). Cross-site requests are
     stopped without a CSRF token: every POST takes `application/json` only (a cross-site form
     cannot send it without a CORS preflight, which the gateway never allows), and the session
@@ -19,7 +19,7 @@ paths:
   /guest/status/code:
     post:
       operationId: requestGuestStatusCode
-      summary: Ask for a one-time code (UC-08 steps 2 and 3)
+      summary: Ask for a one-time code (UC-07 steps 2 and 3)
       description: |
         Always answers 202 with the same message and a challenge ID, whether or not the
         reference and email match a guest payment, so the response never reveals which
@@ -60,7 +60,7 @@ paths:
   /guest/status/verify:
     post:
       operationId: verifyGuestStatusCode
-      summary: Enter the code (UC-08 step 4)
+      summary: Enter the code (UC-07 step 4)
       description: |
         On success, sets the `sp_guest_status` cookie (HttpOnly, Secure, SameSite=Strict,
         Path=/guest/status, 15 minutes) bound to that one payment, and returns the status view.

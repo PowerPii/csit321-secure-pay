@@ -115,13 +115,13 @@ class RiskListEntry(models.Model):
 
 
 class FraudAlert(models.Model):
-    """One alert to fraud analysts for each flagged payment (FR-FRD-08, UC-51).
+    """One alert to fraud analysts for each flagged payment (FR-FRD-08, UC-50).
 
     Created in the checkout's transaction when screening blocks a payment or asks for a
     verification code. The one-to-one link to the decision record is what keeps an event from
     raising a second alert: a later step on the same payment (a wrong code, a retry of the same
     submission) finds the alert that is already there. Unscreened attempts (screening
-    unavailable) are a security matter for administrators (UC-39, UC-40), not a fraud alert.
+    unavailable) are a security matter for administrators (UC-38, UC-39), not a fraud alert.
     """
 
     public_id = models.CharField(max_length=32, unique=True, editable=False)  # fal_...
@@ -178,7 +178,7 @@ class RuleSetState(models.Model):
 
 
 class FraudRule(models.Model):
-    """One version of an administrator-editable fraud rule (FR-FRD-02, UC-38).
+    """One version of an administrator-editable fraud rule (FR-FRD-02, UC-37).
 
     A rule is a condition on one screening feature (`feature op value`) and an action (block
     or ask for a verification code). Rows are never changed in place: editing or switching a

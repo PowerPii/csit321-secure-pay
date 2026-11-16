@@ -1,4 +1,4 @@
-"""Emailed receipt for an authorised payment (FR-CHK-15, UC-05).
+"""Emailed receipt for an authorised payment (FR-CHK-15, UC-04).
 
 Amount, merchant, date, card brand and last four digits, and the payment reference; for a
 guest payment (every payment in the MVP) a link to the guest status page that fills in the

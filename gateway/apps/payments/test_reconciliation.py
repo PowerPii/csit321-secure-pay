@@ -1,4 +1,4 @@
-"""Reconciliation of unresolved operations (UC-29, UC-43, SIMULATOR-CONTRACT.md 6-7, S4)."""
+"""Reconciliation of unresolved operations (UC-28, UC-42, SIMULATOR-CONTRACT.md 6-7, S4)."""
 import uuid
 from datetime import timedelta
 

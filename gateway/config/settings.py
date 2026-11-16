@@ -184,15 +184,15 @@ GATEWAY_RULES = {
     "IDEMPOTENCY_TTL_HOURS": 24,
     # A key left "in progress" by a crashed request is taken over after this long.
     "IDEMPOTENCY_STALE_SECONDS": 60,
-    # Defaults; an administrator can change both in the dashboard (FR-ADM-12, UC-44).
+    # Defaults; an administrator can change both in the dashboard (FR-ADM-12, UC-43).
     "API_RATE_LIMIT_PER_MINUTE": 100,  # per API key (NFR-AVA-02, contract section 2)
     "IP_RATE_LIMIT_PER_MINUTE": 300,  # per client IP address on the merchant API
-    # UC-44: this many rejected requests from one key or IP within the window -> security alert.
+    # UC-43: this many rejected requests from one key or IP within the window -> security alert.
     "RATE_LIMIT_ALERT_VIOLATIONS": 20,
     "RATE_LIMIT_ALERT_WINDOW_MINUTES": 10,
     "AUTH_EXPIRY_DAYS": 7,  # uncaptured authorisations are cancelled by the worker
     "VERIFICATION_CODE_TTL_MINUTES": 10,
-    "VERIFICATION_MAX_ATTEMPTS": 3,  # wrong codes, then Blocked (FR-CHK-21, confirmed 5 Nov 2026)
+    "VERIFICATION_MAX_ATTEMPTS": 3,  # wrong codes, then Blocked (FR-CHK-18, confirmed 5 Nov 2026)
     # A new code replaces the old one (FR-CHK-06). Not in the URS; confirmed by Fifa 13 Nov 2026.
     "VERIFICATION_RESEND_COOLDOWN_SECONDS": 30,
     "VERIFICATION_MAX_CODES": 5,  # codes sent per attempt, including the first
@@ -228,7 +228,7 @@ GATEWAY_RULES = {
     "IDLE_WARNING_MINUTES": 13,
     # FR-ACC-12: the privacy notice a customer agreed to. Raise it when the notice changes.
     "PRIVACY_NOTICE_VERSION": "2026-11-16",
-    # Security alerts (FR-ADM-08, UC-40): repeats of the same event from the same source within
+    # Security alerts (FR-ADM-08, UC-39): repeats of the same event from the same source within
     # this many minutes are grouped into one open alert with a count, and emailed once.
     "SECURITY_ALERT_GROUP_MINUTES": 60,
     # FR-MER-09: this many attempts on other merchants' records by one API key or operator

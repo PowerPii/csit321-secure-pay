@@ -1,4 +1,4 @@
-"""End a staff member's dashboard sessions (FR-ADM-02, UC-34).
+"""End a staff member's dashboard sessions (FR-ADM-02, UC-33).
 
 Sessions are in the database (Django's default backend). Making the user inactive already
 refuses their next request (apps.internal.access); deleting the session rows as well means
