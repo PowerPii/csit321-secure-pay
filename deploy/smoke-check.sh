@@ -23,6 +23,7 @@ check "Django admin off (gateway)"        404 "https://gateway.$domain/admin/"
 check "API needs a key"                   401 "https://gateway.$domain/v1/payments"
 check "demo shop"                         200 "https://shop.$domain/"
 check "Django admin off (shop)"           404 "https://shop.$domain/admin/"
+check "API schema not public"             404 "https://gateway.$domain/api/schema/"
 check "demo inbox needs sign-in"          401 "https://mail.$domain/"
 check "HTTP redirects to HTTPS"           308 "http://gateway.$domain/healthz"
 

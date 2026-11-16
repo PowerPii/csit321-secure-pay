@@ -140,6 +140,26 @@ def test_analyst_searches_by_email_ip_and_card_and_each_search_is_logged(
     assert "203.0.113.9" not in str(list(logged.values_list("details", "target_id")))
 
 
+def test_a_card_number_is_refused_and_never_logged(analyst, admin, shop, fake_sim):
+    pay(shop)
+    before = AuditEvent.objects.count()
+    for value in ("4242424242424242", "4242 4242 4242 4242", "4242-4242-4242-4242"):
+        for by in ("card", "email", "ip"):
+            r = analyst.get(f"/internal/fraud/search?by={by}&value={value}")
+            assert r.status_code == 400, (by, value, r.content)
+            assert r.json()["error"]["code"] == "card_number_not_accepted"
+            assert "4242424242" not in r.content.decode().replace(" ", "").replace("-", "")
+    r = post(admin, "/internal/blocklist", {"kind": "card", "card_fingerprint": "4242424242424242",
+                                            "reason": "test"})
+    assert r.status_code == 400
+    assert AuditEvent.objects.count() == before
+    assert not RiskListEntry.objects.filter(value_hash__startswith="4242").exists()
+    # A real fingerprint (64 hex digits) still searches.
+    fingerprint = ScreeningEvent.objects.first().card_fingerprint
+    r = analyst.get(f"/internal/fraud/search?by=card&value={fingerprint}")
+    assert r.status_code == 200 and r.json()["count"] == 1
+
+
 def test_operators_cannot_search_or_use_the_blocklist(staff_client, shop):
     operator = staff_client("merchant_operator", merchant=shop.merchant)
     assert operator.get("/internal/fraud/search?by=ip&value=1.2.3.4").status_code == 403
