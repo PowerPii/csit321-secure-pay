@@ -43,6 +43,18 @@
 		header Referrer-Policy no-referrer
 		header Cache-Control no-store
 	}
+	# Customer account pages (C10 to C12), from the same checkout build. Only the pages:
+	# the account API is /customer/*, handled by the catch-all below. Reset links carry
+	# the token in the fragment; no-referrer keeps the page address to ourselves anyway.
+	redir /account /account/sign-in 302
+	handle /account/* {
+		root * /srv/checkout
+		rewrite * /index.html
+		file_server
+		header Content-Security-Policy "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; form-action 'self'; base-uri 'none'"
+		header Referrer-Policy no-referrer
+		header Cache-Control no-store
+	}
 	redir /dashboard /dashboard/ 308
 	handle /dashboard/* {
 		root * /srv/dashboard

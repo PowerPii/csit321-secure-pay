@@ -1,7 +1,7 @@
 """Staff accounts: role, merchant and sign-in lockout (FR-ACC-14 to FR-ACC-16).
 
 A staff member is a Django user (email as username) with one `StaffAccount`. Customer
-accounts are a later item (MVP-SCOPE "Not in the MVP" 5).
+accounts live in apps.customers and are not Django users.
 
 Roles (URS 3.3, access control matrix):
 * merchant_operator: one merchant's payments; capture, cancel and refund them.
@@ -104,8 +104,12 @@ class AccountToken(models.Model):
         PASSWORD_RESET = "password_reset"  # nosec B105
         EMAIL_VERIFICATION = "email_verification"
 
+    # Staff and merchant registrations are Django users; customers (sprint 11) are not.
+    # Exactly one of the two is set.
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
-                             related_name="account_tokens")
+                             related_name="account_tokens", null=True, blank=True)
+    customer = models.ForeignKey("customers.CustomerAccount", on_delete=models.CASCADE,
+                                 related_name="account_tokens", null=True, blank=True)
     purpose = models.CharField(max_length=24, choices=Purpose.choices)
     digest = models.CharField(max_length=64, unique=True, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -114,12 +118,18 @@ class AccountToken(models.Model):
     used_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        indexes = [models.Index(fields=["user", "purpose", "created_at"])]
+        indexes = [models.Index(fields=["user", "purpose", "created_at"]),
+                   models.Index(fields=["customer", "purpose", "created_at"])]
         constraints = [
+            models.CheckConstraint(
+                condition=(Q(user__isnull=False, customer__isnull=True)
+                           | Q(user__isnull=True, customer__isnull=False)),
+                name="account_token_one_owner"),
             models.CheckConstraint(
                 condition=Q(purpose__in=["password_reset", "email_verification"]),
                 name="account_token_purpose_valid"),
         ]
 
     def __str__(self):
-        return f"{self.purpose} for user {self.user_id}"
+        owner = f"user {self.user_id}" if self.user_id else f"customer {self.customer_id}"
+        return f"{self.purpose} for {owner}"

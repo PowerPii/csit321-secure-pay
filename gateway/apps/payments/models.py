@@ -57,6 +57,9 @@ class Payment(models.Model):
     )
     return_url = models.URLField(max_length=2048)
     customer_email = models.EmailField(max_length=254, blank=True)
+    # The customer who was signed in when the payment was submitted (FR-ACC-04). Guests: null.
+    customer = models.ForeignKey("customers.CustomerAccount", on_delete=models.SET_NULL,
+                                 null=True, blank=True, related_name="payments")
     description = models.CharField(max_length=200, blank=True)
     # [{name, quantity, unit_amount}] as the merchant sent them; they add up to `amount`.
     line_items = models.JSONField(null=True, blank=True)

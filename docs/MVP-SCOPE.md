@@ -42,7 +42,7 @@ If the demo shows that path end to end, plus the three failure stories below, th
 2. Analyst search by card token, email or IP, blocklist UI, findings (FM 6, 7, 9). The MVP seeds the blocklist from a fixture.
 3. API key rotation and revocation, merchant self-registration with email verification (MM 1, 4, 5). Self-registration was built in sprint 10; rotation and revocation are still to do.
 4. Rate limits per key configurable by admin, security alerts, integrity hashes, key rotation, PCI self-checks (AS 8, 9, 12, 14, 15). DRF default throttles are on from day one.
-5. Customer accounts, payment history, password reset, idle session warnings, PDPA data view (AA 1 to 13). Guests only in the MVP. Password reset was built in sprint 10 (staff accounts; customers reuse it in sprint 11).
+5. Customer accounts, payment history, password reset, idle session warnings, PDPA data view (AA 1 to 13). Guests only in the MVP. Password reset was built in sprint 10 (staff accounts); customer accounts, sign-in lockout, payment history and customer password reset in sprint 11. The idle warning at 13 minutes and the PDPA data view are still to do.
 6. Fraud reports and CSV export (FM 10), real-time analyst alerts (FM 8).
 7. PayNow QR (CP 16 to 18, SD 5). "Could" in the requirements; out unless the team decides otherwise.
 
@@ -91,6 +91,7 @@ After the MVP (roadmap in the team folder, `05-architecture/NEXT-PHASE-PLAN.md`)
 | --- | --- | --- |
 | 9 | Deploy the stack on one server (`deploy/compose.prod.yaml`, `deploy/RUNBOOK.md`) | S1 to S3 work on the public URLs (done 16 Nov 2026: live on Google Cloud, smoke checks and all 11 integration tests pass on the server). **Milestone M2 (due 4 Dec 2026) met on 16 Nov 2026** |
 | 10 | Accounts part 1: password reset by emailed link (FR-ACC-07 to FR-ACC-09), merchant self-registration with email verification and administrator notice (FR-MER-01, FR-MER-02), webhook address submitted by the merchant (FR-MER-10), D7 and D8 screens | A new merchant signs up, verifies its email, is approved, gets a key and receives a webhook (`gateway/apps/merchants/test_registration.py`) |
+| 11 | Accounts part 2: customer registration, sign-in with lockout, payment history (FR-ACC-01 to FR-ACC-04), customer password reset and ending sessions on a password change (FR-ACC-07, FR-ACC-08), screens C10 to C12 under `/account/` (`gateway/apps/customers`, `frontend/checkout/src/Account.tsx`) | A customer pays signed in and sees the payment in their history (`gateway/apps/customers/tests.py`) |
 
 The research track (IEEE-CIS experiment in `research/`) runs alongside and hands over a versioned model artefact by sprint 7.
 

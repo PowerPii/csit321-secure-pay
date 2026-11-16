@@ -201,6 +201,8 @@ Rules: the token is 32 random bytes, sent only in the link and stored as a SHA-2
 
 Built in sprint 10 for staff accounts (`gateway/apps/accounts/reset.py`, staff API `/internal/auth/password-reset`, `/check`, `/confirm`; dashboard pages `/dashboard/forgot-password` and `/dashboard/reset-password`). The link carries the token in the URL fragment (`#token=...`), so it never reaches a server log either. Two details this contract left open: at most 3 links per account per 15 minutes are sent (more requests get the same reply and send nothing; `PASSWORD_RESET_REQUESTS_PER_ACCOUNT`), and a wrong TOTP code on the reset page counts towards the normal sign-in lockout. Every staff member with an authenticator confirms with it, not only merchant operators. Customer accounts (sprint 11) reuse the same flow.
 
+Customer accounts (sprint 11, `gateway/apps/customers`) use the same rules: API `/customer/password-reset/request`, `/check`, `/confirm`; page `/account/reset#token=...` (`ACCOUNT_URL`, which defaults to `/account` next to `GUEST_STATUS_URL`). Customers have no TOTP, so there is no code step. A reset ends every customer session and clears the sign-in lockout. Staff and customer links are kept apart: a customer's link is refused by the staff reset and the other way round.
+
 ## 10. Decisions taken for this contract
 
 P1 to P3 were confirmed by Fifa on 13 November 2026 and are in `GATEWAY_RULES`. P4 was confirmed by Fifa on 13 November 2026 after the sprint 3 build.

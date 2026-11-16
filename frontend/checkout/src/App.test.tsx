@@ -18,9 +18,11 @@ function session(over: Partial<Session> = {}): Session {
 function mockFetch(replies: Record<string, () => Response>) {
   const calls: { url: string; body: unknown }[] = [];
   vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
+    const key = Object.keys(replies).find((k) => url.endsWith(k));
+    // The card form asks once whether a customer is signed in; by default nobody is.
+    if (url === "/customer/me" && !key) return json({ error: { code: "sign_in_required", message: "x" } }, 401);
     calls.push({ url, body: init?.body ? JSON.parse(String(init.body)) : null });
-    const key = Object.keys(replies).find((k) => url.endsWith(k))!;
-    return replies[key]();
+    return replies[key!]();
   }));
   return calls;
 }
@@ -40,6 +42,16 @@ describe("checkout page", () => {
     expect(screen.getByRole("button", { name: "Pay S$ 89.90" })).toBeTruthy();
     expect(screen.getByText("Receipt to a•••@example.com")).toBeTruthy();
     expect(screen.getByText("Wireless mouse × 1")).toBeTruthy();
+  });
+
+  it("tells a signed-in customer the payment joins their history and fills in the email", async () => {
+    mockFetch({
+      [SID]: () => json(session({ email_required: true, customer_email_masked: null })),
+      "/customer/me": () => json({ id: "cus_x", full_name: "Jane Tan", email: "jane@example.com", idle_minutes: 15 }),
+    });
+    render(<App path={`/pay/${SID}`} />);
+    expect(await screen.findByText(/Signed in as Jane Tan/)).toBeTruthy();
+    expect((screen.getByLabelText("Email (for your receipt)") as HTMLInputElement).value).toBe("jane@example.com");
   });
 
   it("lists the line items with their amounts when the shop sent them", async () => {

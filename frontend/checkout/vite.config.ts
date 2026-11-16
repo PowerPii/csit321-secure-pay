@@ -10,7 +10,7 @@ export default defineConfig({
   build: { sourcemap: false },
   server: {
     // `npm run dev`, then open http://localhost:5173/pay/cs_...; API calls go to runserver.
-    proxy: { "/checkout": "http://localhost:8000" },
+    proxy: { "/checkout": "http://localhost:8000", "/customer": "http://localhost:8000", "/guest/status/": "http://localhost:8000" },
   },
   test: { environment: "jsdom" },
 });

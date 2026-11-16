@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     "apps.audit",
     "apps.internal",
     "apps.guest",
+    "apps.customers",
 ]
 
 MIDDLEWARE = [
@@ -165,6 +166,8 @@ REST_FRAMEWORK.update(
             "anon": env("THROTTLE_ANON", "60/min"),
             # Per IP: forgot-password and business registration forms (FR-ACC-07, FR-MER-01).
             "account_email": env("THROTTLE_ACCOUNT_EMAIL", "20/hour"),
+            # Per IP: customer sign-in and sign-up (on top of the per-account lockout).
+            "customer_auth": env("THROTTLE_CUSTOMER_AUTH", "30/min"),
         },
     }
 )
@@ -205,6 +208,13 @@ GATEWAY_RULES = {
     "SCREENING_TIMEOUT_MS": 500,
     # Staff sign-in (FR-ACC-15): 5 failed sign-ins (wrong password or wrong TOTP code) lock the
     # account for 15 minutes and email the account holder.
+    # Customer accounts (FR-ACC-01 to FR-ACC-04; wireframes C10 to C12). Sign-in locks for 15
+    # minutes after 5 wrong passwords (FR-ACC-03). A signed-in session ends after 15 minutes
+    # without a request (wireframe C10 note; FR-ACC-10 idle limit) and after 12 hours anyway.
+    "CUSTOMER_LOCKOUT_FAILURES": 5,
+    "CUSTOMER_LOCKOUT_MINUTES": 15,
+    "CUSTOMER_IDLE_MINUTES": 15,
+    "CUSTOMER_SESSION_MAX_HOURS": 12,
     "STAFF_LOCKOUT_FAILURES": 5,
     "STAFF_LOCKOUT_MINUTES": 15,
     # After a correct password, the TOTP code must follow within this time.
@@ -262,6 +272,10 @@ GUEST_STATUS_URL = env("GUEST_STATUS_URL", "https://localhost:8443/guest/status"
 # Public address of the staff dashboard (frontend/dashboard). Password reset, email
 # verification and administrator notices link to pages under it.
 DASHBOARD_URL = env("DASHBOARD_URL", "https://localhost:8443/dashboard").rstrip("/")
+# Customer account pages (C10 to C12) from the checkout build; reset links point here.
+# Defaults to /account next to the guest status page, so no new setting is needed.
+ACCOUNT_URL = env("ACCOUNT_URL", GUEST_STATUS_URL.rsplit("/guest/status", 1)[0] + "/account"
+                  ).rstrip("/")
 # Fernet key for secrets the gateway must read back (merchant signing secrets).
 # Generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 FIELD_ENCRYPTION_KEY = secret(
