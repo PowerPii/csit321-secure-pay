@@ -2,7 +2,8 @@
 
     python manage.py seed_risk_lists
 
-Safe to run on every start: existing entries are updated, nothing is duplicated.
+Safe to run on every start: missing entries are created and nothing is duplicated. An entry an
+administrator removed from the block list stays removed (FR-FRD-09).
 """
 from django.core.management.base import BaseCommand
 
@@ -27,7 +28,8 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         for kind, value, action, label in SEED:
-            RiskListEntry.objects.update_or_create(
+            RiskListEntry.objects.get_or_create(
                 kind=kind, value_hash=value(),
-                defaults={"action": action, "label": label, "active": True})
+                defaults={"action": action, "label": label, "active": True,
+                          "display": label[:60]})
         self.stdout.write(f"{len(SEED)} risk list entries in place.")

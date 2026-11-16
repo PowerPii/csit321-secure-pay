@@ -75,8 +75,10 @@ class ScreeningEvent(models.Model):
 class RiskListEntry(models.Model):
     """A card, email or IP on the block list or the review (verify) list.
 
-    The MVP seeds these with `manage.py seed_risk_lists` (FR-FRD-06 to 09, the analyst UI for
-    editing lists, come later). Values are stored the same way screening keys them.
+    `manage.py seed_risk_lists` seeds the demo entries. Fraud analysts add cards and IP
+    addresses to the block list from the dashboard with a reason, and administrators remove
+    them (FR-FRD-09). A removed entry is kept, switched off, with who removed it and when.
+    Values are stored the same way screening keys them.
     """
 
     class Kind(models.TextChoices):
@@ -94,6 +96,14 @@ class RiskListEntry(models.Model):
     label = models.CharField(max_length=100, help_text="Why it is listed; shown to analysts.")
     active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    # FR-FRD-09: who listed it (blank for seeded entries), and who removed it.
+    added_by = models.CharField(max_length=32, blank=True)  # stf_...
+    source_case = models.CharField(max_length=32, blank=True)  # scr_... it was listed from
+    # What analysts see instead of the value: "Visa •••• 0101" or "203.0.113.•" (masked).
+    display = models.CharField(max_length=60, blank=True)
+    removed_by = models.CharField(max_length=32, blank=True)
+    removed_at = models.DateTimeField(null=True, blank=True)
+    removal_reason = models.CharField(max_length=200, blank=True)
 
     class Meta:
         constraints = [
@@ -144,3 +154,75 @@ class FraudAlertRead(models.Model):
         constraints = [
             models.UniqueConstraint(fields=["alert", "staff"], name="one_read_per_alert_staff"),
         ]
+
+
+class RuleSetState(models.Model):
+    """One row (pk=1): the current rule set version and the evaluation freeze (FR-FRD-02).
+
+    `version` goes up by one with every change to the fraud rules; screening records it as
+    rules_version "rules-0.<version>" (version 1 is the seeded set, which matches rules-0.1).
+    While `frozen_since` is set an evaluation run is in progress and the rules cannot change.
+    """
+
+    version = models.PositiveIntegerField(default=1)
+    frozen_since = models.DateTimeField(null=True, blank=True)
+    frozen_by = models.CharField(max_length=32, blank=True)
+    freeze_note = models.CharField(max_length=200, blank=True)
+
+    def __str__(self):
+        return f"rules-0.{self.version}"
+
+    @property
+    def label(self) -> str:
+        return f"rules-0.{self.version}"
+
+
+class FraudRule(models.Model):
+    """One version of an administrator-editable fraud rule (FR-FRD-02, UC-38).
+
+    A rule is a condition on one screening feature (`feature op value`) and an action (block
+    or ask for a verification code). Rows are never changed in place: editing or switching a
+    rule off adds a new row with the next `revision` and closes the previous one
+    (`superseded_at`), so every earlier version is kept. The current version of each rule has
+    superseded_at = null; screening uses those that are enabled.
+    """
+
+    class Op(models.TextChoices):
+        GT = "gt", ">"
+        GTE = "gte", ">="
+        LT = "lt", "<"
+        LTE = "lte", "<="
+        EQ = "eq", "="
+
+    class Action(models.TextChoices):
+        BLOCK = "block"
+        VERIFY = "verify"
+
+    rule_id = models.CharField(max_length=32, db_index=True)  # frl_..., same for every revision
+    revision = models.PositiveIntegerField(default=1)
+    code = models.SlugField(max_length=48)  # the reason recorded when it fires
+    description = models.CharField(max_length=200, blank=True)
+    feature = models.CharField(max_length=48)
+    op = models.CharField(max_length=4, choices=Op.choices)
+    value = models.FloatField()
+    action = models.CharField(max_length=8, choices=Action.choices)
+    enabled = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.CharField(max_length=32, blank=True)  # stf_..., blank when seeded
+    superseded_at = models.DateTimeField(null=True, blank=True)
+    ruleset_version = models.PositiveIntegerField()  # the RuleSetState.version it began
+
+    class Meta:
+        ordering = ["rule_id", "-revision"]
+        constraints = [
+            models.UniqueConstraint(fields=["rule_id", "revision"], name="fraud_rule_revision"),
+            models.UniqueConstraint(fields=["rule_id"], condition=Q(superseded_at__isnull=True),
+                                    name="fraud_rule_one_current"),
+            models.CheckConstraint(condition=Q(op__in=["gt", "gte", "lt", "lte", "eq"]),
+                                   name="fraud_rule_op_valid"),
+            models.CheckConstraint(condition=Q(action__in=["block", "verify"]),
+                                   name="fraud_rule_action_valid"),
+        ]
+
+    def __str__(self):
+        return f"{self.rule_id} r{self.revision} {self.code}"
