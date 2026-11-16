@@ -12,3 +12,4 @@ export { default as ApiKeys } from "./ApiKeys";
 export { SecurityAlerts } from "./Security";
 export { Accounts, LimitsPage } from "./Manage";
 export { Blocklist, FraudRules, HistorySearchPage } from "./FraudTools";
+export { IntegrityPage } from "./Integrity";

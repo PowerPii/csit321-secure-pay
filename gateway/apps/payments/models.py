@@ -87,6 +87,10 @@ class Payment(models.Model):
     # Increases on every change the merchant is notified about (API-CONTRACT.md section 6).
     sequence = models.PositiveIntegerField(default=1)
 
+    # FR-ADM-09: HMAC of the fields that decide money and status, set on every save and
+    # checked on a schedule (apps/security/integrity.py). Empty only for rows from before it.
+    integrity_hash = models.CharField(max_length=64, blank=True, editable=False)
+
     created_at = models.DateTimeField(default=timezone.now, editable=False)
     updated_at = models.DateTimeField(auto_now=True)
     authorised_at = models.DateTimeField(null=True, blank=True)
@@ -116,6 +120,14 @@ class Payment(models.Model):
 
     def __str__(self):
         return f"{self.reference} {self.status} {self.amount}"
+
+    def save(self, *args, **kwargs):
+        from apps.security.integrity import payment_digest
+
+        self.integrity_hash = payment_digest(self)
+        if kwargs.get("update_fields") is not None:
+            kwargs["update_fields"] = {*kwargs["update_fields"], "integrity_hash"}
+        super().save(*args, **kwargs)
 
     @property
     def is_final(self) -> bool:

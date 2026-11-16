@@ -9,7 +9,7 @@ import { RequireStaff, RoleGate } from "./auth";
 import Layout from "./components/Layout";
 import {
   Accounts, ApiKeys, AuditLog, Blocklist, FraudRules, HistorySearchPage, LimitsPage, CaseDetail, ForgotPassword, FraudAlerts, FraudReports, Merchants, PaymentDetail, PaymentsList, Register, ResetPassword,
-  ReviewQueue, SecurityAlerts, SignIn, Totp, VerifyEmail,
+  IntegrityPage, ReviewQueue, SecurityAlerts, SignIn, Totp, VerifyEmail,
 } from "./routes";
 import { theme } from "./theme";
 
@@ -65,6 +65,7 @@ export default function App() {
               <Route path="/accounts" element={<RoleGate page="accounts"><Accounts /></RoleGate>} />
               <Route path="/limits" element={<RoleGate page="limits"><LimitsPage /></RoleGate>} />
               <Route path="/security" element={<RoleGate page="security"><SecurityAlerts /></RoleGate>} />
+              <Route path="/integrity" element={<RoleGate page="integrity"><IntegrityPage /></RoleGate>} />
             </Route>
             <Route path="*" element={<Navigate to="/payments" replace />} />
           </Routes>

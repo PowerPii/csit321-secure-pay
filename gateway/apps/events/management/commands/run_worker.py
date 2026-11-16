@@ -91,6 +91,21 @@ def purge_idempotency_records():
     IdempotencyRecord.purge_expired()
 
 
+def seal_audit_entries():
+    """Chain new audit entries by hash (NFR-INT-02)."""
+    from apps.security.maintenance import seal_audit
+
+    seal_audit()
+
+
+def run_scheduled_checks():
+    """Integrity check (FR-ADM-09), self-checks (FR-ADM-15) and the 12-month clean-up
+    (NFR-PRI-01), each when its interval in GATEWAY_RULES has passed."""
+    from apps.security.maintenance import run_due
+
+    run_due()
+
+
 JOBS = [
     deliver_outbox,
     send_emails,
@@ -99,4 +114,6 @@ JOBS = [
     expire_checkout_and_verification,
     purge_card_data,
     purge_idempotency_records,
+    seal_audit_entries,
+    run_scheduled_checks,
 ]

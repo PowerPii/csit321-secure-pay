@@ -24,7 +24,7 @@ def test_tokenise_keeps_only_ciphertext_and_summary():
         dump, ciphertext = cur.fetchone()
     # Only the ciphertext holds the number and code; it decrypts only with the vault key.
     assert "4242424242424242" not in dump and '"987"' not in dump
-    assert ciphertext.startswith("v1.")
+    assert ciphertext.startswith("k1.dk_")  # under the vault data key (FR-ADM-14)
     assert vault._decrypt(ciphertext, summary.token) == (
         b'{"number": "4242424242424242", "cvc": "987"}')
     assert "4242424242424242" not in repr(summary)

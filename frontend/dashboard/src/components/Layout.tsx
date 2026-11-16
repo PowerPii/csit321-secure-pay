@@ -28,6 +28,7 @@ const NAV: { to: string; label: string; page: keyof typeof CAN }[] = [
   { to: "/limits", label: "Limits", page: "limits" },
   { to: "/audit", label: "Audit log", page: "audit" },
   { to: "/security", label: "Security alerts", page: "security" },
+  { to: "/integrity", label: "Integrity and keys", page: "integrity" },
 ];
 
 /** NFR-PER-03: a new fraud alert shows on the dashboard within 10 seconds (polled every 5). */

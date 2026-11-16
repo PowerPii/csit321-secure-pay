@@ -7,7 +7,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { api, ApiError, post, type PaymentDetail as Detail, type Refund } from "../api/client";
+import { api, ApiError, post, type PaymentDetail as Detail, type Refund, type TrailEntry } from "../api/client";
 import { Badge, ErrorAlert, Row, Section } from "../components/ui";
 import {
   actionLabel, actorLabel, cardLabel, longDate, money, parseMoney, riskLabel, statusLabel, statusTone, timeOnly, titleCase,
@@ -58,6 +58,46 @@ function Timeline({ p }: { p: Detail }) {
           </Stack>
         )}
       </Box>
+    </Section>
+  );
+}
+
+const TRAIL_KIND: Record<TrailEntry["kind"], string> = {
+  payment: "Payment", screening: "Screening", operation: "Processor", refund: "Refund", webhook: "Webhook",
+  email: "Email", audit: "Audit",
+};
+
+/** FR-TXN-16: everything about the payment under one correlation ID, oldest first. */
+function FullTimeline({ p }: { p: Detail }) {
+  const [open, setOpen] = useState(false);
+  const rows = open ? p.trail : p.trail.slice(-8);
+  return (
+    <Section title="Full timeline" action={
+      p.trail.length > 8 ? <Button size="small" onClick={() => setOpen(!open)}>{open ? "Show latest" : `Show all ${p.trail.length}`}</Button> : undefined
+    }>
+      <Typography variant="caption" color="text.secondary" display="block" mb={1}>
+        Correlation ID <Box component="span" sx={{ fontFamily: "monospace" }}>{p.correlation_id}</Box>: screening, processor
+        operations, refunds, notifications and audit entries for this payment.
+      </Typography>
+      <Table size="small" aria-label="Full timeline">
+        <TableBody>
+          {rows.map((r) => (
+            <TableRow key={`${r.kind}-${r.id}`}>
+              <TableCell sx={{ whiteSpace: "nowrap", width: 1 }} title={longDate(r.at)}>{timeOnly(r.at)}</TableCell>
+              <TableCell sx={{ width: 1 }}><Badge label={TRAIL_KIND[r.kind]} /></TableCell>
+              <TableCell>
+                <Typography variant="body2">{r.kind === "audit" ? actionLabel(r.title) : r.title}</Typography>
+                {(r.detail || r.request_id) && (
+                  <Typography variant="caption" color="text.secondary">
+                    {[r.detail, r.request_id && `request ${r.request_id}`].filter(Boolean).join(" · ")}
+                  </Typography>
+                )}
+              </TableCell>
+              <TableCell align="right">{r.status ? titleCase(r.status) : ""}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
     </Section>
   );
 }
@@ -327,6 +367,7 @@ export default function PaymentDetail({ refund = false }: { refund?: boolean }) 
           {(p.status === "captured" || p.refunds.length > 0) && <Refunds refunds={p.refunds} refundable={p.refundable_amount} />}
           <Operations p={p} />
           <Webhooks p={p} />
+          <FullTimeline p={p} />
         </Stack>
         <Stack gap={2} minWidth={0}>
           {p.screening ? (

@@ -23,6 +23,7 @@ from django.utils import timezone
 
 from apps.common.carddata import luhn_ok
 from apps.common.ids import new_id
+from apps.security import keyring
 from apps.vault.fingerprint import card_fingerprint
 from apps.vault.models import StoredCard
 
@@ -69,9 +70,11 @@ def brand_for(digits: str) -> str:
     return "unknown"
 
 
-# Card data is encrypted with AES-256-GCM (URS FR-CHK-02, NFR-ENC-02). The stored value is
-# "v1." + base64(12-byte random nonce + ciphertext + 16-byte tag). The token is bound in as
-# associated data, so a ciphertext copied onto another row fails to decrypt.
+# Card data is encrypted with AES-256-GCM (URS FR-CHK-02, NFR-ENC-02) under the vault's
+# active data key (apps/security/keyring.py, FR-ADM-14): "k1.<key_id>." + base64(nonce +
+# ciphertext + tag). Values from before key rotation are "v1." + the same, under the master
+# key itself, and still decrypt. The token is bound in as associated data, so a ciphertext
+# copied onto another row fails to decrypt.
 CIPHER_PREFIX = "v1."
 NONCE_BYTES = 12
 
@@ -85,12 +88,19 @@ def _key() -> bytes:
 
 
 def _encrypt(plaintext: bytes, token: str) -> str:
+    return keyring.encrypt(keyring.DataKey.Purpose.VAULT, plaintext, token.encode())
+
+
+def _encrypt_legacy(plaintext: bytes, token: str) -> str:
+    """The pre-rotation format, kept so tests can prove such values still open."""
     nonce = os.urandom(NONCE_BYTES)
     sealed = AESGCM(_key()).encrypt(nonce, plaintext, token.encode())
     return CIPHER_PREFIX + base64.b64encode(nonce + sealed).decode()
 
 
 def _decrypt(stored: str, token: str) -> bytes:
+    if keyring.is_keyring_value(stored):
+        return keyring.decrypt(stored, token.encode())
     if not stored.startswith(CIPHER_PREFIX):
         raise ValueError("unknown vault ciphertext format")
     raw = base64.b64decode(stored[len(CIPHER_PREFIX):])
