@@ -261,13 +261,50 @@ database: `$P exec -T db pg_restore -U postgres --clean -d gateway < gateway.dum
 
 ## 10. Updating after a merge
 
+**Automatic (set up once):** after every merge to `main`, once CI passes, GitHub Actions
+(`.github/workflows/deploy.yml`) signs in to the server and runs `deploy/auto-deploy.sh`. That
+script fast-forwards the clone to `main`, rebuilds and restarts what changed, removes old image
+layers and runs the smoke check (up to 3 minutes while migrations run). The Actions tab shows
+the result, and `~/deploy.log` on the server keeps every run.
+
+Set-up, on the server as `securepay`:
+
 ```bash
 cd ~/csit321-secure-pay && git pull
-docker compose -f deploy/compose.prod.yaml up -d --build
-bash deploy/smoke-check.sh <domain>    # from a laptop
+bash deploy/setup-auto-deploy.sh
 ```
 
-Migrations run when the gateway, simulator and shop start.
+It prints three values. On GitHub, open the repository's Settings > Secrets and variables >
+Actions, and add the secret `DEPLOY_SSH_KEY` and the variables `DEPLOY_HOST` and
+`DEPLOY_KNOWN_HOSTS` exactly as printed. Then try it: Actions tab > **deploy** > **Run
+workflow**. Until `DEPLOY_HOST` is set the workflow skips itself.
+
+What the GitHub key can do: the script adds it to `~/.ssh/authorized_keys` as
+`restrict,command="... auto-deploy.sh"`, so it gets no shell, no file copy and no port
+forwarding. Whatever command is asked for, it only deploys what is already on `main`. If it
+leaks, the worst case is an extra deploy of `main`; replace it with
+`ROTATE=1 bash deploy/setup-auto-deploy.sh` and update the secret.
+
+What it does not change: anyone who can merge to `main` decides what runs on the server, by
+hand or automatically (the compose file and these scripts are in the repository). Keep `main`
+changing only through reviewed pull requests with CI green.
+
+A deploy stops without changing anything running if the server clone is not on `main` or has
+hand edits that clash with the new code (`git status` shows them). If the smoke check fails
+after a deploy, the new code is running: look at `docker compose -f deploy/compose.prod.yaml
+logs --tail 100 <service>`, then fix forward with a new PR, or go back by hand:
+`git checkout <previous commit>` and `up -d --build` (the previous commit is in
+`~/deploy.log`; return with `git checkout main` once fixed). Migrations are not undone.
+
+**By hand** (or if Actions is down):
+
+```bash
+bash ~/csit321-secure-pay/deploy/auto-deploy.sh
+```
+
+Migrations run when the gateway, simulator and shop start. The integration tests are not part
+of a deploy because they make payments; run them by hand when a change touches the payment flow
+(step 8).
 
 ## 11. Demo story S4 with the fault controls
 

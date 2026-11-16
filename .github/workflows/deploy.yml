@@ -1,0 +1,43 @@
+name: deploy
+
+# Updates the public server after CI passes on main (deploy/RUNBOOK.md step 10). Does nothing
+# until the DEPLOY_HOST variable is set (deploy/setup-auto-deploy.sh prints what to add).
+# Can also be started by hand: Actions tab, "deploy", "Run workflow".
+on:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+# One deploy at a time; a newer merge waits for the running deploy instead of cancelling it.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  deploy:
+    if: >-
+      vars.DEPLOY_HOST != '' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      # The key can only run deploy/auto-deploy.sh on the server (a forced command in
+      # authorized_keys), which fast-forwards to main, rebuilds and runs the smoke check.
+      # Nothing from the repository runs here, so there is no checkout.
+      - name: Deploy over SSH
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ vars.DEPLOY_KNOWN_HOSTS }}
+          HOST: ${{ vars.DEPLOY_HOST }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+            -o BatchMode=yes -o ServerAliveInterval=30 "securepay@$HOST"
