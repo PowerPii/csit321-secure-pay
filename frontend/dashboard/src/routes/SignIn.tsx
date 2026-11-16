@@ -2,22 +2,22 @@
 import { Alert, Box, Button, Link as MuiLink, Paper, Stack, TextField, Typography } from "@mui/material";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
 import { api, ApiError, post, type Staff } from "../api/client";
 import { ShieldIcon } from "../components/ui";
 
 interface Setup { secret: string; otpauth_uri: string; qr_svg: string }
 interface LoginReply { next: "totp"; email: string; setup: Setup | null }
 
-function Card({ children }: { children: React.ReactNode }) {
+export function Card({ children, maxWidth = 420 }: { children: React.ReactNode; maxWidth?: number }) {
   return (
     <Stack alignItems="center" justifyContent="center" sx={{ minHeight: "100vh", bgcolor: "background.default", p: 2 }}>
-      <Paper sx={{ p: { xs: 3, sm: 4 }, width: "100%", maxWidth: 420, borderRadius: 2 }}>{children}</Paper>
+      <Paper sx={{ p: { xs: 3, sm: 4 }, width: "100%", maxWidth, borderRadius: 2 }}>{children}</Paper>
     </Stack>
   );
 }
 
-function message(error: unknown): string {
+export function message(error: unknown): string {
   return error instanceof ApiError ? error.message : "Something went wrong. Try again.";
 }
 
@@ -66,8 +66,12 @@ export function SignIn() {
             Sign in
           </Button>
           {error && <Alert severity="error" role="alert">{error}</Alert>}
+          <MuiLink component={RouterLink} to="/forgot-password" variant="body2">Forgot your password?</MuiLink>
           <Typography variant="caption" color="text.secondary">
-            Forgot your password? Ask an administrator. After 5 failed attempts the account is locked for 15 minutes.
+            After 5 failed attempts the account is locked for 15 minutes.
+          </Typography>
+          <Typography variant="body2" color="text.secondary" textAlign="center">
+            New merchant? <MuiLink component={RouterLink} to="/register">Register your business</MuiLink>
           </Typography>
         </Stack>
       </Box>
@@ -76,7 +80,7 @@ export function SignIn() {
 }
 
 /** Six boxes that behave like one input (paste fills all of them). */
-function CodeInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+export function CodeInput({ value, onChange, autoFocus = true }: { value: string; onChange: (v: string) => void; autoFocus?: boolean }) {
   const refs = useRef<(HTMLInputElement | null)[]>([]);
   const set = (i: number, text: string) => {
     const digits = text.replace(/\D/g, "");
@@ -101,7 +105,7 @@ function CodeInput({ value, onChange }: { value: string; onChange: (v: string) =
           autoComplete={i === 0 ? "one-time-code" : "off"}
           aria-label={`Digit ${i + 1}`}
           value={value[i]?.trim() ?? ""}
-          autoFocus={i === 0}
+          autoFocus={autoFocus && i === 0}
           onChange={(e: React.ChangeEvent<HTMLInputElement>) => set(i, e.target.value)}
           onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
             if (e.key === "Backspace" && !value[i]?.trim() && i > 0) refs.current[i - 1]?.focus();

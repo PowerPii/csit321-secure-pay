@@ -38,6 +38,7 @@ services:
       DJANGO_ALLOWED_HOSTS: gateway.localhost,gateway
       CHECKOUT_BASE_URL: https://gateway.localhost/pay
       GUEST_STATUS_URL: https://gateway.localhost/guest/status  # receipts link here (FR-CHK-15)
+      DASHBOARD_URL: https://gateway.localhost/dashboard  # reset, verification and notice links
       SIMULATOR_URL: https://simulator.localhost
       SIMULATOR_CA_BUNDLE: &caddy-root /caddy-ca/root.crt
       # Screening: client IP from Caddy's X-Forwarded-For; verification codes to Mailpit
@@ -90,6 +91,7 @@ services:
       EMAIL_HOST: mailpit
       EMAIL_PORT: "1025"
       GUEST_STATUS_URL: https://gateway.localhost/guest/status
+      DASHBOARD_URL: https://gateway.localhost/dashboard  # reset, verification and notice links
     volumes:
       - caddy_ca:/caddy-ca:ro
     secrets:

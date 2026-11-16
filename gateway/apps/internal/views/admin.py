@@ -1,18 +1,25 @@
 """Administrator pages: merchant approval (FR-ADM-01, FR-MER-03, FR-ADM-13) and the
 read-only audit log (FR-ADM-10, FR-ADM-11).
 
-Merchants are created by an administrator as pending (self-registration is a later item).
-Approval issues the API key and a fresh signing secret and returns both once; only the key's
-digest and the encrypted secret are kept.
+A merchant is either created here by an administrator, or registers itself (FR-MER-01). A
+self-registered merchant can be approved only once its contact email is verified; approving
+it notifies its operator, who then generates the API key in the dashboard (D8), so the key is
+never shown to the administrator. Approving a merchant an administrator created issues the
+API key and a fresh signing secret and returns both once, as before. Rejecting gives a reason
+and tells a self-registered merchant (FR-ADM-01). Only the key's digest and the encrypted
+secret are kept.
 """
 from datetime import datetime, time, timedelta
 
+from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
 from django.db import transaction
 from rest_framework import status
 from rest_framework.response import Response
 
+from apps.accounts import mail
+from apps.accounts.models import StaffAccount
 from apps.audit.models import AuditEvent
 from apps.audit.models import record as audit
 from apps.common.errors import ApiError, invalid, not_found
@@ -34,7 +41,24 @@ def merchant_to_dict(merchant: Merchant) -> dict:
         "api_key": ({"id": key.public_id, "hint": key.hint + "…",
                      "last_used_at": rfc3339(key.last_used_at)} if key else None),
         "created_at": rfc3339(merchant.created_at),
+        "self_registered": merchant.self_registered,
+        "registration": ({
+            "registration_number": merchant.registration_number,
+            "website": merchant.website,
+            "contact_name": merchant.contact_name,
+            "contact_email": merchant.contact_email,
+            "email_verified_at": rfc3339(merchant.email_verified_at),
+        } if merchant.self_registered else None),
     }
+
+
+def _tell_operators(merchant: Merchant, subject: str, body: str) -> None:
+    addresses = set(StaffAccount.objects.filter(merchant=merchant)
+                    .values_list("user__email", flat=True))
+    if merchant.contact_email:
+        addresses.add(merchant.contact_email)
+    for address in sorted(addresses):
+        mail.notice(address, subject, body)
 
 
 def _webhook_url(value) -> str:
@@ -101,14 +125,29 @@ class MerchantApproveView(StaffAPIView):
                 raise ApiError(409, "merchant_not_pending",
                                f"Only a pending merchant can be approved; this one is "
                                f"{merchant.status}.")
+            if merchant.self_registered and merchant.email_verified_at is None:
+                raise ApiError(409, "email_not_verified", "The merchant has not verified its "
+                               "contact email yet, so it cannot be approved.")
             merchant.status = Merchant.Status.ACTIVE
-            secret = merchant.rotate_signing_secret()
-            merchant.save()
-            api_key, plaintext = ApiKey.issue(merchant)
-            _audit(self, "merchant.approved", merchant)
-            _audit(self, "api_key.issued", merchant, api_key_id=api_key.public_id)
+            credentials = None
+            if merchant.self_registered:
+                merchant.save(update_fields=["status", "updated_at"])
+                _audit(self, "merchant.approved", merchant)
+                _tell_operators(
+                    merchant, f"{merchant.name} is approved",
+                    f"Hello,\n\nAn administrator has approved {merchant.name}. Sign in at "
+                    f"{mail.dashboard_link('login')} and open API keys to generate your API key "
+                    "and webhook signing secret.")
+            else:
+                secret = merchant.rotate_signing_secret()
+                merchant.save()
+                api_key, plaintext = ApiKey.issue(merchant)
+                _audit(self, "merchant.approved", merchant)
+                _audit(self, "api_key.issued", merchant, api_key_id=api_key.public_id)
+                credentials = {"api_key": plaintext, "signing_secret": secret}
         data = merchant_to_dict(Merchant.objects.prefetch_related("api_keys").get(pk=merchant.pk))
-        data["credentials"] = {"api_key": plaintext, "signing_secret": secret}
+        if credentials:
+            data["credentials"] = credentials
         return Response(data)
 
 
@@ -129,6 +168,15 @@ class MerchantRejectView(StaffAPIView):
             merchant.status = Merchant.Status.REJECTED
             merchant.save(update_fields=["status", "updated_at"])
             _audit(self, "merchant.rejected", merchant, reason=reason.strip())
+            if merchant.self_registered:
+                _tell_operators(
+                    merchant, f"registration of {merchant.name} not approved",
+                    f"Hello,\n\nAn administrator did not approve the registration of "
+                    f"{merchant.name}.\n\nReason: {reason.strip()}\n\nYou can register "
+                    "again with corrected details.")
+                # The operator account of a rejected merchant cannot sign in.
+                get_user_model().objects.filter(
+                    staff_account__merchant=merchant).update(is_active=False)
         return Response(merchant_to_dict(merchant))
 
 

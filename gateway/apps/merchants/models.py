@@ -1,7 +1,8 @@
 """Merchants and their API keys (FR-MER-01 to FR-MER-03, FR-MER-10).
 
-A merchant is created and approved by an administrator in the MVP (self-registration is a
-later Should item). Each merchant has one active API key and one signing secret.
+A merchant is either created by an administrator, or registers itself (sprint 10, FR-MER-01):
+then it carries its business details and contact email, and an administrator can approve it
+only after that email is verified. Each merchant has one active API key and one signing secret.
 """
 import hashlib
 
@@ -32,6 +33,12 @@ class Merchant(models.Model):
     webhook_url_approved = models.BooleanField(default=False)  # FR-ADM-13
     # Per-merchant ceiling set by an administrator (FR-ADM-07); null = only the global limit.
     max_amount_cents = models.PositiveIntegerField(null=True, blank=True)
+    # Self-registration (D7). Blank for merchants an administrator created.
+    registration_number = models.CharField(max_length=10, blank=True)  # Singapore UEN
+    website = models.URLField(max_length=300, blank=True)
+    contact_name = models.CharField(max_length=120, blank=True)
+    contact_email = models.EmailField(max_length=254, blank=True)
+    email_verified_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -40,6 +47,12 @@ class Merchant(models.Model):
             models.CheckConstraint(
                 condition=Q(status__in=["pending", "active", "rejected", "suspended"]),
                 name="merchant_status_valid",
+            ),
+            # "This business is already registered" (UC-16); a rejected one may apply again.
+            models.UniqueConstraint(
+                fields=["registration_number"],
+                condition=~Q(registration_number="") & ~Q(status="rejected"),
+                name="merchant_uen_unique",
             ),
         ]
 
@@ -54,6 +67,10 @@ class Merchant(models.Model):
     @property
     def is_active_merchant(self) -> bool:
         return self.status == self.Status.ACTIVE
+
+    @property
+    def self_registered(self) -> bool:
+        return bool(self.contact_email)
 
     @property
     def signing_secret(self) -> str:

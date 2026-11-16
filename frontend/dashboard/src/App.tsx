@@ -7,7 +7,10 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { ApiError } from "./api/client";
 import { RequireStaff, RoleGate } from "./auth";
 import Layout from "./components/Layout";
-import { AuditLog, CaseDetail, Merchants, PaymentDetail, PaymentsList, ReviewQueue, SignIn, Totp } from "./routes";
+import {
+  ApiKeys, AuditLog, CaseDetail, ForgotPassword, Merchants, PaymentDetail, PaymentsList, Register, ResetPassword,
+  ReviewQueue, SignIn, Totp, VerifyEmail,
+} from "./routes";
 import { theme } from "./theme";
 
 function makeQueryClient(): QueryClient {
@@ -41,6 +44,10 @@ export default function App() {
           <Routes>
             <Route path="/login" element={<SignIn />} />
             <Route path="/login/totp" element={<Totp />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/register/verify" element={<VerifyEmail />} />
             <Route element={<RequireStaff><Layout /></RequireStaff>}>
               <Route path="/payments" element={<PaymentsList />} />
               <Route path="/payments/:paymentId" element={<PaymentDetail />} />
@@ -48,6 +55,7 @@ export default function App() {
               <Route path="/reviews" element={<RoleGate page="reviews"><ReviewQueue /></RoleGate>} />
               <Route path="/reviews/:caseId" element={<RoleGate page="reviews"><CaseDetail /></RoleGate>} />
               <Route path="/merchants" element={<RoleGate page="merchants"><Merchants /></RoleGate>} />
+              <Route path="/api-keys" element={<RoleGate page="keys"><ApiKeys /></RoleGate>} />
               <Route path="/audit" element={<RoleGate page="audit"><AuditLog /></RoleGate>} />
             </Route>
             <Route path="*" element={<Navigate to="/payments" replace />} />

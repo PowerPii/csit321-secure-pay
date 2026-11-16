@@ -38,7 +38,8 @@ def staff_to_dict(account: StaffAccount) -> dict:
         "name": account.display_name,
         "role": account.role,
         "role_label": account.get_role_display(),
-        "merchant": ({"id": merchant.public_id, "name": merchant.name}
+        "merchant": ({"id": merchant.public_id, "name": merchant.name,
+                      "status": merchant.status}
                      if merchant else None),
     }
 

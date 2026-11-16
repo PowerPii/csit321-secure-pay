@@ -58,7 +58,7 @@ export interface Staff {
   name: string;
   role: Role;
   role_label: string;
-  merchant: { id: string; name: string } | null;
+  merchant: { id: string; name: string; status?: Merchant["status"] } | null;
 }
 
 export interface Card { brand: string; last4: string }
@@ -251,6 +251,27 @@ export interface Merchant {
   max_amount_cents: number | null;
   api_key: { id: string; hint: string; last_used_at: string | null } | null;
   created_at: string;
+  credentials?: { api_key: string; signing_secret: string };
+  self_registered?: boolean;
+  registration?: {
+    registration_number: string;
+    website: string;
+    contact_name: string;
+    contact_email: string;
+    email_verified_at: string | null;
+  } | null;
+}
+
+/** The signed-in operator's own merchant (D8). */
+export interface OwnMerchant {
+  id: string;
+  name: string;
+  status: Merchant["status"];
+  registration_number: string | null;
+  webhook_url: string | null;
+  webhook_url_approved: boolean;
+  api_key: { id: string; hint: string; created_at: string; last_used_at: string | null } | null;
+  can_generate_key: boolean;
   credentials?: { api_key: string; signing_secret: string };
 }
 

@@ -81,6 +81,8 @@ Lost answers (demo story S4): pay with 4000 0000 0000 0119 (the bank approves bu
 
 Receipts and guest status (sprint 8): every authorised payment gets an emailed receipt (Mailpit) with its reference and a link to https://gateway.localhost/guest/status?ref=SP-.... The link only fills in the reference: the guest also enters the email they paid with, receives a 6-digit code, and then sees that one payment, read-only, for 15 minutes. The reply is the same whether or not the details match, and three wrong codes lock the check for 15 minutes.
 
+Accounts (sprint 10): "Forgot your password?" on the dashboard sign-in page emails a reset link (Mailpit) that works once, for 30 minutes; staff confirm the new password with their authenticator code, and every session of the account ends. New merchants register at https://gateway.localhost/dashboard/register (business name, UEN, website, contact, password), verify their email from the link, and wait for an administrator, who is emailed and approves them on the Merchants page. The operator then signs in, generates the API key and webhook signing secret on the API keys page (shown once), and submits a webhook address for the administrator to approve.
+
 Fault controls (sprint 8, SIMULATOR-CONTRACT.md section 8): with `SIM_TEST_CONTROLS=1` (the Compose default; set it to 0 in a demo where nobody should inject faults) the simulator accepts fault rules at `https://simulator.localhost/sim/faults` with the test-control key in `deploy/secrets/simulator_test_control_key`, which the gateway never holds. For example, lose the reply to the next capture and also send two signed notifications 12 seconds later:
 
 ```bash
