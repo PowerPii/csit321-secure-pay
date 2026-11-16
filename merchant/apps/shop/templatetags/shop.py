@@ -123,7 +123,8 @@ def product_art(product, size: str = "card"):
     return format_html(
         '<svg class="art art-{}" viewBox="0 0 400 300" role="img" aria-label="{}">'
         '<rect width="400" height="300" fill="{}"/>{}</svg>',
-        size, product.name, LIGHT, mark_safe(body))  # our own constant markup
+        size, product.name, LIGHT,
+        mark_safe(body))  # nosec B308 B703 - our own constant SVG, no user input
 
 
 @register.filter
