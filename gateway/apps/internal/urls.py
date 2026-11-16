@@ -1,7 +1,7 @@
 """Staff API for frontend/dashboard. Session auth + TOTP; every view scopes by role and merchant."""
 from django.urls import path
 
-from apps.internal.views import accounts, admin, auth, merchant, payments, reviews
+from apps.internal.views import accounts, admin, auth, fraud, merchant, payments, reviews
 from apps.reconciliation.views import SimulatorNotificationView
 
 urlpatterns = [
@@ -34,6 +34,13 @@ urlpatterns = [
          name="staff-operation-recheck"),
     path("reviews", reviews.ReviewListView.as_view(), name="review-list"),
     path("reviews/<str:case_id>", reviews.ReviewDetailView.as_view(), name="review-detail"),
+    path("alerts", fraud.AlertListView.as_view(), name="fraud-alerts"),
+    path("alerts/unread", fraud.AlertUnreadView.as_view(), name="fraud-alerts-unread"),
+    path("alerts/read-all", fraud.AlertReadAllView.as_view(), name="fraud-alerts-read-all"),
+    path("alerts/<str:alert_id>/read", fraud.AlertReadView.as_view(), name="fraud-alert-read"),
+    path("reports/fraud", fraud.FraudReportView.as_view(), name="fraud-report"),
+    path("reports/fraud/export", fraud.FraudReportExportView.as_view(),
+         name="fraud-report-export"),
     path("merchants", admin.MerchantListView.as_view(), name="merchant-admin"),
     path("merchants/<str:merchant_id>/approve", admin.MerchantApproveView.as_view(),
          name="merchant-approve"),

@@ -28,6 +28,7 @@ from apps.payments import processor
 from apps.payments.models import Operation, OutcomeReason, Payment
 from apps.payments.processing import apply_authorise_answer
 from apps.payments.states import PaymentStatus, check_transition
+from apps.risk.alerts import raise_fraud_alert
 from apps.risk.models import ScreeningOutcome
 from apps.risk.screening import screen_payment
 from apps.vault import service as vault
@@ -250,6 +251,7 @@ def _screen_and_act(payment: Payment, request_id: str, ip: str | None):
     payment.submitted_at = timezone.now()
     screening = screen_payment(payment, ip=ip)
     payment.screening_decision = screening.outcome.value
+    raise_fraud_alert(screening.event)  # Block or Verify only (FR-FRD-08)
     details = _screening_details(screening)
     if screening.outcome == ScreeningOutcome.ALLOW:
         card = vault.take(payment.card_token)  # deleted from the vault from here on

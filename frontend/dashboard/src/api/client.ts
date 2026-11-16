@@ -289,3 +289,32 @@ export interface AuditRow {
   request_id: string | null;
   details: Record<string, unknown>;
 }
+
+/** FR-FRD-08: one alert per flagged payment; read state is per staff member. */
+export interface AlertRow {
+  id: string;
+  created_at: string;
+  read: boolean;
+  case: CaseRow;
+}
+
+export interface AlertList extends Page<AlertRow> {
+  unread: number;
+}
+
+/** FR-FRD-10: counts for a period, by decision, risk level, finding and reason, with a trend. */
+export interface FraudReport {
+  generated_at: string;
+  period: { from: string; to: string; interval: "day" | "week"; time_zone: string };
+  merchant: MerchantRef | null;
+  merchants: MerchantRef[];
+  totals: {
+    screened: number; allowed: number; flagged: number; blocked: number; verify: number; not_screened: number;
+    flagged_amount: number; blocked_amount: number; flag_rate: number;
+  };
+  decisions: { blocked: number; verify_failed: number; verify_passed: number; verify_pending: number };
+  risk_levels: { level: string; label: string; count: number }[];
+  findings: { confirmed_fraud: number; false_positive: number; inconclusive: number; unreviewed: number };
+  top_reasons: { reason: string; count: number }[];
+  trend: { start: string; screened: number; flagged: number; blocked: number; confirmed_fraud: number }[];
+}

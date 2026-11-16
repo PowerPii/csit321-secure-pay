@@ -52,6 +52,8 @@ export function RequireStaff({ children }: { children: ReactNode }) {
 export const CAN: Record<string, Role[]> = {
   payments: ["merchant_operator", "fraud_analyst", "administrator"],
   reviews: ["fraud_analyst", "administrator"],
+  alerts: ["fraud_analyst", "administrator"],
+  reports: ["fraud_analyst", "administrator"],
   merchants: ["administrator"],
   audit: ["administrator"],
   keys: ["merchant_operator"],
