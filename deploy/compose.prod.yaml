@@ -1,0 +1,268 @@
+# Public server stack (sprint 9). One VM, same services and trust boundaries as compose.yaml,
+# with production settings. Full steps: deploy/RUNBOOK.md.
+#
+#   docker compose -f deploy/compose.prod.yaml up -d --build
+#
+# Needs deploy/.env (copy prod.env.example) and deploy/secrets/* (deploy/make-secrets.sh).
+# Differences from compose.yaml (local): DJANGO_DEBUG=0 and the Django admin off; real
+# sslip.io names with Let's Encrypt certificates; the simulator has no public name (Caddy
+# serves it on port 8443, which is not published); webhooks go to the shop's public address,
+# so the gateway's private-address block stays fully on; Mailpit behind basic auth; the
+# checkout and dashboard bundles are built into the Caddy image; log files are capped.
+
+x-logging: &logging
+  driver: json-file
+  options: { max-size: "10m", max-file: "5" }
+
+x-django: &django
+  restart: unless-stopped
+  logging: *logging
+  depends_on:
+    db:
+      condition: service_healthy
+  environment: &django-env
+    DJANGO_DEBUG: "0"
+    DJANGO_ADMIN: "0"
+    POSTGRES_HOST: db
+    SECRETS_DIR: /run/secrets
+
+x-internal-ca: &internal-ca /caddy-ca/root.crt
+
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets: [postgres_password, gateway_db_password, vault_db_password, simulator_db_password, merchant_db_password]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    networks: [data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      retries: 10
+
+  gateway:
+    <<: *django
+    build: ../gateway
+    environment:
+      <<: *django-env
+      POSTGRES_DB: gateway
+      POSTGRES_USER: gateway
+      DJANGO_ALLOWED_HOSTS: gateway.${DOMAIN:?set DOMAIN in deploy/.env},gateway.securepay.internal,gateway
+      CHECKOUT_BASE_URL: https://gateway.${DOMAIN}/pay
+      GUEST_STATUS_URL: https://gateway.${DOMAIN}/guest/status
+      SIMULATOR_URL: https://simulator.securepay.internal:8443
+      SIMULATOR_CA_BUNDLE: *internal-ca
+      TRUSTED_PROXY_HOPS: "1"
+      EMAIL_HOST: mailpit
+      EMAIL_PORT: "1025"
+      DEFAULT_FROM_EMAIL: SecurePay <no-reply@gateway.${DOMAIN}>
+      RISK_MODEL_VERSION: ${RISK_MODEL_VERSION:-}
+      RISK_MODEL_SHA256: ${RISK_MODEL_SHA256:-}
+    command: ["sh", "-c", "python manage.py migrate --noinput && python manage.py migrate --database=vault --noinput && python manage.py seed_risk_lists && exec gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 30"]
+    volumes:
+      - caddy_ca:/caddy-ca:ro
+      - ../gateway/apps/risk/model_artifacts:/app/apps/risk/model_artifacts:ro
+    secrets:
+      - source: gateway_django_secret_key
+        target: django_secret_key
+      - source: gateway_db_password
+        target: db_password
+      - vault_db_password
+      - vault_encryption_key
+      - card_fingerprint_key
+      - field_encryption_key
+      - simulator_api_key
+      - simulator_signing_secret
+    networks: [data, gateway]
+
+  gateway-worker:
+    <<: *django
+    build: ../gateway
+    command: ["python", "manage.py", "run_worker"]
+    environment:
+      <<: *django-env
+      POSTGRES_DB: gateway
+      POSTGRES_USER: gateway
+      SIMULATOR_URL: https://simulator.securepay.internal:8443
+      SIMULATOR_CA_BUNDLE: *internal-ca
+      # Webhooks: public addresses only, public certificates (system trust store). No
+      # WEBHOOK_ALLOWED_PRIVATE_HOSTS: the shop is reached at its public name like any merchant.
+      EMAIL_HOST: mailpit
+      EMAIL_PORT: "1025"
+      DEFAULT_FROM_EMAIL: SecurePay <no-reply@gateway.${DOMAIN}>
+      GUEST_STATUS_URL: https://gateway.${DOMAIN}/guest/status
+    volumes:
+      - caddy_ca:/caddy-ca:ro
+    secrets:
+      - source: gateway_django_secret_key
+        target: django_secret_key
+      - source: gateway_db_password
+        target: db_password
+      - field_encryption_key
+      - vault_db_password
+      - vault_encryption_key
+      - card_fingerprint_key
+      - simulator_api_key
+      - simulator_signing_secret
+    # egress: outbound HTTPS to merchants' webhook URLs.
+    networks: [data, gateway, egress]
+
+  simulator:
+    <<: *django
+    build: ../simulator
+    environment:
+      <<: *django-env
+      POSTGRES_DB: simulator
+      POSTGRES_USER: simulator
+      DJANGO_ALLOWED_HOSTS: simulator.securepay.internal,simulator
+      # Fault controls stay on for the S4 demo (Fifa, 14 Nov 2026). Only reachable inside the
+      # server, and only with simulator_test_control_key. SIM_TEST_CONTROLS=0 in .env turns them off.
+      SIM_TEST_CONTROLS: ${SIM_TEST_CONTROLS:-1}
+      SIM_GATEWAY_NOTIFY_URL: https://gateway.securepay.internal:8443/internal/simulator/notifications
+      SIM_GATEWAY_CA_BUNDLE: *internal-ca
+    command: ["sh", "-c", "python manage.py migrate --noinput && exec gunicorn config.wsgi:application --bind 0.0.0.0:8001 --workers 4 --timeout 30"]
+    volumes:
+      - caddy_ca:/caddy-ca:ro
+    secrets:
+      - source: simulator_django_secret_key
+        target: django_secret_key
+      - source: simulator_db_password
+        target: db_password
+      - simulator_api_key
+      - simulator_signing_secret
+      - simulator_test_control_key
+    networks: [data, simulator]
+
+  merchant:
+    <<: *django
+    build: ../merchant
+    environment:
+      <<: *django-env
+      POSTGRES_DB: merchant
+      POSTGRES_USER: merchant
+      DJANGO_ALLOWED_HOSTS: shop.${DOMAIN},merchant
+      # The shop calls the gateway's public name; inside the server Docker resolves it to
+      # Caddy, which shows the real Let's Encrypt certificate (system trust store).
+      SECUREPAY_API_URL: https://gateway.${DOMAIN}
+      SHOP_BASE_URL: https://shop.${DOMAIN}
+    secrets:
+      - source: merchant_django_secret_key
+        target: django_secret_key
+      - source: merchant_db_password
+        target: db_password
+      - securepay_api_key
+      - securepay_signing_secret
+    command: ["sh", "-c", "python manage.py migrate --noinput && exec gunicorn config.wsgi:application --bind 0.0.0.0:8002 --workers 3 --timeout 30"]
+    networks: [data, merchant]
+
+  caddy:
+    build:
+      context: ..
+      dockerfile: deploy/caddy/Dockerfile
+    restart: unless-stopped
+    logging: *logging
+    ports: ["80:80", "443:443", "443:443/udp"]
+    environment:
+      DOMAIN: ${DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in deploy/.env}
+      MAIL_USER: ${MAIL_USER:-team}
+      MAIL_PASSWORD_HASH: ${MAIL_PASSWORD_HASH:?run deploy/make-secrets.sh}
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+      - caddy_ca:/ca
+    # Publish only the public root of Caddy's internal CA (for the two :8443 sites) to the
+    # apps; the CA's private key never leaves caddy_data.
+    command:
+      - sh
+      - -c
+      - |
+        caddy run --config /etc/caddy/Caddyfile --adapter caddyfile &
+        pid=$$!
+        trap 'kill -TERM $$pid' TERM INT
+        root=/data/caddy/pki/authorities/local/root.crt
+        until [ -s "$$root" ]; do sleep 1; done
+        install -m 0644 "$$root" /ca/root.crt
+        wait $$pid
+        wait $$pid
+    networks:
+      edge: {}
+      gateway:
+        aliases: [simulator.securepay.internal]
+      simulator:
+        aliases: [gateway.securepay.internal]
+      merchant:
+        aliases: ["gateway.${DOMAIN}"]
+
+  mailpit:
+    image: axllent/mailpit
+    restart: unless-stopped
+    logging: *logging
+    networks: [gateway]
+
+  # tests/integration against this server, from inside it (the simulator's test controls
+  # and the demo inbox are private). Never starts with `up`; run it on demand:
+  #   docker compose -f deploy/compose.prod.yaml run --rm integration-tests
+  # The tests make payments, so run them on a fresh stack or accept the extra test orders.
+  integration-tests:
+    image: python:3.12-slim
+    profiles: [tests]
+    working_dir: /repo
+    environment:
+      GATEWAY_URL: https://gateway.${DOMAIN}
+      MERCHANT_URL: https://shop.${DOMAIN}
+      SIMULATOR_URL: https://simulator.securepay.internal:8443
+      MAILPIT_URL: http://mailpit:8025
+      CADDY_ROOT_CA: /tmp/ca.pem
+      PYTHONDONTWRITEBYTECODE: "1"
+    # Public names have Let's Encrypt certificates, the private ones Caddy's internal CA:
+    # trust both.
+    command:
+      - sh
+      - -c
+      - |
+        cat /etc/ssl/certs/ca-certificates.crt /caddy-ca/root.crt > /tmp/ca.pem
+        pip install -q --root-user-action=ignore pytest httpx
+        exec python -m pytest -p no:cacheprovider tests/integration -q "$$@"
+      - pytest
+    volumes:
+      - ..:/repo:ro
+      - caddy_ca:/caddy-ca:ro
+    networks: [gateway, egress]
+
+networks:
+  edge: {}
+  egress: {}
+  data: { internal: true }
+  gateway: { internal: true }
+  simulator: { internal: true }
+  merchant: { internal: true }
+
+volumes:
+  pgdata: {}
+  caddy_data: {}
+  caddy_config: {}
+  caddy_ca: {}
+
+secrets:
+  postgres_password: { file: ./secrets/postgres_password }
+  gateway_django_secret_key: { file: ./secrets/gateway_django_secret_key }
+  gateway_db_password: { file: ./secrets/gateway_db_password }
+  vault_db_password: { file: ./secrets/vault_db_password }
+  vault_encryption_key: { file: ./secrets/vault_encryption_key }
+  card_fingerprint_key: { file: ./secrets/card_fingerprint_key }
+  field_encryption_key: { file: ./secrets/field_encryption_key }
+  simulator_django_secret_key: { file: ./secrets/simulator_django_secret_key }
+  simulator_db_password: { file: ./secrets/simulator_db_password }
+  merchant_django_secret_key: { file: ./secrets/merchant_django_secret_key }
+  merchant_db_password: { file: ./secrets/merchant_db_password }
+  simulator_api_key: { file: ./secrets/simulator_api_key }
+  simulator_signing_secret: { file: ./secrets/simulator_signing_secret }
+  simulator_test_control_key: { file: ./secrets/simulator_test_control_key }
+  securepay_api_key: { file: ./secrets/securepay_api_key }
+  securepay_signing_secret: { file: ./secrets/securepay_signing_secret }

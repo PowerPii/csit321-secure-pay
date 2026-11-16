@@ -94,6 +94,8 @@ curl -s -X DELETE https://simulator.localhost/sim/faults -H "Authorization: Bear
 
 Automated cross-service tests for S1-S6, receipts, guest status and fault controls: `tests/integration/README.md`.
 
+Public server (one VM, sslip.io names, Let's Encrypt): [`deploy/RUNBOOK.md`](deploy/RUNBOOK.md).
+
 For day-to-day work on one service, see that service's README (venv + `runserver`).
 
 ## Rules that shape the code

@@ -38,3 +38,28 @@ def test_nested_values_and_keys_are_searched():
 def test_luhn():
     assert luhn_ok("79927398713")
     assert not luhn_ok("79927398710")
+
+
+@pytest.mark.parametrize("enabled", [True, False])
+def test_django_admin_is_routed_only_when_enabled(settings, enabled):
+    """Production runs with the admin off (deploy/compose.prod.yaml): /admin/ must not resolve."""
+    import importlib
+
+    from django.urls import Resolver404, clear_url_caches, resolve
+
+    import config.urls
+
+    original = settings.ADMIN_ENABLED
+    settings.ADMIN_ENABLED = enabled
+    try:
+        importlib.reload(config.urls)
+        clear_url_caches()
+        if enabled:
+            assert resolve("/admin/login/").app_name == "admin"
+        else:
+            with pytest.raises(Resolver404):
+                resolve("/admin/login/")
+    finally:
+        settings.ADMIN_ENABLED = original
+        importlib.reload(config.urls)
+        clear_url_caches()

@@ -2,6 +2,8 @@
 
 Compose mounts each file here at `/run/secrets/<name>`. Only the `.example` files are committed; real files are git-ignored.
 
+On the public server, run `bash deploy/make-secrets.sh` instead of the commands below: it makes fresh values for every missing file in the right formats and sets the permissions (`RUNBOOK.md` step 4). Never copy development secrets to the server.
+
 ```bash
 cd deploy/secrets
 for f in *.example; do python3 -c "import secrets; print(secrets.token_urlsafe(48))" > "${f%.example}"; done
