@@ -1,4 +1,4 @@
-"""Merchant payment endpoints: POST /v1/payments and GET /v1/payments/{id} (UC-57, UC-28)."""
+"""Merchant payment endpoints: POST /v1/payments and GET /v1/payments/{id} (UC-53, UC-27)."""
 import re
 
 from django.conf import settings
@@ -176,7 +176,7 @@ class PaymentDetailView(MerchantAPIView):
 
 
 class _SettlementView(MerchantAPIView):
-    """POST /v1/payments/{id}/capture and /cancel (UC-25, contract section 3).
+    """POST /v1/payments/{id}/capture and /cancel (UC-24, contract section 3).
 
     200 with the payment when the simulator confirmed it; 202 with `pending_operation` when
     it did not answer (reconciliation finishes it). Runs non-atomically so the operation is

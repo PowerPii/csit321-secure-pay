@@ -1,9 +1,9 @@
-"""Merchant self-registration (FR-MER-01, FR-MER-02, UC-16; wireframe D7).
+"""Merchant self-registration (FR-MER-01, FR-MER-02, UC-15; wireframe D7).
 
 1. `register()`: checks the business details, then creates a pending merchant and an inactive
    merchant operator account, and queues an email verification link (valid for
    MERCHANT_VERIFICATION_LINK_TTL_HOURS, works once). A UEN that is already registered is an
-   error, as UC-16 says. An email address that already has an account gets the same reply as
+   error, as UC-15 says. An email address that already has an account gets the same reply as
    a new one; its holder is told by email instead, so the form cannot be used to find out
    which addresses have accounts.
 2. `verify_email()`: activates the operator account (it can now sign in, but the merchant has

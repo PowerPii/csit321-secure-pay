@@ -1,8 +1,8 @@
-"""Security alerts for administrators (FR-ADM-08, UC-40; NFR-PER-03).
+"""Security alerts for administrators (FR-ADM-08, UC-39; NFR-PER-03).
 
 A security alert says that something that looks like an attack happened: an account locked
 after repeated failed sign-ins, repeated attempts to read another merchant's records
-(FR-MER-09, UC-22), and the later checks that report through the same channel. Repeats of
+(FR-MER-09, UC-21), and the later checks that report through the same channel. Repeats of
 the same event from the same source are grouped into one open alert with a count, so a
 burst does not flood the dashboard or the administrators' inboxes. Alerts are never deleted;
 an administrator resolves one with a note.
@@ -74,7 +74,7 @@ class SecurityAlert(models.Model):
 
 
 class GatewayLimits(models.Model):
-    """Limits an administrator sets from the dashboard (FR-ADM-07, FR-ADM-12; UC-37, UC-44).
+    """Limits an administrator sets from the dashboard (FR-ADM-07, FR-ADM-12; UC-36, UC-43).
 
     One row (pk=1). Empty fields fall back to GATEWAY_RULES, so a fresh database behaves as
     before. The amount limit can only lower the hard ceiling in GATEWAY_RULES

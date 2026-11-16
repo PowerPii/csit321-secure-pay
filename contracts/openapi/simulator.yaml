@@ -4,7 +4,7 @@ info:
   version: 1.0.0-draft
   summary: Internal API between the gateway and the processing simulator (fictional card processing).
   description: |
-    Implements FR-SIM-01 to FR-SIM-04 and the simulator side of UC-24, UC-25 and UC-29.
+    Implements FR-SIM-01 to FR-SIM-04 and the simulator side of UC-23, UC-24 and UC-28.
     Called only by the gateway, over HTTPS on the internal `simulator` network. The rules that
     a schema cannot express (operation identity, retiring an operation reported as "no record",
     which replies count as evidence, fault controls) are in `contracts/SIMULATOR-CONTRACT.md`.
@@ -53,7 +53,7 @@ paths:
   /sim/capture:
     post:
       operationId: capture
-      summary: Capture an open authorisation, in full or in part, once (FR-SIM-04, UC-25)
+      summary: Capture an open authorisation, in full or in part, once (FR-SIM-04, UC-24)
       description: |
         `amount` may be less than the authorised amount; the rest is released and the
         authorisation becomes `captured`. A second capture, a capture after cancel, or an amount
@@ -76,7 +76,7 @@ paths:
   /sim/cancel:
     post:
       operationId: cancel
-      summary: Cancel (void) an open authorisation (FR-SIM-04, UC-25, 7-day auto-cancel)
+      summary: Cancel (void) an open authorisation (FR-SIM-04, UC-24, 7-day auto-cancel)
       description: Releases the whole authorised amount. On an authorisation that is not open the operation is recorded as `declined`, reason `authorisation_not_open`.
       requestBody:
         required: true
@@ -95,7 +95,7 @@ paths:
   /sim/refund:
     post:
       operationId: refund
-      summary: Refund all or part of a captured authorisation (FR-SIM-04, UC-24)
+      summary: Refund all or part of a captured authorisation (FR-SIM-04, UC-23)
       description: |
         Approved while approved refunds plus this amount stay within the captured amount;
         otherwise `declined`, reason `refund_exceeds_captured`. The gateway's own reservation
@@ -119,7 +119,7 @@ paths:
   /sim/operations/{operation_id}:
     get:
       operationId: getOperation
-      summary: Status query by operation ID (FR-SIM-03, UC-29, UC-43)
+      summary: Status query by operation ID (FR-SIM-03, UC-28, UC-42)
       description: |
         Returns the record for this operation ID. If there is none, the simulator **writes** a
         `no_record` entry for the ID in the same step and returns it: the ID is retired, and the

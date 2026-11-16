@@ -31,7 +31,7 @@ function Secret({ label, value, testId }: { label: string; value: string; testId
   );
 }
 
-/** Rotate or revoke, confirmed with the current TOTP code (UC-18). */
+/** Rotate or revoke, confirmed with the current TOTP code (UC-17). */
 function KeyChange({ action, onClose, onDone }: {
   action: "rotate" | "revoke" | null;
   onClose: () => void;

@@ -160,7 +160,7 @@ class ReviewListView(StaffAPIView):
 
 
 def linked_activity(event: ScreeningEvent) -> dict:
-    """UC-49: other attempts sharing the card, email or IP within 24 h either side."""
+    """UC-48: other attempts sharing the card, email or IP within 24 h either side."""
     window = Q(occurred_at__gte=event.occurred_at - LINK_WINDOW,
                occurred_at__lte=event.occurred_at + LINK_WINDOW)
     others = ScreeningEvent.objects.exclude(pk=event.pk).filter(window)

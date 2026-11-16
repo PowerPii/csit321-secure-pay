@@ -1,4 +1,4 @@
-"""POST /v1/payments and GET /v1/payments/{id} against the contract (UC-57, UC-28)."""
+"""POST /v1/payments and GET /v1/payments/{id} against the contract (UC-53, UC-27)."""
 from datetime import timedelta
 
 import pytest

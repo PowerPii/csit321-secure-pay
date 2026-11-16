@@ -1,4 +1,4 @@
-"""Simulated verification (FR-CHK-05, FR-CHK-06, FR-CHK-21; screen C5).
+"""Simulated verification (FR-CHK-05, FR-CHK-06, FR-CHK-18; screen C5).
 
 One challenge per payment attempt. Only a keyed hash of the current code is stored; a new
 code replaces the old one. Wrong codes are counted across codes, so asking for a new code

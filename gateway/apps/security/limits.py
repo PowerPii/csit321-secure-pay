@@ -1,4 +1,4 @@
-"""Administrator-set limits (FR-ADM-07, FR-ADM-12) and rate-limit violations (UC-44).
+"""Administrator-set limits (FR-ADM-07, FR-ADM-12) and rate-limit violations (UC-43).
 
     current() -> Limits          # effective values, cached for CACHE_SECONDS per process
     record_violation(request, source, scope)

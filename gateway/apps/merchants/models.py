@@ -51,7 +51,7 @@ class Merchant(models.Model):
                                          "deactivated"]),
                 name="merchant_status_valid",
             ),
-            # "This business is already registered" (UC-16); a rejected one may apply again.
+            # "This business is already registered" (UC-15); a rejected one may apply again.
             models.UniqueConstraint(
                 fields=["registration_number"],
                 condition=~Q(registration_number="") & ~Q(status="rejected"),

@@ -73,7 +73,7 @@ def expire_authorisations():
 
 def expire_checkout_and_verification():
     """End checkout sessions past their hour: expired, or Blocked when a verification code
-    was never entered (FR-CHK-21)."""
+    was never entered (FR-CHK-18)."""
     jobs.expire_checkout_sessions()
 
 

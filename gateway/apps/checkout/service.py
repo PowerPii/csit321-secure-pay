@@ -70,7 +70,7 @@ def load(session_id: str) -> Payment:
 
 
 def expire_if_due(payment: Payment, request_id: str = "") -> Payment:
-    """End a checkout session that passed its hour (FR-CHK-19, FR-CHK-21).
+    """End a checkout session that passed its hour (FR-CHK-16, FR-CHK-18).
 
     Not submitted: payment.expired. Still waiting for a verification code: Blocked with
     verification_expired. The worker also does this on a schedule (apps.payments.jobs); doing
@@ -332,7 +332,7 @@ def _locked_challenge(payment: Payment) -> VerificationChallenge:
 
 def verify(payment: Payment, body: dict, request_id: str) -> Payment:
     """POST {code}. Right code: on to the simulator. Wrong: 400 code_incorrect, and the
-    third wrong code blocks the attempt (FR-CHK-21). Expired: 400 code_expired."""
+    third wrong code blocks the attempt (FR-CHK-18). Expired: 400 code_expired."""
     code = body.get("code")
     if set(body) - {"code"}:
         raise invalid("invalid_field", "Only 'code' may be sent.")
@@ -407,7 +407,7 @@ def resend(payment: Payment, request_id: str) -> Payment:
 
 
 def _end_verification_if_due(payment: Payment, request_id: str = "") -> Payment:
-    """The checkout session ended before a correct code: Blocked (FR-CHK-21).
+    """The checkout session ended before a correct code: Blocked (FR-CHK-18).
 
     Caller holds the payment lock."""
     if payment.status == PaymentStatus.VERIFICATION_REQUIRED and \

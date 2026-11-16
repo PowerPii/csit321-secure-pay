@@ -1,4 +1,4 @@
-"""Data encryption keys and their rotation (FR-ADM-14, NFR-ENC-03; UC-46).
+"""Data encryption keys and their rotation (FR-ADM-14, NFR-ENC-03; UC-45).
 
     encrypt(purpose, plaintext, aad) -> str     with the purpose's active key
     decrypt(purpose, stored, aad)    -> bytes   with whichever key the value names

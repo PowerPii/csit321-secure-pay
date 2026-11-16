@@ -1,4 +1,4 @@
-"""Refunds with reservations (UC-24, FR-TXN-01 to FR-TXN-03, demo story S6)."""
+"""Refunds with reservations (UC-23, FR-TXN-01 to FR-TXN-03, demo story S6)."""
 import threading
 import uuid
 

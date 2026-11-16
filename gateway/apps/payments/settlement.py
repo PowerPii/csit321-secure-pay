@@ -1,4 +1,4 @@
-"""Capture and cancel of an authorised payment (API-CONTRACT.md section 3, UC-25, FR-TXN-04/05).
+"""Capture and cancel of an authorised payment (API-CONTRACT.md section 3, UC-24, FR-TXN-04/05).
 
 Three steps, each with its own transaction, so the operation row is committed before the
 simulator is called (SIMULATOR-CONTRACT.md section 3):

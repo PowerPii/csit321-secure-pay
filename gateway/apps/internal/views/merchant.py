@@ -5,7 +5,7 @@ address.
 * POST /internal/merchant/api-key: once the merchant is approved and has no active key, issue
   one with a fresh signing secret, shown once (FR-MER-03).
 * POST /internal/merchant/api-key/rotate {code}: after the TOTP code is confirmed, revoke the
-  active key and issue a new key and signing secret, shown once (FR-MER-04, UC-18). The old
+  active key and issue a new key and signing secret, shown once (FR-MER-04, UC-17). The old
   key is refused from that moment.
 * POST /internal/merchant/api-key/revoke {code, confirm_last_key}: after the TOTP code is
   confirmed, revoke the active key. Revoking the only active key stops payments until a new

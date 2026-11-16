@@ -66,7 +66,7 @@ class Payment(models.Model):
     # [{name, quantity, unit_amount}] as the merchant sent them; they add up to `amount`.
     line_items = models.JSONField(null=True, blank=True)
 
-    # Hosted checkout session (FR-CHK-19): the ID is the only thing in the checkout URL.
+    # Hosted checkout session (FR-CHK-16): the ID is the only thing in the checkout URL.
     checkout_session_id = models.CharField(max_length=32, unique=True, editable=False)
     checkout_expires_at = models.DateTimeField()
 
@@ -171,7 +171,7 @@ class Payment(models.Model):
 
 
 class Operation(models.Model):
-    """One call to the processing simulator with a gateway-generated ID (FR-SIM-03, UC-29).
+    """One call to the processing simulator with a gateway-generated ID (FR-SIM-03, UC-28).
 
     The row is committed before the simulator is called. If the answer is lost, the payment
     or refund is Unresolved and reconciliation asks the simulator about this same ID, so the
@@ -209,7 +209,7 @@ class Operation(models.Model):
     # For cancel: why (merchant_cancelled, or authorisation_expired for the 7-day job).
     reason = models.CharField(max_length=32, blank=True)
     # Reconciliation (SIMULATOR-CONTRACT.md section 7, S2): status checks done so far, when
-    # the next one is due, and when the operation was handed to administrators (UC-43).
+    # the next one is due, and when the operation was handed to administrators (UC-42).
     reconciliation_checks = models.PositiveSmallIntegerField(default=0)
     last_checked_at = models.DateTimeField(null=True, blank=True)
     next_check_at = models.DateTimeField(null=True, blank=True)

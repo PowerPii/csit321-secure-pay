@@ -1,4 +1,4 @@
-"""Cross-merchant access attempts (FR-MER-09, UC-22).
+"""Cross-merchant access attempts (FR-MER-09, UC-21).
 
 A merchant (by API key) or a merchant operator (in the dashboard) who asks for a payment or
 refund that belongs to another merchant gets "not found", exactly as if it did not exist

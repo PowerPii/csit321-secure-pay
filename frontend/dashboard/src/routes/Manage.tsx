@@ -1,5 +1,5 @@
 // Administrator account management and limits (FR-ADM-02 to FR-ADM-05, FR-ADM-07, FR-ADM-12;
-// UC-34, UC-35, UC-37, UC-44). No wireframe: reuses the Merchants table and dialogs.
+// UC-33, UC-34, UC-36, UC-43). No wireframe: reuses the Merchants table and dialogs.
 import {
   Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, MenuItem, Paper, Stack, Table,
   TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography,
@@ -18,7 +18,7 @@ export const REASONS = [
 export type StatusAction = "suspend" | "deactivate" | "reinstate";
 const ACTION_LABEL: Record<StatusAction, string> = { suspend: "Suspend", deactivate: "Deactivate", reinstate: "Reinstate" };
 
-/** Suspend, deactivate or reinstate a staff account or a merchant: reason, then confirm (UC-34). */
+/** Suspend, deactivate or reinstate a staff account or a merchant: reason, then confirm (UC-33). */
 export function StatusDialog({ target, onClose, onDone }: {
   target: { kind: "staff" | "merchant"; id: string; name: string; action: StatusAction } | null;
   onClose: () => void;

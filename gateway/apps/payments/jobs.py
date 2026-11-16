@@ -47,7 +47,7 @@ def _start_expiry(payment_id: str, actor):
 
 def expire_checkout_sessions(limit: int | None = None) -> int:
     """Checkout sessions past their hour: payment.expired if never submitted, Blocked
-    (verification_expired) if still waiting for a verification code (FR-CHK-21)."""
+    (verification_expired) if still waiting for a verification code (FR-CHK-18)."""
     from apps.checkout.service import expire_if_due
 
     due = (Payment.objects.filter(status__in=[PaymentStatus.CREATED,

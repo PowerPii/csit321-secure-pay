@@ -25,7 +25,7 @@ paths:
     post:
       tags: [Payments]
       operationId: createPayment
-      summary: Create a payment and get a hosted checkout address (UC-57, FR-MER-11)
+      summary: Create a payment and get a hosted checkout address (UC-53, FR-MER-11)
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
@@ -65,7 +65,7 @@ paths:
     get:
       tags: [Payments]
       operationId: getPayment
-      summary: Status query with a signed reply (UC-28, FR-TXN-10)
+      summary: Status query with a signed reply (UC-27, FR-TXN-10)
       description: |
         Use this before fulfilling an order instead of trusting the browser redirect.
         `unresolved` means "do not ship yet": wait for a webhook or ask again.
@@ -87,7 +87,7 @@ paths:
     post:
       tags: [Payments]
       operationId: capturePayment
-      summary: Capture all or part of the authorised amount (UC-25, FR-TXN-04)
+      summary: Capture all or part of the authorised amount (UC-24, FR-TXN-04)
       description: |
         Only from `authorised`, and only once. Send `{}` to capture the full amount, or
         `{"amount": n}` with 1 <= n <= amount to capture less; the rest of the authorisation
@@ -133,7 +133,7 @@ paths:
     post:
       tags: [Payments]
       operationId: cancelPayment
-      summary: Void an authorised payment (UC-25, FR-TXN-04, FR-TXN-05)
+      summary: Void an authorised payment (UC-24, FR-TXN-04, FR-TXN-05)
       description: Only from `authorised`. A captured payment answers 409 `payment_already_captured`; refund it instead.
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -171,7 +171,7 @@ paths:
     post:
       tags: [Refunds]
       operationId: createRefund
-      summary: Refund all or part of a captured payment (UC-24, FR-TXN-01 to FR-TXN-03)
+      summary: Refund all or part of a captured payment (UC-23, FR-TXN-01 to FR-TXN-03)
       description: |
         The gateway locks the payment row, checks that completed + reserved refunds + this
         amount stay within the captured amount, reserves the amount, then calls the simulator.
@@ -207,7 +207,7 @@ paths:
     get:
       tags: [Refunds]
       operationId: listRefunds
-      summary: List a payment's refunds, oldest first (UC-59)
+      summary: List a payment's refunds, oldest first (UC-55)
       responses:
         '200':
           description: All refunds of the payment (at most a few, so no pagination).
@@ -255,7 +255,7 @@ paths:
 webhooks:
   paymentOrRefundEvent:
     post:
-      summary: Status change notification sent to the merchant's approved HTTPS address (UC-26, FR-TXN-06 to FR-TXN-08)
+      summary: Status change notification sent to the merchant's approved HTTPS address (UC-25, FR-TXN-06 to FR-TXN-08)
       description: |
         Sent by the gateway worker from the outbox. Verify `SecurePay-Signature` over the raw
         body, reject timestamps older than 5 minutes, deduplicate on the event `id`, ignore an

@@ -1,4 +1,4 @@
-"""Fraud rules (FR-FRD-02, FR-FRD-03; UC-38). Analysts and administrators read them;
+"""Fraud rules (FR-FRD-02, FR-FRD-03; UC-37). Analysts and administrators read them;
 administrators change them.
 
 * GET  rules : the current rule set (enabled and switched-off rules), its version, whether an

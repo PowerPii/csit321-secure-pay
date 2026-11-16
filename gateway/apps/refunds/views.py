@@ -1,4 +1,4 @@
-"""Merchant refund endpoints (API-CONTRACT.md section 3, UC-24, UC-59, FR-TXN-14)."""
+"""Merchant refund endpoints (API-CONTRACT.md section 3, UC-23, UC-55, FR-TXN-14)."""
 from rest_framework import status
 from rest_framework.response import Response
 

@@ -1,4 +1,4 @@
-// Fraud alerts (FR-FRD-08, UC-51) and fraud reports (FR-FRD-10, UC-53). Both are Could
+// Fraud alerts (FR-FRD-08, UC-50) and fraud reports (FR-FRD-10, UC-52). Both are Could
 // requirements without their own wireframe: they reuse the D6 list and tile layouts.
 // Analysts and administrators only.
 import {

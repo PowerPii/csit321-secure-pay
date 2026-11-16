@@ -1,4 +1,4 @@
-"""Capture and cancel (contract section 3, UC-25) and the 7-day auto-cancel (FR-TXN-05)."""
+"""Capture and cancel (contract section 3, UC-24) and the 7-day auto-cancel (FR-TXN-05)."""
 import uuid
 from datetime import timedelta
 

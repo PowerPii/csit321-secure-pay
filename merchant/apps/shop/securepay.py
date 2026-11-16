@@ -83,7 +83,7 @@ def get_payment(payment_id: str) -> Reply:
 
 
 def capture_payment(payment_id: str, *, idempotency_key: str, amount: int | None = None) -> Reply:
-    """Capture all (amount None) or part of an authorised payment, once (UC-25)."""
+    """Capture all (amount None) or part of an authorised payment, once (UC-24)."""
     body = {} if amount is None else {"amount": amount}
     return _request("POST", f"/v1/payments/{payment_id}/capture", json=body,
                     headers={"Idempotency-Key": idempotency_key})
@@ -97,7 +97,7 @@ def cancel_payment(payment_id: str, *, idempotency_key: str) -> Reply:
 
 def refund_payment(payment_id: str, *, idempotency_key: str, amount: int,
                    reason: str = "") -> Reply:
-    """Refund all or part of a captured payment (UC-24). A new key per refund; reuse it only
+    """Refund all or part of a captured payment (UC-23). A new key per refund; reuse it only
     to retry the same refund."""
     body = {"amount": amount}
     if reason:

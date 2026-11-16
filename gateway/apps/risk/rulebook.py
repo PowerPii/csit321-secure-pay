@@ -1,4 +1,4 @@
-"""Administrator-editable fraud rules (FR-FRD-02, FR-FRD-03; UC-38).
+"""Administrator-editable fraud rules (FR-FRD-02, FR-FRD-03; UC-37).
 
     current_rule_set() -> (version label, tuple[RuleSpec])   used by screening
     validate(body) -> dict                                     a rule from the dashboard
@@ -10,7 +10,7 @@ A rule is a condition on one screening feature (`feature op value`) and an actio
 to payments screened after the change; earlier screening records keep the rules_version they
 were decided with. Changing a rule adds a revision and never edits one, so every earlier
 version stays readable. While an evaluation run is in progress the rule set is frozen and
-every change is refused (UC-38).
+every change is refused (UC-37).
 
 Two rules conflict when their conditions on the same feature can both be true for one
 payment and their actions differ (the block hides the verification), or when they are the
