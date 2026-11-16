@@ -21,6 +21,13 @@ class MerchantAPIView(APIView):
     def finalize_response(self, request, response, *args, **kwargs):
         response = super().finalize_response(request, response, *args, **kwargs)
         api_key = getattr(request, "_auth", None)
+        if isinstance(api_key, ApiKey) and response.status_code == 404:
+            # FR-MER-09: another merchant's record answers 404; log the attempt behind it.
+            from apps.audit.models import AuditEvent
+            from apps.security.crossmerchant import log_if_cross_merchant
+
+            log_if_cross_merchant(request, kwargs, api_key.merchant,
+                                  AuditEvent.ActorType.MERCHANT_API, api_key.public_id)
         if isinstance(api_key, ApiKey) and response.status_code != 401:
             secret = api_key.merchant.signing_secret
 

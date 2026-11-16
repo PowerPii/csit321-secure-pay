@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     "apps.internal",
     "apps.guest",
     "apps.customers",
+    "apps.security",
 ]
 
 MIDDLEWARE = [
@@ -220,6 +221,13 @@ GATEWAY_RULES = {
     "IDLE_WARNING_MINUTES": 13,
     # FR-ACC-12: the privacy notice a customer agreed to. Raise it when the notice changes.
     "PRIVACY_NOTICE_VERSION": "2026-11-16",
+    # Security alerts (FR-ADM-08, UC-40): repeats of the same event from the same source within
+    # this many minutes are grouped into one open alert with a count, and emailed once.
+    "SECURITY_ALERT_GROUP_MINUTES": 60,
+    # FR-MER-09: this many attempts on other merchants' records by one API key or operator
+    # within the window raise a security alert. Every attempt is in the audit log anyway.
+    "CROSS_MERCHANT_ALERT_ATTEMPTS": 3,
+    "CROSS_MERCHANT_ALERT_WINDOW_MINUTES": 10,
     "STAFF_LOCKOUT_FAILURES": 5,
     "STAFF_LOCKOUT_MINUTES": 15,
     # After a correct password, the TOTP code must follow within this time.

@@ -1,7 +1,16 @@
 """Staff API for frontend/dashboard. Session auth + TOTP; every view scopes by role and merchant."""
 from django.urls import path
 
-from apps.internal.views import accounts, admin, auth, fraud, merchant, payments, reviews
+from apps.internal.views import (
+    accounts,
+    admin,
+    auth,
+    fraud,
+    merchant,
+    payments,
+    reviews,
+    security,
+)
 from apps.reconciliation.views import SimulatorNotificationView
 
 urlpatterns = [
@@ -20,6 +29,10 @@ urlpatterns = [
     path("me", auth.MeView.as_view(), name="staff-me"),
     path("merchant", merchant.OwnMerchantView.as_view(), name="own-merchant"),
     path("merchant/api-key", merchant.OwnApiKeyView.as_view(), name="own-api-key"),
+    path("merchant/api-key/rotate", merchant.OwnApiKeyRotateView.as_view(),
+         name="own-api-key-rotate"),
+    path("merchant/api-key/revoke", merchant.OwnApiKeyRevokeView.as_view(),
+         name="own-api-key-revoke"),
     path("merchant/webhook", merchant.OwnWebhookView.as_view(), name="own-webhook"),
     path("payments", payments.PaymentListView.as_view(), name="staff-payments"),
     path("payments/<str:payment_id>", payments.PaymentDetailView.as_view(),
@@ -49,6 +62,13 @@ urlpatterns = [
     path("merchants/<str:merchant_id>/webhook", admin.MerchantWebhookView.as_view(),
          name="merchant-webhook"),
     path("audit", admin.AuditListView.as_view(), name="audit-list"),
+    path("security/alerts", security.SecurityAlertListView.as_view(), name="security-alerts"),
+    path("security/alerts/open-count", security.SecurityAlertOpenCountView.as_view(),
+         name="security-alerts-open-count"),
+    path("security/alerts/<str:alert_id>", security.SecurityAlertDetailView.as_view(),
+         name="security-alert-detail"),
+    path("security/alerts/<str:alert_id>/resolve", security.SecurityAlertResolveView.as_view(),
+         name="security-alert-resolve"),
     # Signed by the simulator, not a staff call (SIMULATOR-CONTRACT.md section 9).
     path("simulator/notifications", SimulatorNotificationView.as_view(),
          name="simulator-notifications"),

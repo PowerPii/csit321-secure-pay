@@ -56,6 +56,7 @@ export const CAN: Record<string, Role[]> = {
   reports: ["fraud_analyst", "administrator"],
   merchants: ["administrator"],
   audit: ["administrator"],
+  security: ["administrator"],
   keys: ["merchant_operator"],
 };
 
