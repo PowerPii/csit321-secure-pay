@@ -1,0 +1,37 @@
+{% extends "shop/base.html" %}{% load shop %}
+{% block title %}Cart · Volt &amp; Co.{% endblock %}
+{% block body %}
+<main class="wrap">
+  <h1>Your cart</h1>
+  {% if lines %}
+  <div class="layout">
+    <section>
+      {% for line in lines %}
+      <div class="cartline">
+        <a href="{% url 'shop-product' line.product.sku %}" tabindex="-1">{% product_art line.product "thumb" %}</a>
+        <div>
+          <a class="name" href="{% url 'shop-product' line.product.sku %}">{{ line.product.name }}</a>
+          <div class="muted small">{{ line.product.price_cents|money }} × {{ line.quantity }}</div>
+          <form class="inline" method="post" action="{% url 'shop-cart-remove' %}">{% csrf_token %}<input type="hidden" name="sku" value="{{ line.product.sku }}"><button class="linkbtn" type="submit" aria-label="Remove {{ line.product.name }}">Remove</button></form>
+        </div>
+        <strong>{{ line.total_cents|money }}</strong>
+      </div>
+      {% endfor %}
+      <p class="small" style="margin-top:16px"><a href="{% url 'shop-home' %}">← Keep shopping</a></p>
+    </section>
+    <aside class="side">
+      <h2>Summary</h2>
+      <div class="row small"><span class="muted">Subtotal</span><span>{{ subtotal_cents|money }}</span></div>
+      <div class="row small"><span class="muted">Delivery</span><span>{% if shipping_cents %}{{ shipping_cents|money }}{% else %}Free{% endif %}</span></div>
+      <div class="row total"><span>Total</span><strong>{{ total_cents|money }}</strong></div>
+      <p class="muted tiny">Includes GST of {{ total_cents|gst_included|money }}.</p>
+      {% if free_shipping_gap_cents %}<p class="small">Add {{ free_shipping_gap_cents|money }} more for free delivery.</p>{% endif %}
+      <a class="btn primary block" href="{% url 'shop-checkout' %}">Checkout</a>
+    </aside>
+  </div>
+  {% else %}
+  <p class="muted">Your cart is empty.</p>
+  <a class="btn primary" href="{% url 'shop-home' %}">Start shopping</a>
+  {% endif %}
+</main>
+{% endblock %}

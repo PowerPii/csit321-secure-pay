@@ -69,3 +69,39 @@ def test_rate_limit_is_per_key(shop, other_shop, settings):
     assert limited.json()["error"]["code"] == "rate_limited"
     assert int(limited["Retry-After"]) >= 1
     assert other_shop.get(url).status_code == 404  # other keys are not affected
+
+
+# --- demo_check (demo-day polish) -----------------------------------------------------------
+
+def test_demo_check_renames_with_an_audit_event_and_reports(make_merchant, settings):
+    from io import StringIO
+
+    from django.core.management import call_command
+
+    from apps.audit.models import AuditEvent
+
+    settings.RISK_MODEL_VERSION = ""
+    shop = make_merchant(webhook_url="https://shop.example/webhooks/securepay",
+                         webhook_url_approved=True).merchant
+    out = StringIO()
+    call_command("demo_check", merchant=shop.public_id, rename="Volt & Co.", stdout=out)
+    shop.refresh_from_db()
+    assert shop.name == "Volt & Co."
+    event = AuditEvent.objects.get(action="merchant.renamed")
+    assert event.details == {"from": "Demo Shop", "to": "Volt & Co."}
+    text = out.getvalue()
+    assert "PASS  Merchant 'Volt & Co.' is active" in text and "0 failed" in text
+
+
+def test_demo_check_fails_without_webhook(make_merchant, settings):
+    from io import StringIO
+
+    import pytest
+    from django.core.management import call_command
+
+    settings.RISK_MODEL_VERSION = ""
+    shop = make_merchant().merchant
+    out = StringIO()
+    with pytest.raises(SystemExit):
+        call_command("demo_check", merchant=shop.public_id, stdout=out)
+    assert "FAIL  Webhook URL missing" in out.getvalue()

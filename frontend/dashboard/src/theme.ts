@@ -1,18 +1,20 @@
-// Greyscale theme after the Figma wireframes (Staff dashboard page): near-black primary
-// buttons, light grey canvas, white cards with a hairline border, pill badges.
+// Layout after the Figma wireframes (Staff dashboard page), coloured with the SecurePay brand
+// of the marketing site: navy primary, saffron signal colour, warm paper canvas.
 import { createTheme } from "@mui/material";
 
 export const theme = createTheme({
   palette: {
     mode: "light",
-    primary: { main: "#333333", contrastText: "#ffffff" },
-    secondary: { main: "#6b6b6b" },
-    background: { default: "#f4f4f4", paper: "#ffffff" },
-    text: { primary: "#1f1f1f", secondary: "#6b6b6b" },
-    divider: "#dddddd",
-    error: { main: "#b3261e" },
+    primary: { main: "#0F2240", contrastText: "#ffffff" },
+    secondary: { main: "#F5A524", contrastText: "#0A1830" },
+    background: { default: "#FAF8F4", paper: "#ffffff" },
+    text: { primary: "#0A1830", secondary: "#5B6475" },
+    divider: "#E6E1D8",
+    success: { main: "#1F9D63" },
+    warning: { main: "#D98A0B" },
+    error: { main: "#D9434B" },
   },
-  shape: { borderRadius: 6 },
+  shape: { borderRadius: 8 },
   typography: {
     fontFamily: 'Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif',
     h4: { fontWeight: 700, fontSize: "1.75rem" },
@@ -25,7 +27,7 @@ export const theme = createTheme({
     MuiPaper: { defaultProps: { variant: "outlined" } },
     MuiTableCell: {
       styleOverrides: {
-        head: { backgroundColor: "#efefef", color: "#444", fontWeight: 500 },
+        head: { backgroundColor: "#F3F0EA", color: "#3A4357", fontWeight: 600 },
       },
     },
     MuiTextField: { defaultProps: { size: "small" } },

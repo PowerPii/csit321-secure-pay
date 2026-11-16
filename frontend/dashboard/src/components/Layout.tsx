@@ -11,10 +11,12 @@ import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import { CAN, useSignOut, useStaff } from "../auth";
 import { minSec, useIdleSignOut } from "../idle";
+import { BrandMark } from "./ui";
 
 const SIDEBAR = 232;
 
 const NAV: { to: string; label: string; page: keyof typeof CAN }[] = [
+  { to: "/overview", label: "Overview", page: "payments" },
   { to: "/payments", label: "Payments", page: "payments" },
   { to: "/reviews", label: "Fraud review", page: "reviews" },
   { to: "/alerts", label: "Fraud alerts", page: "alerts" },
@@ -58,7 +60,7 @@ function useOpenSecurityAlerts(enabled: boolean): number {
 function Count({ n }: { n: number }) {
   return (
     <Box component="span" aria-hidden="true"
-      sx={{ ml: 1, px: 0.9, minWidth: 22, height: 22, borderRadius: 11, bgcolor: "#333", color: "#fff",
+      sx={{ ml: 1, px: 0.9, minWidth: 22, height: 22, borderRadius: 11, bgcolor: "#D9434B", color: "#fff",
         fontSize: 12, fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
       {n > 99 ? "99+" : n}
     </Box>
@@ -72,9 +74,19 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const unread = useUnreadAlerts(CAN.alerts.includes(staff.role));
   const security = useOpenSecurityAlerts(CAN.security.includes(staff.role));
   return (
-    <Stack sx={{ width: SIDEBAR, height: "100%", bgcolor: "#efefef", p: 2.5, boxSizing: "border-box" }}>
-      <Typography variant="h6" fontWeight={700}>SecurePay</Typography>
-      <Typography variant="body2" color="text.secondary" mb={3}>Dashboard</Typography>
+    <Stack sx={{ width: SIDEBAR, height: "100%", bgcolor: "#F3F0EA", p: 2.5, boxSizing: "border-box" }}>
+      <Stack direction="row" alignItems="center" spacing={1.2}>
+        <BrandMark />
+        <Typography variant="h6" fontWeight={700}>SecurePay</Typography>
+      </Stack>
+      <Stack direction="row" alignItems="center" spacing={1} mt={0.5} mb={3}>
+        <Typography variant="body2" color="text.secondary">Dashboard</Typography>
+        <Box component="span" title="Simulated payments: no real money moves"
+          sx={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".04em", textTransform: "uppercase",
+            bgcolor: "secondary.main", color: "secondary.contrastText", borderRadius: 999, px: 1, py: 0.2 }}>
+          Test mode
+        </Box>
+      </Stack>
       <List component="nav" aria-label="Main" disablePadding sx={{ flexGrow: 1 }}>
         {NAV.filter((n) => CAN[n.page].includes(staff.role)).map((n) => {
           const active = location.pathname.startsWith(n.to);
@@ -85,7 +97,7 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
               to={n.to}
               onClick={onNavigate}
               selected={active}
-              sx={{ borderRadius: 1.5, mb: 0.5, "&.Mui-selected": { bgcolor: "#d6d6d6", fontWeight: 600 } }}
+              sx={{ borderRadius: 1.5, mb: 0.5, "&.Mui-selected": { bgcolor: "#E6E1D8", fontWeight: 600 } }}
             >
               <ListItemText primary={n.label} primaryTypographyProps={{ fontWeight: active ? 600 : 400 }} />
               {n.page === "alerts" && unread > 0 && <Count n={unread} />}
@@ -189,7 +201,7 @@ export default function Layout() {
   return (
     <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "#fff" }}>
       {wide ? (
-        <Box sx={{ width: SIDEBAR, flexShrink: 0, bgcolor: "#efefef" }}>
+        <Box sx={{ width: SIDEBAR, flexShrink: 0, bgcolor: "#F3F0EA" }}>
           <Box sx={{ position: "sticky", top: 0, height: "100vh" }}>
             <Sidebar />
           </Box>
@@ -209,7 +221,7 @@ export default function Layout() {
           {!wide && (
             <IconButton aria-label="Open menu" onClick={() => setOpen(true)} edge="start">
               <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M3 6h18M3 12h18M3 18h18" stroke="#333" strokeWidth="2" strokeLinecap="round" />
+                <path d="M3 6h18M3 12h18M3 18h18" stroke="#0F2240" strokeWidth="2" strokeLinecap="round" />
               </svg>
             </IconButton>
           )}

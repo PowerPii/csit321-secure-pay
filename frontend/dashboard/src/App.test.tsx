@@ -214,4 +214,23 @@ describe("dashboard", () => {
       action: "save", finding: "confirmed_fraud", notes: "Card tested on several stores" });
     await waitFor(() => expect(screen.getByRole("button", { name: "Reopen case" })).toBeTruthy());
   });
+  it("shows the overview: today's tiles, the 14-day chart and the latest payments", async () => {
+    const daily = Array.from({ length: 14 }, (_, i) => ({
+      date: `2026-11-${String(i + 3).padStart(2, "0")}`, approved: i % 3, declined: i % 2, blocked: i === 13 ? 2 : 0, volume: 1000 * i,
+    }));
+    mockFetch({
+      "GET /me": () => json(operator),
+      "GET /overview": () => json({
+        today: { payments: 5, approved: 3, declined: 1, blocked: 1, verification_asked: 2, approved_volume: 254890, approval_rate: 0.6 },
+        daily, screening_7d: { allow: 6, verify: 2, block: 1, not_screened: 0 }, recent: [row],
+      }),
+    });
+    at("/");
+    expect(await screen.findByText("Payments today")).toBeTruthy();
+    expect(screen.getByText("60%")).toBeTruthy();
+    expect(screen.getByText("S$ 2,548.90")).toBeTruthy();
+    expect(screen.getByRole("img", { name: /last 14 days/ })).toBeTruthy();
+    expect(screen.getByText("9 payments screened in the last 7 days.")).toBeTruthy();
+    expect(screen.getByText("SP-7Q2K-91XD")).toBeTruthy();
+  });
 });

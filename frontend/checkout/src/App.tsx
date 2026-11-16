@@ -18,6 +18,7 @@ import {
   parseExpiry,
   sessionIdFromPath,
 } from "./format";
+import { Brand } from "./Brand";
 
 export { sessionIdFromPath };
 
@@ -103,7 +104,7 @@ export function Shell({ status, children }: { status: string; children: ReactNod
   return (
     <>
       <header className="topbar">
-        <span className="brand">SecurePay</span>
+        <Brand />
         <span className="topbar-status">{status}</span>
       </header>
       <main className="layout">{children}</main>

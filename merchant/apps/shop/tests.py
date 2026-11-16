@@ -23,17 +23,47 @@ def test_money_filter():
 
 
 def test_products_are_seeded_and_listed(client):
-    assert Product.objects.count() == 4
+    assert Product.objects.count() == 12
     r = client.get("/")
     assert b"Wireless mouse" in r.content and b"S$ 29.90" in r.content
+    assert b"Volt Book 14" in r.content and b"test mode" in r.content
+
+
+def test_category_filter_and_product_page(client):
+    r = client.get("/?category=audio")
+    assert b"Volt Quiet Over-ear Headphones" in r.content and b"Wireless mouse" not in r.content
+    assert b"Wireless mouse" in client.get("/?category=nope").content  # unknown: show all
+    r = client.get("/products/HEAD-01")
+    assert r.status_code == 200 and b"S$ 249.00" in r.content and b"40 hours" in r.content
+    assert client.get("/products/NOPE").status_code == 404
+
+
+def test_help_pages(client):
+    for page in ("delivery", "returns", "about"):
+        assert client.get(f"/help/{page}").status_code == 200
+    assert client.get("/help/nope").status_code == 404
 
 
 def test_cart_prices_come_from_the_database(client):
     add(client, "MOUSE-01", "MOUSE-01", "NOPE")
-    r = client.get("/")
-    assert b"Cart (2)" in r.content and b"S$ 59.80" in r.content
+    assert b"Cart (2)" in client.get("/").content
+    r = client.get("/cart")
+    assert b"S$ 59.80" in r.content and b"S$ 4.90" in r.content and b"S$ 64.70" in r.content
     client.post("/cart/remove", {"sku": "MOUSE-01"})
     assert b"Cart (0)" in client.get("/").content
+
+
+def test_small_orders_pay_for_delivery_as_a_line_item(client, gateway):
+    add(client, "CABLE-01")
+    client.post("/checkout", {"email": "alex@example.com", "full_name": "Alex Tan",
+                              "delivery_address": "Blk 123 Clementi Ave 3"})
+    order = Order.objects.get()
+    assert order.total_cents == 1900 + 490
+    body = gateway.calls[0][2]
+    assert body["amount"] == 2390
+    assert body["line_items"][-1] == {"name": "Standard delivery", "quantity": 1,
+                                      "unit_amount": 490}
+    assert sum(i["unit_amount"] * i["quantity"] for i in body["line_items"]) == body["amount"]
 
 
 def test_checkout_needs_a_cart(client):

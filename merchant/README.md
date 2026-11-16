@@ -1,6 +1,13 @@
-# Demo merchant
+# Demo merchant: Volt & Co.
 
 Test-harness storefront in plain Django templates: products, orders, and a receiver for HMAC-signed gateway events.
+
+Since the demo-day polish (Nov 2026) the shop plays **Volt & Co.**, a fictional Singapore gadget store:
+12 products in three categories (migration `0005_volt_catalogue`), product pages, a cart page,
+delivery fee as a line item (S$ 4.90 under S$ 80, `apps/shop/catalogue.py`), GST shown as
+included, help pages and a test-mode strip on every page. Product pictures are inline SVG drawings
+made for the project (`templatetags/shop.py`), so there are no image files or licences. The
+store's name, company details and UEN are invented and say so in the footer.
 
 ## Run locally
 

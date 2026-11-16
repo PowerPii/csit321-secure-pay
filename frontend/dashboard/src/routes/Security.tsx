@@ -113,7 +113,7 @@ export function SecurityAlerts() {
       <Stack direction="row" gap={1} mb={2}>
         {[{ key: "open", label: `Open${data ? ` (${data.open})` : ""}` }, { key: "resolved", label: "Resolved" }, { key: "all", label: "All" }].map((t) => (
           <Chip key={t.key} clickable label={t.label} onClick={() => set({ status: t.key })}
-            sx={{ fontWeight: 600, bgcolor: status === t.key ? "#333" : "#e6e6e6", color: status === t.key ? "#fff" : "#333",
+            sx={{ fontWeight: 600, bgcolor: status === t.key ? "#0F2240" : "#EEEAE2", color: status === t.key ? "#fff" : "#0F2240",
               border: "1px solid #8a8a8a" }} />
         ))}
       </Stack>

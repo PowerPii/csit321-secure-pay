@@ -1,17 +1,17 @@
 {% extends "shop/base.html" %}{% load shop %}
-{% block title %}Order #{{ order.number }} · Demo Shop{% endblock %}
+{% block title %}Order #{{ order.number }} · Volt &amp; Co.{% endblock %}
 {% block head %}{% if state == "waiting" %}<meta http-equiv="refresh" content="3">{% endif %}{% endblock %}
-{% block nav %}<a href="{% url 'shop-orders' %}">My orders</a>{% endblock %}
+
 {% block body %}
 <main class="narrow">
   {% for message in messages %}<p class="alert" role="alert">{{ message }}</p>{% endfor %}
   {% if state == "paid" %}
     <h1>Thanks! Order #{{ order.number }}</h1>
-    <span class="badge dark">{% if attempt.status == "captured" %}Paid{% else %}Payment confirmed{% endif %}</span>
+    <span class="badge ok">{% if attempt.status == "captured" %}Paid{% else %}Payment confirmed{% endif %}</span>
     <p class="muted">SecurePay confirmed your payment. We'll email you when your order ships.</p>
   {% elif state == "waiting" %}
     <h1>Order #{{ order.number }}</h1>
-    <span class="badge">Waiting for payment confirmation</span>
+    <span class="badge wait">Waiting for payment confirmation</span>
     {% if attempt.status == "verification_required" %}
     <p class="muted">SecurePay emailed you a verification code. Enter it on the payment page to finish paying.</p>
     {% else %}
@@ -19,7 +19,7 @@
     {% endif %}
   {% elif state == "declined" or state == "blocked" or state == "cancelled" or state == "expired" %}
     <h1>Order #{{ order.number }}</h1>
-    <span class="badge">Payment not completed</span>
+    <span class="badge bad">Payment not completed</span>
     <p class="muted">{% if state == "declined" %}Your bank declined the payment. No money was taken. You can try another card.{% elif state == "expired" %}The payment page timed out. No money was taken.{% elif state == "cancelled" and order.paid_at %}This order was cancelled and the hold on your card was released. No money was taken.{% else %}The payment didn't go through. No money was taken.{% endif %}</p>
   {% elif state == "not_started" %}
     <h1>Order #{{ order.number }}</h1>
@@ -40,10 +40,10 @@
   </div>
 
   {% if state == "unpaid" and attempt.checkout_url or attempt.status == "verification_required" and attempt.checkout_url and not order.paid_at %}
-    <a class="btn primary" href="{{ attempt.checkout_url }}">Continue to payment</a>
+    <a class="btn primary block" href="{{ attempt.checkout_url }}">Continue to payment</a>
   {% elif state != "paid" and state != "waiting" and not order.paid_at %}
     <form method="post" action="{% url 'shop-order-pay' order.number %}">{% csrf_token %}
-      <button class="btn primary" type="submit">{% if state == "declined" %}Try another card{% elif state == "not_started" %}Try again{% else %}Pay {{ order.total_cents|money }} with SecurePay{% endif %}</button>
+      <button class="btn primary block" type="submit">{% if state == "declined" %}Try another card{% elif state == "not_started" %}Try again{% else %}Pay {{ order.total_cents|money }} with SecurePay{% endif %}</button>
     </form>
   {% endif %}
 </main>

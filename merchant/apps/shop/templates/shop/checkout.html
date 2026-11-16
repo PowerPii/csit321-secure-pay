@@ -1,30 +1,35 @@
 {% extends "shop/base.html" %}{% load shop %}
-{% block title %}Checkout · Demo Shop{% endblock %}
-{% block nav %}<span>Step 2 of 2</span>{% endblock %}
+{% block title %}Checkout · Volt &amp; Co.{% endblock %}
+{% block nav %}<span class="muted small">Step 2 of 2 · Delivery and payment</span>{% endblock %}
 {% block body %}
-<div class="layout">
-  <main class="main">
-    <h1>Contact &amp; delivery</h1>
-    <form method="post" novalidate>{% csrf_token %}
-      <div class="fields">
-        <div><label for="{{ form.email.id_for_label }}">Email</label>{{ form.email }}{{ form.email.errors }}</div>
-        <div><label for="{{ form.full_name.id_for_label }}">Full name</label>{{ form.full_name }}{{ form.full_name.errors }}</div>
-        <div class="wide"><label for="{{ form.delivery_address.id_for_label }}">Delivery address</label>{{ form.delivery_address }}{{ form.delivery_address.errors }}</div>
-      </div>
-      <div class="pay">
-        <button class="btn primary" type="submit">Pay {{ total_cents|money }} with SecurePay</button>
-        <span class="muted small">You'll be taken to SecurePay's secure page to enter your card. Demo Shop never sees your card number.</span>
-      </div>
-    </form>
-  </main>
-  <aside class="side">
-    <h2>Your order</h2>
-    <div class="box white">
+<main class="wrap">
+  <div class="layout">
+    <section>
+      <h1>Contact &amp; delivery</h1>
+      <form method="post" novalidate>{% csrf_token %}
+        <div class="fields">
+          <div><label for="{{ form.email.id_for_label }}">Email</label>{{ form.email }}{{ form.email.errors }}</div>
+          <div><label for="{{ form.full_name.id_for_label }}">Full name</label>{{ form.full_name }}{{ form.full_name.errors }}</div>
+          <div class="wide"><label for="{{ form.delivery_address.id_for_label }}">Delivery address</label>{{ form.delivery_address }}{{ form.delivery_address.errors }}</div>
+        </div>
+        <div class="pay">
+          <button class="btn primary" type="submit">Pay {{ total_cents|money }} with SecurePay</button>
+        </div>
+        <div class="secure">
+          <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5z" fill="none" stroke="currentColor" stroke-width="2"/><path d="m8.5 12 2.5 2.5 4.5-5" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+          <span>You'll be taken to SecurePay's secure page to enter your card. Volt &amp; Co. never sees your card number. Use an @example.com email for the demo; receipts and codes go to the demo inbox.</span>
+        </div>
+      </form>
+    </section>
+    <aside class="side">
+      <h2>Your order</h2>
       {% for line in lines %}
       <div class="row small"><span class="muted">{{ line.product.name }} × {{ line.quantity }}</span><span>{{ line.total_cents|money }}</span></div>
       {% endfor %}
-      <div class="row total small"><span class="muted">Total (SGD)</span><strong>{{ total_cents|money }}</strong></div>
-    </div>
-  </aside>
-</div>
+      <div class="row small"><span class="muted">Delivery</span><span>{% if shipping_cents %}{{ shipping_cents|money }}{% else %}Free{% endif %}</span></div>
+      <div class="row total"><span>Total (SGD)</span><strong>{{ total_cents|money }}</strong></div>
+      <p class="muted tiny">Includes GST of {{ total_cents|gst_included|money }}.</p>
+    </aside>
+  </div>
+</main>
 {% endblock %}

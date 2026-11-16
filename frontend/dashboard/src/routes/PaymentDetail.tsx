@@ -37,7 +37,7 @@ function Timeline({ p }: { p: Detail }) {
       <Box component="ul" sx={{ listStyle: "none", m: 0, p: 0 }}>
         {p.timeline.map((e, i) => (
           <Stack component="li" key={i} direction="row" gap={1.5} py={0.6} alignItems="baseline">
-            <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: "#333", flexShrink: 0, mt: 0.6 }} />
+            <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: "#0F2240", flexShrink: 0, mt: 0.6 }} />
             <Box flexGrow={1}>
               <Typography variant="body2">
                 {actionLabel(e.action)}
@@ -52,7 +52,7 @@ function Timeline({ p }: { p: Detail }) {
         ))}
         {pending && (
           <Stack component="li" direction="row" gap={1.5} py={0.6} alignItems="baseline">
-            <Box sx={{ width: 8, height: 8, borderRadius: "50%", border: "1.5px solid #333", flexShrink: 0 }} />
+            <Box sx={{ width: 8, height: 8, borderRadius: "50%", border: "1.5px solid #0F2240", flexShrink: 0 }} />
             <Typography variant="body2" flexGrow={1}>Capture or cancel (merchant action)</Typography>
             <Typography variant="caption" color="text.secondary">pending</Typography>
           </Stack>

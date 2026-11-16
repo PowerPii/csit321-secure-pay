@@ -341,7 +341,10 @@ RISK_SIMULATE_OUTAGE = env("RISK_SIMULATE_OUTAGE", "")
 TRUSTED_PROXY_HOPS = int(env("TRUSTED_PROXY_HOPS", "0"))
 
 # Email (verification codes). Mailpit in the local stack; nothing leaves the machine.
-EMAIL_BACKEND = env("EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
+# Every message gets a branded HTML version (apps/common/branded_email.py), then goes out
+# through EMAIL_INNER_BACKEND, which the EMAIL_BACKEND variable still chooses.
+EMAIL_BACKEND = "apps.common.branded_email.BrandedEmailBackend"
+EMAIL_INNER_BACKEND = env("EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
 EMAIL_HOST = env("EMAIL_HOST", "localhost")
 EMAIL_PORT = int(env("EMAIL_PORT", "1025"))
 EMAIL_TIMEOUT = 5

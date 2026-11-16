@@ -31,6 +31,7 @@ import {
 import { minSec, useIdleSignOut } from "./idle";
 import { ConsentBox } from "./Privacy";
 import { brandName, formatDate, money } from "./format";
+import { Brand } from "./Brand";
 
 export type Page = "sign-in" | "payments" | "profile" | "password" | "reset";
 const PAGES: Page[] = ["sign-in", "payments", "profile", "password", "reset"];
@@ -162,7 +163,7 @@ export default function Account({ path = window.location.pathname, hash = window
   return (
     <>
       <header className="topbar">
-        <span className="brand">SecurePay</span>
+        <Brand />
         <span className="topbar-status">{right}</span>
       </header>
       <main className="account-page">{body}</main>

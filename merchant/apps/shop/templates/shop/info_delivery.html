@@ -1,0 +1,15 @@
+{% extends "shop/base.html" %}{% load shop %}
+{% block title %}{{ title }} · Volt &amp; Co.{% endblock %}
+{% block body %}
+<main class="narrow prose">
+  <h1>{{ title }}</h1>
+  <p>We deliver to any address in Singapore, Monday to Saturday.</p>
+  <ul>
+    <li>Orders over {{ free_shipping_from_cents|money }}: free standard delivery.</li>
+    <li>Smaller orders: {{ shipping_fee_cents|money }} standard delivery.</li>
+    <li>Orders paid before 2 pm ship the same day and usually arrive the next working day.</li>
+  </ul>
+  <p>We start packing only after SecurePay confirms your payment. If a payment needs a verification code, the order waits until you enter it.</p>
+  <p class="muted small">Volt &amp; Co. is a fictional store in a student project, so nothing is actually shipped.</p>
+</main>
+{% endblock %}
