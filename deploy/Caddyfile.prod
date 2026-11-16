@@ -1,0 +1,102 @@
+# Public server (deploy/compose.prod.yaml). DOMAIN is the VM's sslip.io name, for example
+# 203-0-113-5.sslip.io; Caddy gets Let's Encrypt certificates for the public names by itself.
+#
+# Public on 80/443:  gateway.{$DOMAIN}  shop.{$DOMAIN}  mail.{$DOMAIN} (basic auth)
+# Private on 8443:   simulator.securepay.internal, gateway.securepay.internal
+#   Port 8443 is never published, so only containers on the private Docker networks reach
+#   those two sites. They use Caddy's own internal CA, whose public root the apps trust.
+{
+	email {$ACME_EMAIL}
+	# No trusted_proxies: Caddy replaces any X-Forwarded-For a client sends with the address
+	# it sees, so the gateway's TRUSTED_PROXY_HOPS=1 reads the real client address.
+}
+
+(security_headers) {
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy same-origin
+		-Server
+	}
+}
+
+(gateway_routes) {
+	# The Django admin is not routed on the public server (Fifa, 14 Nov 2026); the gateway
+	# also leaves it out of its URLs when DJANGO_ADMIN is not 1.
+	handle /admin* {
+		respond 404
+	}
+	handle /pay/* {
+		root * /srv/checkout
+		uri strip_prefix /pay
+		try_files {path} /index.html
+		file_server
+		header Content-Security-Policy "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; form-action 'self'; base-uri 'none'"
+		header Referrer-Policy no-referrer
+		header Cache-Control no-store
+	}
+	handle /guest/status {
+		root * /srv/checkout
+		rewrite * /index.html
+		file_server
+		header Content-Security-Policy "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; form-action 'self'; base-uri 'none'"
+		header Referrer-Policy no-referrer
+		header Cache-Control no-store
+	}
+	redir /dashboard /dashboard/ 308
+	handle /dashboard/* {
+		root * /srv/dashboard
+		uri strip_prefix /dashboard
+		try_files {path} /index.html
+		file_server
+		header Content-Security-Policy "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; form-action 'self'; base-uri 'none'"
+		header Cache-Control no-store
+	}
+	handle {
+		reverse_proxy gateway:8000
+	}
+	import security_headers
+}
+
+gateway.{$DOMAIN} {
+	import gateway_routes
+}
+
+shop.{$DOMAIN} {
+	handle /admin* {
+		respond 404
+	}
+	handle {
+		reverse_proxy merchant:8002
+	}
+	import security_headers
+}
+
+# Demo inbox: verification codes, receipts and guest status codes. Team and assessors only.
+mail.{$DOMAIN} {
+	basic_auth {
+		{$MAIL_USER} {$MAIL_PASSWORD_HASH}
+	}
+	reverse_proxy mailpit:8025
+	import security_headers
+}
+
+# ---- Private: never published, reached only over the internal Docker networks ----
+
+# Gateway and worker -> simulator. /sim/faults (test controls) is here too, so fault rules
+# can only be sent from inside the server, and still need simulator_test_control_key.
+https://simulator.securepay.internal:8443 {
+	tls internal
+	reverse_proxy simulator:8001
+}
+
+# Simulator -> gateway (signed notifications, SIMULATOR-CONTRACT.md section 9).
+https://gateway.securepay.internal:8443 {
+	tls internal
+	handle /internal/simulator/* {
+		reverse_proxy gateway:8000
+	}
+	handle {
+		respond 404
+	}
+}

@@ -1,0 +1,11 @@
+# Build context for deploy/caddy/Dockerfile (repository root). Keep secrets, data and
+# local builds out of it.
+.git
+**/node_modules
+**/dist
+**/.venv
+deploy/secrets
+deploy/.env
+research
+gateway/apps/risk/model_artifacts
+*.dump

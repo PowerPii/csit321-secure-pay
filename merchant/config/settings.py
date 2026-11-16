@@ -26,6 +26,9 @@ def secret(name, default=None):
 DEBUG = env("DJANGO_DEBUG", "0") == "1"
 SECRET_KEY = secret("django_secret_key", "dev-only-insecure-key" if DEBUG else None)
 ALLOWED_HOSTS = env("DJANGO_ALLOWED_HOSTS", "localhost").split(",")
+# The Django admin has no two-step sign-in, so it is routed only in development unless
+# DJANGO_ADMIN=1 says otherwise. Off on the public server (Fifa, 14 Nov 2026; deploy/RUNBOOK.md).
+ADMIN_ENABLED = env("DJANGO_ADMIN", "1" if DEBUG else "0") == "1"
 
 INSTALLED_APPS = [
     "django.contrib.admin",
