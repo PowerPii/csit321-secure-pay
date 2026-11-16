@@ -10,16 +10,30 @@ from django.db import models
 
 
 class Product(models.Model):
+    """A catalogue item of Volt & Co., the fictional store the demo shop plays."""
+
+    CATEGORIES = [("audio", "Audio"), ("computing", "Computing"), ("accessories", "Accessories")]
+
     sku = models.CharField(max_length=32, unique=True)
     name = models.CharField(max_length=80)
     price_cents = models.PositiveIntegerField()
     position = models.PositiveSmallIntegerField(default=0)
+    category = models.CharField(max_length=16, choices=CATEGORIES, default="accessories")
+    blurb = models.CharField(max_length=140, blank=True)  # one line on cards
+    description = models.TextField(blank=True)
+    details = models.TextField(blank=True)  # one spec per line
+    art = models.CharField(max_length=24, blank=True)  # illustration key (templatetags/shop.py)
+    badge = models.CharField(max_length=16, blank=True)  # "New", "Bestseller"
+    stock = models.PositiveSmallIntegerField(default=25)
 
     class Meta:
         ordering = ["position", "id"]
 
     def __str__(self):
         return f"{self.name} ({self.sku})"
+
+    def detail_lines(self) -> list[str]:
+        return [line.strip() for line in self.details.splitlines() if line.strip()]
 
 
 class Order(models.Model):

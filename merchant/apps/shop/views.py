@@ -1,4 +1,8 @@
-"""Demo storefront pages (wireframes C1 cart, C2 order summary, C8 order page)."""
+"""Storefront pages of Volt & Co., the demo merchant (wireframes C1, C2 and C8, dressed up).
+
+The store is fictional: it sells nothing and takes no real money. Payments go through
+SecurePay exactly as before.
+"""
 from django import forms
 from django.contrib import messages
 from django.db import transaction
@@ -6,7 +10,7 @@ from django.http import Http404, HttpResponseRedirect
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
-from apps.shop import payments, securepay
+from apps.shop import catalogue, payments, securepay
 from apps.shop.models import Order, OrderLine, PaymentAttempt, Product
 
 MAX_QUANTITY = 10
@@ -37,6 +41,13 @@ def _cart_lines(request):
     return lines, sum(line["total_cents"] for line in lines)
 
 
+def _totals(subtotal: int) -> dict:
+    shipping = catalogue.shipping_cents(subtotal)
+    return {"subtotal_cents": subtotal, "shipping_cents": shipping,
+            "total_cents": subtotal + shipping,
+            "free_shipping_gap_cents": max(catalogue.FREE_SHIPPING_FROM_CENTS - subtotal, 0)}
+
+
 def _cart_count(request) -> int:
     return sum(_cart(request).values())
 
@@ -53,10 +64,36 @@ def _owned_order(request, number: int) -> Order:
 
 @require_GET
 def home(request):
-    lines, total = _cart_lines(request)
+    categories = dict(Product.CATEGORIES)
+    category = request.GET.get("category", "")
+    products = Product.objects.all()
+    if category in categories:
+        products = products.filter(category=category)
+    else:
+        category = ""
     return render(request, "shop/home.html", {
-        "products": Product.objects.all(), "lines": lines, "total_cents": total,
+        "products": products, "categories": Product.CATEGORIES, "category": category,
+        "category_name": categories.get(category, "All products"),
+        "hero": Product.objects.filter(sku="LAPTOP-14").first(),
         "cart_count": _cart_count(request)})
+
+
+@require_GET
+def product_detail(request, sku: str):
+    product = Product.objects.filter(sku=sku).first()
+    if product is None:
+        raise Http404
+    related = Product.objects.filter(category=product.category).exclude(pk=product.pk)[:3]
+    return render(request, "shop/product.html", {
+        "product": product, "related": related, "cart_count": _cart_count(request),
+        "free_shipping_from_cents": catalogue.FREE_SHIPPING_FROM_CENTS})
+
+
+@require_GET
+def cart_view(request):
+    lines, subtotal = _cart_lines(request)
+    return render(request, "shop/cart.html", {
+        "lines": lines, **_totals(subtotal), "cart_count": _cart_count(request)})
 
 
 @require_POST
@@ -66,7 +103,7 @@ def cart_add(request):
         cart = _cart(request)
         cart[sku] = min(cart.get(sku, 0) + 1, MAX_QUANTITY)
         request.session[SESSION_CART] = cart
-    return redirect("shop-home")
+    return redirect("shop-cart")
 
 
 @require_POST
@@ -74,14 +111,33 @@ def cart_remove(request):
     cart = _cart(request)
     cart.pop(request.POST.get("sku", ""), None)
     request.session[SESSION_CART] = cart
-    return redirect("shop-home")
+    return redirect("shop-cart")
+
+
+INFO_PAGES = {
+    "delivery": "Delivery",
+    "returns": "Returns and refunds",
+    "about": "About Volt & Co.",
+}
+
+
+@require_GET
+def info(request, page: str):
+    if page not in INFO_PAGES:
+        raise Http404
+    return render(request, f"shop/info_{page}.html", {
+        "title": INFO_PAGES[page], "cart_count": _cart_count(request),
+        "shipping_fee_cents": catalogue.SHIPPING_FEE_CENTS,
+        "free_shipping_from_cents": catalogue.FREE_SHIPPING_FROM_CENTS})
 
 
 @require_http_methods(["GET", "POST"])
 def checkout(request):
-    lines, total = _cart_lines(request)
+    lines, subtotal = _cart_lines(request)
     if not lines:
         return redirect("shop-home")
+    totals = _totals(subtotal)
+    total = totals["total_cents"]
     form = DeliveryForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         if not request.session.session_key:
@@ -93,12 +149,16 @@ def checkout(request):
                 OrderLine(order=order, sku=line["product"].sku, name=line["product"].name,
                           unit_price_cents=line["product"].price_cents,
                           quantity=line["quantity"]) for line in lines])
+            if totals["shipping_cents"]:
+                OrderLine.objects.create(order=order, sku=catalogue.SHIPPING_SKU,
+                                         name=catalogue.SHIPPING_NAME, quantity=1,
+                                         unit_price_cents=totals["shipping_cents"])
         request.session[SESSION_CART] = {}
         request.session[SESSION_ORDERS] = [*request.session.get(SESSION_ORDERS, []),
                                            order.number]
         return _go_to_checkout(request, order)
     return render(request, "shop/checkout.html", {
-        "form": form, "lines": lines, "total_cents": total, "cart_count": _cart_count(request)})
+        "form": form, "lines": lines, **totals, "cart_count": _cart_count(request)})
 
 
 def _go_to_checkout(request, order: Order):

@@ -1,0 +1,37 @@
+{% extends "shop/base.html" %}{% load shop %}
+{% block title %}{{ product.name }} · Volt &amp; Co.{% endblock %}
+{% block body %}
+<main class="wrap">
+  <p class="crumbs"><a href="{% url 'shop-home' %}">Home</a> / <a href="{% url 'shop-home' %}?category={{ product.category }}">{{ product.get_category_display }}</a></p>
+  <div class="pdp">
+    {% product_art product "large" %}
+    <div>
+      {% if product.badge %}<span class="badge">{{ product.badge }}</span>{% endif %}
+      <h1>{{ product.name }}</h1>
+      <p class="price">{{ product.price_cents|money }}</p>
+      <p class="muted small">Price includes GST. {% if product.price_cents >= free_shipping_from_cents %}Free delivery.{% else %}Free delivery on orders over {{ free_shipping_from_cents|money }}.{% endif %}</p>
+      <p>{{ product.description }}</p>
+      <p class="stock">In stock, ships next working day</p>
+      <form method="post" action="{% url 'shop-cart-add' %}">{% csrf_token %}
+        <input type="hidden" name="sku" value="{{ product.sku }}">
+        <button class="btn primary block" type="submit">Add to cart</button>
+      </form>
+      {% if product.detail_lines %}
+      <h2 style="margin-top:28px">What you get</h2>
+      <ul>{% for line in product.detail_lines %}<li>{{ line }}</li>{% endfor %}</ul>
+      {% endif %}
+    </div>
+  </div>
+  {% if related %}
+  <h2 style="margin-top:44px">More in {{ product.get_category_display }}</h2>
+  <div class="grid">
+    {% for p in related %}
+    <article class="product">
+      <a class="cover" href="{% url 'shop-product' p.sku %}" tabindex="-1">{% product_art p %}</a>
+      <div class="info"><a class="name" href="{% url 'shop-product' p.sku %}">{{ p.name }}</a><span class="price">{{ p.price_cents|money }}</span></div>
+    </article>
+    {% endfor %}
+  </div>
+  {% endif %}
+</main>
+{% endblock %}

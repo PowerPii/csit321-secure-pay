@@ -121,5 +121,5 @@ SECUREPAY_TIMEOUT_SECONDS = float(env("SECUREPAY_TIMEOUT_SECONDS", "15"))
 SECUREPAY_SIGNATURE_TOLERANCE_SECONDS = 300
 # Public HTTPS address of this shop; the payment's return_url is built from it.
 SHOP_BASE_URL = env("SHOP_BASE_URL", "https://shop.localhost")
-SHOP_NAME = "Demo Shop"
+SHOP_NAME = "Volt & Co."  # fictional store played by the demo merchant
 CSRF_TRUSTED_ORIGINS = [SHOP_BASE_URL]  # forms post through Caddy over HTTPS
