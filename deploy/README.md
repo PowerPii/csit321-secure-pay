@@ -13,6 +13,8 @@ Public server (sprint 9), step by step in **[`RUNBOOK.md`](RUNBOOK.md)**:
 - `server-setup.sh`: one-time hardening of a fresh Ubuntu 24.04 server (Google Cloud, DigitalOcean or Oracle).
 - `make-secrets.sh`: fresh secrets on the server and the demo inbox password.
 - `smoke-check.sh`: checks the public server from outside.
+- `auto-deploy.sh`: updates the server to the latest `main` and runs the smoke check; GitHub Actions (`.github/workflows/deploy.yml`) runs it after CI passes on `main`.
+- `setup-auto-deploy.sh`: one-time set-up of that: an SSH key locked to `auto-deploy.sh`, and the values to add in GitHub.
 
 Both:
 
