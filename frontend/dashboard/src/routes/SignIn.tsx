@@ -31,7 +31,7 @@ export function SignIn() {
 
   // Sets the CSRF cookie before the first POST (the 401 is expected).
   useEffect(() => {
-    api("/me").then(() => navigate("/payments", { replace: true })).catch(() => undefined);
+    api("/me").then(() => navigate("/overview", { replace: true })).catch(() => undefined);
   }, [navigate]);
 
   const submit = async (e: FormEvent) => {
@@ -154,7 +154,7 @@ export function Totp() {
     try {
       const staff = await post<Staff>("/auth/totp", { code });
       client.setQueryData(["me"], staff);
-      navigate(state.from && state.from !== "/login" ? state.from : "/payments", { replace: true });
+      navigate(state.from && state.from !== "/login" ? state.from : "/overview", { replace: true });
     } catch (err) {
       setError(message(err));
       setCode("");

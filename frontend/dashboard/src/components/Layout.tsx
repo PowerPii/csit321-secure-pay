@@ -16,6 +16,7 @@ import { BrandMark } from "./ui";
 const SIDEBAR = 232;
 
 const NAV: { to: string; label: string; page: keyof typeof CAN }[] = [
+  { to: "/overview", label: "Overview", page: "payments" },
   { to: "/payments", label: "Payments", page: "payments" },
   { to: "/reviews", label: "Fraud review", page: "reviews" },
   { to: "/alerts", label: "Fraud alerts", page: "alerts" },

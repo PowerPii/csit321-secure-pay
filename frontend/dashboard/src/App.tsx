@@ -8,7 +8,7 @@ import { ApiError } from "./api/client";
 import { RequireStaff, RoleGate } from "./auth";
 import Layout from "./components/Layout";
 import {
-  Accounts, ApiKeys, AuditLog, Blocklist, FraudRules, HistorySearchPage, LimitsPage, CaseDetail, ForgotPassword, FraudAlerts, FraudReports, Merchants, PaymentDetail, PaymentsList, Register, ResetPassword,
+  Accounts, ApiKeys, AuditLog, Blocklist, FraudRules, HistorySearchPage, LimitsPage, CaseDetail, ForgotPassword, FraudAlerts, FraudReports, Merchants, Overview, PaymentDetail, PaymentsList, Register, ResetPassword,
   IntegrityPage, ReviewQueue, SecurityAlerts, SignIn, Totp, VerifyEmail,
 } from "./routes";
 import { theme } from "./theme";
@@ -49,6 +49,7 @@ export default function App() {
             <Route path="/register" element={<Register />} />
             <Route path="/register/verify" element={<VerifyEmail />} />
             <Route element={<RequireStaff><Layout /></RequireStaff>}>
+              <Route path="/overview" element={<Overview />} />
               <Route path="/payments" element={<PaymentsList />} />
               <Route path="/payments/:paymentId" element={<PaymentDetail />} />
               <Route path="/payments/:paymentId/refund" element={<PaymentDetail refund />} />
@@ -67,7 +68,7 @@ export default function App() {
               <Route path="/security" element={<RoleGate page="security"><SecurityAlerts /></RoleGate>} />
               <Route path="/integrity" element={<RoleGate page="integrity"><IntegrityPage /></RoleGate>} />
             </Route>
-            <Route path="*" element={<Navigate to="/payments" replace />} />
+            <Route path="*" element={<Navigate to="/overview" replace />} />
           </Routes>
         </BrowserRouter>
       </QueryClientProvider>

@@ -313,3 +313,26 @@ def test_refund_rows_hold_no_card_data(operator, shop, fake_sim):
     assert Refund.objects.count() == 1
     detail = operator.get(f"/internal/payments/{payment.public_id}").json()
     assert "4242424242424242" not in str(detail)
+
+
+# --- Overview (demo-day polish) -------------------------------------------------------------
+
+def test_overview_counts_today_and_is_scoped_to_the_operators_merchant(operator, admin, shop,
+                                                                       other_shop, fake_sim):
+    pay(shop)
+    pay(shop, card="4000000000000002")  # declined by the simulated bank
+    pay(other_shop)
+    mine = operator.get("/internal/overview").json()
+    today = mine["today"]
+    assert today["payments"] == 2 and today["approved"] == 1 and today["declined"] == 1
+    assert today["approval_rate"] == 0.5
+    assert len(mine["daily"]) == 14
+    assert mine["daily"][-1]["approved"] == 1 and mine["daily"][-1]["declined"] == 1
+    assert {row["merchant"]["id"] for row in mine["recent"]} == {shop.merchant.public_id}
+    assert mine["screening_7d"]["allow"] == 2
+    everyone = admin.get("/internal/overview").json()
+    assert everyone["today"]["payments"] == 3 and len(everyone["recent"]) == 3
+
+
+def test_overview_needs_a_signed_in_staff_member(client):
+    assert client.get("/internal/overview").status_code == 401
