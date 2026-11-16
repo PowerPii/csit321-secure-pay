@@ -161,7 +161,11 @@ REST_FRAMEWORK = {
 REST_FRAMEWORK.update(
     {
         "DEFAULT_THROTTLE_CLASSES": ["rest_framework.throttling.AnonRateThrottle"],
-        "DEFAULT_THROTTLE_RATES": {"anon": env("THROTTLE_ANON", "60/min")},
+        "DEFAULT_THROTTLE_RATES": {
+            "anon": env("THROTTLE_ANON", "60/min"),
+            # Per IP: forgot-password and business registration forms (FR-ACC-07, FR-MER-01).
+            "account_email": env("THROTTLE_ACCOUNT_EMAIL", "20/hour"),
+        },
     }
 )
 
@@ -190,6 +194,12 @@ GATEWAY_RULES = {
     "GUEST_STATUS_CODE_REQUESTS_PER_PAIR": 3,  # per reference + email, per 15 minutes
     "GUEST_STATUS_CODE_REQUESTS_PER_IP": 10,  # per IP address, per 15 minutes
     "PASSWORD_RESET_LINK_TTL_MINUTES": 30,  # single use (contract section 9, confirmed 13 Nov 2026)
+    # Reset links asked for per account per 15 minutes; more requests get the same reply but
+    # send nothing, so a mailbox cannot be flooded.
+    "PASSWORD_RESET_REQUESTS_PER_ACCOUNT": 3,
+    # Merchant self-registration (FR-MER-01): the email verification link works once, for
+    # this long. An unverified registration older than this no longer holds its UEN or email.
+    "MERCHANT_VERIFICATION_LINK_TTL_HOURS": 24,
     "SCREENING_TARGET_P95_MS": 200,  # NFR-PER-02, checked by `manage.py benchmark_screening`
     # FR-FRD-04: no decision within 500 ms (or an error) -> Blocked, reason screening_unavailable
     "SCREENING_TIMEOUT_MS": 500,
@@ -249,6 +259,9 @@ CHECKOUT_BASE_URL = env("CHECKOUT_BASE_URL", "https://localhost:8443/pay")
 # Public address of the guest status page (screen C9). Receipts link to it with ?ref=SP-...
 # (API-CONTRACT.md section 8: the link only fills in the reference; it is not a credential).
 GUEST_STATUS_URL = env("GUEST_STATUS_URL", "https://localhost:8443/guest/status")
+# Public address of the staff dashboard (frontend/dashboard). Password reset, email
+# verification and administrator notices link to pages under it.
+DASHBOARD_URL = env("DASHBOARD_URL", "https://localhost:8443/dashboard").rstrip("/")
 # Fernet key for secrets the gateway must read back (merchant signing secrets).
 # Generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 FIELD_ENCRYPTION_KEY = secret(

@@ -1,4 +1,4 @@
-"""Customer emails through the outbox (apps.events.models.OutboundEmail).
+"""Customer and account emails through the outbox (apps.events.models.OutboundEmail).
 
 `queue` runs inside the caller's transaction; the worker's `send_due` sends after commit,
 retries with backoff and records failures. Nothing here logs an address or a body.

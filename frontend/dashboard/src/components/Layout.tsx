@@ -2,7 +2,7 @@
 // signed-in user at the bottom, a top bar with payment search and the merchant scope.
 // Below the md breakpoint the sidebar becomes a drawer behind a menu button.
 import {
-  Box, Button, Drawer, IconButton, InputBase, List, ListItemButton, ListItemText, Paper, Stack, Typography,
+  Alert, Box, Button, Drawer, IconButton, InputBase, List, ListItemButton, ListItemText, Paper, Stack, Typography,
   useMediaQuery, useTheme,
 } from "@mui/material";
 import { useState, type FormEvent } from "react";
@@ -15,6 +15,7 @@ const NAV: { to: string; label: string; page: keyof typeof CAN }[] = [
   { to: "/payments", label: "Payments", page: "payments" },
   { to: "/reviews", label: "Fraud review", page: "reviews" },
   { to: "/merchants", label: "Merchants", page: "merchants" },
+  { to: "/api-keys", label: "API keys", page: "keys" },
   { to: "/audit", label: "Audit log", page: "audit" },
 ];
 
@@ -110,6 +111,11 @@ export default function Layout() {
           <Typography variant="body2" sx={{ ml: "auto", display: { xs: "none", sm: "block" } }}>{scope}</Typography>
         </Stack>
         <Box component="main" sx={{ px: { xs: 2, md: 3.5 }, py: 3, maxWidth: 1240 }}>
+          {staff.merchant?.status === "pending" && (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              {staff.merchant.name} is waiting for administrator approval. No API key is issued until then.
+            </Alert>
+          )}
           <Outlet />
         </Box>
       </Box>

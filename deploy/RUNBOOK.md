@@ -188,10 +188,18 @@ $P exec gateway python manage.py create_staff analyst@securepay.sg --role fraud_
 $P exec gateway python manage.py create_staff admin@securepay.sg --role administrator --name "Mei Tan"
 ```
 
-Staff emails (lockout notices) go to the demo inbox, like everything else.
+Staff emails (lockout notices, password reset links, registration notices) go to the demo
+inbox, like everything else.
+
+Since sprint 10 a merchant can also register itself at `https://gateway.<domain>/dashboard/register`:
+it verifies its email from the link in the demo inbox, every administrator gets a notice, an
+administrator approves it on the Merchants page, and its operator then signs in and generates
+the API key on the API keys page. The registration links use `DASHBOARD_URL`, which
+`compose.prod.yaml` sets from `DOMAIN`, so there is nothing to add to `.env`.
 
 To make several accounts at once with random temporary passwords (printed once; share each
-privately, since there is no password reset until sprint 10). The `</dev/null` matters:
+privately; since sprint 10 anyone can also set their own with "Forgot your password?" on the
+sign-in page). The `</dev/null` matters:
 without it `docker compose exec` reads the rest of the list and only the first account is made.
 
 ```bash

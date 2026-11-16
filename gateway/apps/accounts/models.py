@@ -90,3 +90,36 @@ class StaffAccount(models.Model):
     @staticmethod
     def lock_duration() -> timedelta:
         return timedelta(minutes=settings.GATEWAY_RULES["STAFF_LOCKOUT_MINUTES"])
+
+
+class AccountToken(models.Model):
+    """A one-time link token: password reset (FR-ACC-07) or email verification (FR-MER-01).
+
+    The token is 32 random bytes that appear only in the emailed link; the database keeps its
+    SHA-256 digest (API-CONTRACT.md section 9). A token works once and until `expires_at`; a
+    new token for the same user and purpose withdraws the earlier ones.
+    """
+
+    class Purpose(models.TextChoices):
+        PASSWORD_RESET = "password_reset"  # nosec B105
+        EMAIL_VERIFICATION = "email_verification"
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                             related_name="account_tokens")
+    purpose = models.CharField(max_length=24, choices=Purpose.choices)
+    digest = models.CharField(max_length=64, unique=True, editable=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    # Set when the token is used or withdrawn by a newer one; either way it no longer works.
+    used_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["user", "purpose", "created_at"])]
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(purpose__in=["password_reset", "email_verification"]),
+                name="account_token_purpose_valid"),
+        ]
+
+    def __str__(self):
+        return f"{self.purpose} for user {self.user_id}"

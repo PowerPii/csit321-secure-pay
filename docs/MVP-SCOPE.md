@@ -40,9 +40,9 @@ If the demo shows that path end to end, plus the three failure stories below, th
 
 1. Admin-editable fraud rules and the screening fallback setting (FM 2 to 4). The MVP hard-codes rules and always blocks when screening is unavailable.
 2. Analyst search by card token, email or IP, blocklist UI, findings (FM 6, 7, 9). The MVP seeds the blocklist from a fixture.
-3. API key rotation and revocation, merchant self-registration with email verification (MM 1, 4, 5).
+3. API key rotation and revocation, merchant self-registration with email verification (MM 1, 4, 5). Self-registration was built in sprint 10; rotation and revocation are still to do.
 4. Rate limits per key configurable by admin, security alerts, integrity hashes, key rotation, PCI self-checks (AS 8, 9, 12, 14, 15). DRF default throttles are on from day one.
-5. Customer accounts, payment history, password reset, idle session warnings, PDPA data view (AA 1 to 13). Guests only in the MVP.
+5. Customer accounts, payment history, password reset, idle session warnings, PDPA data view (AA 1 to 13). Guests only in the MVP. Password reset was built in sprint 10 (staff accounts; customers reuse it in sprint 11).
 6. Fraud reports and CSV export (FM 10), real-time analyst alerts (FM 8).
 7. PayNow QR (CP 16 to 18, SD 5). "Could" in the requirements; out unless the team decides otherwise.
 
@@ -84,6 +84,13 @@ Every endpoint is routed but returns `501 Not Implemented` until someone builds 
 | 6 | Dashboard D1 to D6b on top of the APIs; TOTP and lockout | Staff can do every demo step from the UI (done 13 Nov 2026; plus merchant approval and the audit log for administrators) |
 | 7 | Swap stub model for trained HistGradientBoosting artefact; parity test; latency check at 20 req/s | p95 screening <= 200 ms (done 13 Nov 2026: `hgb-fs02-2026-11-13` on feature schema fs-0.2, parity test against `research/features/gateway_schema.py`, p95 21.6 ms at 20/s; see `research/evaluation/hgb-fs02-2026-11-13.md`) |
 | 8 | Close the MVP against the contracts: emailed receipt with guest status link (FR-CHK-15), guest status check by emailed code and screen C9 (API-CONTRACT.md section 8), simulator fault controls, record list and notifications (SIMULATOR-CONTRACT.md sections 8 and 9), cross-service tests | S1-S6 pass as automated tests on the Compose stack (done 13 Nov 2026: `tests/integration`, 11 tests with the trained model) |
+
+After the MVP (roadmap in the team folder, `05-architecture/NEXT-PHASE-PLAN.md`):
+
+| Sprint | Goal | Done when |
+| --- | --- | --- |
+| 9 | Deploy the stack on one server (`deploy/compose.prod.yaml`, `deploy/RUNBOOK.md`) | S1 to S3 work on the public URLs (done 16 Nov 2026: live on Google Cloud, smoke checks and all 11 integration tests pass on the server). **Milestone M2 (due 4 Dec 2026) met on 16 Nov 2026** |
+| 10 | Accounts part 1: password reset by emailed link (FR-ACC-07 to FR-ACC-09), merchant self-registration with email verification and administrator notice (FR-MER-01, FR-MER-02), webhook address submitted by the merchant (FR-MER-10), D7 and D8 screens | A new merchant signs up, verifies its email, is approved, gets a key and receives a webhook (`gateway/apps/merchants/test_registration.py`) |
 
 The research track (IEEE-CIS experiment in `research/`) runs alongside and hands over a versioned model artefact by sprint 7.
 

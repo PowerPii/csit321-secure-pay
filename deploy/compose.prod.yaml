@@ -55,6 +55,7 @@ services:
       DJANGO_ALLOWED_HOSTS: gateway.${DOMAIN:?set DOMAIN in deploy/.env},gateway.securepay.internal,gateway
       CHECKOUT_BASE_URL: https://gateway.${DOMAIN}/pay
       GUEST_STATUS_URL: https://gateway.${DOMAIN}/guest/status
+      DASHBOARD_URL: https://gateway.${DOMAIN}/dashboard  # reset, verification and notice links
       SIMULATOR_URL: https://simulator.securepay.internal:8443
       SIMULATOR_CA_BUNDLE: *internal-ca
       TRUSTED_PROXY_HOPS: "1"
@@ -96,6 +97,7 @@ services:
       EMAIL_PORT: "1025"
       DEFAULT_FROM_EMAIL: SecurePay <no-reply@gateway.${DOMAIN}>
       GUEST_STATUS_URL: https://gateway.${DOMAIN}/guest/status
+      DASHBOARD_URL: https://gateway.${DOMAIN}/dashboard  # reset, verification and notice links
     volumes:
       - caddy_ca:/caddy-ca:ro
     secrets:

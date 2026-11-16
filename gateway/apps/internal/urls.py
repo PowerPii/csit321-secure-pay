@@ -1,14 +1,26 @@
 """Staff API for frontend/dashboard. Session auth + TOTP; every view scopes by role and merchant."""
 from django.urls import path
 
-from apps.internal.views import admin, auth, payments, reviews
+from apps.internal.views import accounts, admin, auth, merchant, payments, reviews
 from apps.reconciliation.views import SimulatorNotificationView
 
 urlpatterns = [
     path("auth/login", auth.LoginView.as_view(), name="staff-login"),
     path("auth/totp", auth.TotpView.as_view(), name="staff-totp"),
     path("auth/logout", auth.LogoutView.as_view(), name="staff-logout"),
+    path("auth/password-reset", accounts.PasswordResetRequestView.as_view(),
+         name="password-reset-request"),
+    path("auth/password-reset/check", accounts.PasswordResetCheckView.as_view(),
+         name="password-reset-check"),
+    path("auth/password-reset/confirm", accounts.PasswordResetConfirmView.as_view(),
+         name="password-reset-confirm"),
+    path("register", accounts.RegisterView.as_view(), name="merchant-register"),
+    path("register/verify", accounts.RegisterVerifyView.as_view(),
+         name="merchant-register-verify"),
     path("me", auth.MeView.as_view(), name="staff-me"),
+    path("merchant", merchant.OwnMerchantView.as_view(), name="own-merchant"),
+    path("merchant/api-key", merchant.OwnApiKeyView.as_view(), name="own-api-key"),
+    path("merchant/webhook", merchant.OwnWebhookView.as_view(), name="own-webhook"),
     path("payments", payments.PaymentListView.as_view(), name="staff-payments"),
     path("payments/<str:payment_id>", payments.PaymentDetailView.as_view(),
          name="staff-payment-detail"),

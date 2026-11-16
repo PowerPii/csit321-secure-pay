@@ -199,6 +199,8 @@ Rules: the token is 32 random bytes, sent only in the link and stored as a SHA-2
 
 `GATEWAY_RULES`: `PASSWORD_RESET_LINK_TTL_MINUTES = 30`.
 
+Built in sprint 10 for staff accounts (`gateway/apps/accounts/reset.py`, staff API `/internal/auth/password-reset`, `/check`, `/confirm`; dashboard pages `/dashboard/forgot-password` and `/dashboard/reset-password`). The link carries the token in the URL fragment (`#token=...`), so it never reaches a server log either. Two details this contract left open: at most 3 links per account per 15 minutes are sent (more requests get the same reply and send nothing; `PASSWORD_RESET_REQUESTS_PER_ACCOUNT`), and a wrong TOTP code on the reset page counts towards the normal sign-in lockout. Every staff member with an authenticator confirms with it, not only merchant operators. Customer accounts (sprint 11) reuse the same flow.
+
 ## 10. Decisions taken for this contract
 
 P1 to P3 were confirmed by Fifa on 13 November 2026 and are in `GATEWAY_RULES`. P4 was confirmed by Fifa on 13 November 2026 after the sprint 3 build.
@@ -222,7 +224,7 @@ Fifa asked that each reading follow common industry practice. Checked against St
 ## 12. Not covered yet
 
 - **Hosted checkout and dashboard (`/checkout/*`, `/internal/*`).** Same-origin browser APIs; they will be generated from the code by drf-spectacular rather than designed here.
-- **API key rotation and revocation, merchant self-registration.** Later Should items (MVP-SCOPE section 3).
+- **API key rotation and revocation.** Later Should items (MVP-SCOPE section 3). Merchant self-registration (sprint 10) is a dashboard flow under `/internal/register`, not part of the merchant API.
 
 ## 13. Traceability
 

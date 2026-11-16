@@ -2,9 +2,9 @@
 
     python manage.py create_merchant "Demo Shop" --webhook-url https://shop.localhost/webhooks/securepay
 
-Stands in for the admin approval screen until it exists (MVP-SCOPE: admin creates and
-approves merchants; self-registration comes later). Copy the key and secret into the
-merchant service's secrets; they cannot be shown again.
+Used to set up the demo shop. Other merchants are approved on the dashboard's Merchants page,
+and since sprint 10 they can register themselves. Copy the key and secret into the merchant
+service's secrets; they cannot be shown again.
 """
 from django.core.management.base import BaseCommand
 from django.db import transaction

@@ -93,7 +93,7 @@ class WebhookAttempt(models.Model):
 
 
 class OutboundEmail(models.Model):
-    """An email to a customer, written in the transaction that decides to send it.
+    """An email, written in the transaction that decides to send it.
 
     Receipts (FR-CHK-15, UC-05) and guest status codes (API-CONTRACT.md section 8) go
     through here, so a failed send is retried and recorded (UC-05 alternative flow), and a
@@ -105,6 +105,10 @@ class OutboundEmail(models.Model):
     class Kind(models.TextChoices):
         RECEIPT = "receipt"
         GUEST_STATUS_CODE = "guest_status_code"
+        # Accounts (sprint 10): links that carry a one-time token, and notices to staff.
+        PASSWORD_RESET = "password_reset"  # nosec B105
+        EMAIL_VERIFICATION = "email_verification"
+        ACCOUNT_NOTICE = "account_notice"
 
     class Status(models.TextChoices):
         PENDING = "pending"
@@ -114,7 +118,9 @@ class OutboundEmail(models.Model):
 
     public_id = models.CharField(max_length=32, unique=True, editable=False)  # eml_...
     kind = models.CharField(max_length=24, choices=Kind.choices)
-    payment = models.ForeignKey(Payment, on_delete=models.PROTECT, related_name="emails")
+    # Empty for account emails (password reset, registration), which belong to no payment.
+    payment = models.ForeignKey(Payment, on_delete=models.PROTECT, related_name="emails",
+                                null=True, blank=True)
     to = models.EmailField(max_length=254)
     subject = models.CharField(max_length=200)
     body_encrypted = models.TextField(blank=True)

@@ -50,6 +50,8 @@
 		try_files {path} /index.html
 		file_server
 		header Content-Security-Policy "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; form-action 'self'; base-uri 'none'"
+		# Password reset and email verification links (API-CONTRACT.md section 9).
+		header Referrer-Policy no-referrer
 		header Cache-Control no-store
 	}
 	handle {

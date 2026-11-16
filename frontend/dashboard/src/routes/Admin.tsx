@@ -1,4 +1,5 @@
-// Administrator pages: merchant approval (FR-ADM-01, FR-MER-03, FR-ADM-13) and the
+// Administrator pages: merchant approval (FR-ADM-01, FR-MER-03, FR-ADM-13), including
+// self-registered merchants (FR-MER-01: approvable once their email is verified), and the
 // read-only audit log (FR-ADM-10, FR-ADM-11).
 import {
   Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Paper, Stack, Table, TableBody, TableCell,
@@ -70,11 +71,12 @@ export function Merchants() {
   const [approved, setApproved] = useState<Merchant | null>(null);
   const [rejecting, setRejecting] = useState<Merchant | null>(null);
   const [reason, setReason] = useState("");
+  const [notice, setNotice] = useState("");
   const list = useQuery({ queryKey: ["merchants"], queryFn: () => api<{ data: Merchant[] }>("/merchants") });
   const refresh = () => client.invalidateQueries({ queryKey: ["merchants"] });
   const approve = useMutation({
     mutationFn: (id: string) => post<Merchant>(`/merchants/${id}/approve`),
-    onSuccess: (m) => { setApproved(m); refresh(); },
+    onSuccess: (m) => { setApproved(m); setNotice(m.credentials ? "" : `${m.name} is approved. Its operator has been emailed to sign in and generate the API key.`); refresh(); },
   });
   const reject = useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) => post(`/merchants/${id}/reject`, { reason }),
@@ -89,6 +91,7 @@ export function Merchants() {
       <PageHeader title="Merchants" subtitle="Approve merchants and their webhook addresses"
         action={<Button variant="outlined" size="large" onClick={() => setCreating(true)}>New merchant</Button>} />
       <ErrorAlert error={list.error ?? approve.error ?? reject.error ?? webhook.error} />
+      {notice && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setNotice("")}>{notice}</Alert>}
       <TableContainer component={Paper} sx={{ borderRadius: 2 }}>
         <Table aria-label="Merchants">
           <TableHead>
@@ -100,8 +103,24 @@ export function Merchants() {
           <TableBody>
             {list.data?.data.map((m) => (
               <TableRow key={m.id}>
-                <TableCell>{m.name}<Typography variant="caption" color="text.secondary" display="block">{m.id}</Typography></TableCell>
-                <TableCell><Badge label={titleCase(m.status)} tone={m.status === "active" ? "dark" : "neutral"} /></TableCell>
+                <TableCell>
+                  {m.name}<Typography variant="caption" color="text.secondary" display="block">{m.id}</Typography>
+                  {m.registration && (
+                    <Typography variant="caption" color="text.secondary" display="block" data-testid="registration">
+                      Self-registered · UEN {m.registration.registration_number}<br />
+                      {m.registration.contact_name} · {m.registration.contact_email}<br />
+                      {m.registration.website}
+                    </Typography>
+                  )}
+                </TableCell>
+                <TableCell>
+                  <Badge label={titleCase(m.status)} tone={m.status === "active" ? "dark" : "neutral"} />
+                  {m.registration && m.status === "pending" && (
+                    <Typography variant="caption" display="block" mt={0.5}>
+                      {m.registration.email_verified_at ? "Email verified" : "Email not verified"}
+                    </Typography>
+                  )}
+                </TableCell>
                 <TableCell sx={{ maxWidth: 260, wordBreak: "break-all" }}>
                   {m.webhook_url ?? "none"}
                   {m.webhook_url && (
@@ -119,7 +138,8 @@ export function Merchants() {
                 <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>
                   {m.status === "pending" && (
                     <Stack direction="row" gap={1} justifyContent="flex-end">
-                      <Button variant="contained" size="small" onClick={() => approve.mutate(m.id)} disabled={approve.isPending}>Approve</Button>
+                      <Button variant="contained" size="small" onClick={() => approve.mutate(m.id)}
+                        disabled={approve.isPending || (!!m.registration && !m.registration.email_verified_at)}>Approve</Button>
                       <Button variant="outlined" size="small" onClick={() => setRejecting(m)}>Reject</Button>
                     </Stack>
                   )}
