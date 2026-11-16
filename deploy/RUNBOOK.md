@@ -147,7 +147,15 @@ scp -r fyp/02-research/gateway-model/hgb-fs02-2026-11-13 \
   securepay@203.0.113.5:csit321-secure-pay/gateway/apps/risk/model_artifacts/
 ```
 
-and set `RISK_MODEL_VERSION=hgb-fs02-2026-11-13` in `deploy/.env`. Left empty, the stub model
+then on the server make it readable for the app inside the container (scp keeps the laptop's
+owner-only permissions, and the gateway logs "manifest.json unreadable: Permission denied"):
+
+```bash
+chmod -R a+rX gateway/apps/risk/model_artifacts/hgb-fs02-2026-11-13
+```
+
+and set `RISK_MODEL_VERSION=hgb-fs02-2026-11-13` in `deploy/.env`, then
+`docker compose -f deploy/compose.prod.yaml up -d gateway`. Left empty, the stub model
 runs (score 0, rules decide). A bad copy fails its SHA-256 check and blocks every payment as
 `screening_unavailable`, so it shows at once.
 
@@ -181,6 +189,22 @@ $P exec gateway python manage.py create_staff admin@securepay.sg --role administ
 ```
 
 Staff emails (lockout notices) go to the demo inbox, like everything else.
+
+To make several accounts at once with random temporary passwords (printed once; share each
+privately, since there is no password reset until sprint 10). The `</dev/null` matters:
+without it `docker compose exec` reads the rest of the list and only the first account is made.
+
+```bash
+while IFS='|' read -r email name; do
+  pw="$(openssl rand -base64 12 | tr -d '/+=')-Sp1"
+  $P exec -T -e STAFF_PASSWORD="$pw" gateway python manage.py create_staff "$email" \
+    --role administrator --name "$name" </dev/null >/dev/null && echo "$name  $email  $pw"
+done <<'EOF'
+someone@example.com|Full Name
+EOF
+```
+
+A new password for an existing account: `$P exec gateway python manage.py changepassword <email>`.
 
 ## 8. Check it
 
