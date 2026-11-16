@@ -215,6 +215,11 @@ GATEWAY_RULES = {
     "CUSTOMER_LOCKOUT_MINUTES": 15,
     "CUSTOMER_IDLE_MINUTES": 15,
     "CUSTOMER_SESSION_MAX_HOURS": 12,
+    # FR-ACC-10: a signed-in page (dashboard or customer account) warns after this many idle
+    # minutes and signs out at the idle limit (15 for both).
+    "IDLE_WARNING_MINUTES": 13,
+    # FR-ACC-12: the privacy notice a customer agreed to. Raise it when the notice changes.
+    "PRIVACY_NOTICE_VERSION": "2026-11-16",
     "STAFF_LOCKOUT_FAILURES": 5,
     "STAFF_LOCKOUT_MINUTES": 15,
     # After a correct password, the TOTP code must follow within this time.

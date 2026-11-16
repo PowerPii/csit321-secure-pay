@@ -18,7 +18,7 @@ PAN = "4242424242424242"
 
 
 def card(number=PAN, **extra):
-    return {"number": number, "expiry_month": 12, "expiry_year": 2030, "cvc": "123", **extra}
+    return {"number": number, "expiry_month": 12, "expiry_year": 2030, "cvc": "123", "privacy_consent": True, **extra}
 
 
 @pytest.fixture

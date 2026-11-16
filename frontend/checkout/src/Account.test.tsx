@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, describe, expect, it, vi } from "vitest";
 import Account, { pageFromPath, tokenFromHash } from "./Account";
 
-const ME = { id: "cus_x", full_name: "Jane Tan", email: "jane@example.com", idle_minutes: 15 };
+const ME = { id: "cus_x", full_name: "Jane Tan", email: "jane@example.com", idle_minutes: 15, idle_warning_minutes: 13 };
 const ROW = {
   reference: "SP-7QK2-91XD", merchant_name: "Demo Shop", amount: 8990, currency: "SGD",
   status: "captured", status_label: "Captured", created_at: "2026-11-02T06:52:00Z",
@@ -83,6 +83,10 @@ describe("sign in and register (C10)", () => {
     fireEvent.change(screen.getByLabelText("Password", { selector: "#reg-password" }), { target: { value: "correct horse battery 7" } });
     fireEvent.change(screen.getByLabelText("Confirm password"), { target: { value: "correct horse battery 7" } });
     fireEvent.click(screen.getByRole("button", { name: "Create account" }));
+    // FR-ACC-12: no sign-up without agreeing to the privacy notice.
+    expect(await screen.findByText("Agree to the privacy notice to create an account.")).toBeTruthy();
+    fireEvent.click(screen.getByRole("checkbox", { name: /keeps my name, email and payment history/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Create account" }));
     expect(await screen.findByText(/already registered/)).toBeTruthy();
   });
 });
@@ -154,5 +158,46 @@ describe("account recovery (C12)", () => {
     expect(await screen.findByText("This reset link can no longer be used")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Request a new link" }));
     expect(await screen.findByRole("button", { name: "Send reset link" })).toBeTruthy();
+  });
+});
+
+describe("idle warning and personal data (FR-ACC-10, FR-ACC-13)", () => {
+  it("warns before signing out an idle customer and stays on request", async () => {
+    // Shortened limits: warn after 0.6 s, sign out after 60 s.
+    const calls = mockFetch({
+      "/me": () => json({ ...ME, idle_warning_minutes: 0.01, idle_minutes: 1 }),
+      "/payments": () => json({ data: [], has_more: false }),
+    });
+    render(<Account path="/account/payments" hash="" />);
+    const dialog = await screen.findByRole("alertdialog", {}, { timeout: 3000 });
+    expect(dialog.textContent).toMatch(/signed out in 0:5\d because of inactivity/);
+    const before = calls.filter((c) => c.url.endsWith("/me")).length;
+    fireEvent.click(screen.getByRole("button", { name: "Stay signed in" }));
+    await waitFor(() => expect(calls.filter((c) => c.url.endsWith("/me")).length).toBe(before + 1));
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+  });
+
+  it("shows the personal data kept and corrects it with the current password", async () => {
+    const data = {
+      full_name: "Jane Tan", email: "jane@example.com", created_at: "2026-11-01T02:00:00Z",
+      last_sign_in_at: "2026-11-16T02:00:00Z", password_changed_at: null, details_changed_at: null,
+      privacy_notice_version: "2026-11-16", privacy_consent_at: "2026-11-01T02:00:00Z", payments: 4, active_sessions: 2,
+    };
+    const calls = mockFetch({
+      "/me": () => json(ME),
+      "/profile": [() => json(data), () => json({ ...data, full_name: "Jane Lim" })],
+    });
+    render(<Account path="/account/profile" hash="" />);
+    expect(await screen.findByText(/Version 2026-11-16/)).toBeTruthy();
+    expect(screen.getByText("4")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Correct my details" }));
+    fireEvent.change(screen.getByLabelText("Full name"), { target: { value: "Jane Lim" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save details" }));
+    expect(await screen.findByText("Enter your current password to confirm it's you.")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Current password"), { target: { value: "correct horse battery 7" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save details" }));
+    expect(await screen.findByText("Your details have been updated.")).toBeTruthy();
+    expect(calls.at(-1)!.body).toEqual({ current_password: "correct horse battery 7", full_name: "Jane Lim", email: "jane@example.com" });
+    expect(screen.getByText(/Jane Lim ·/)).toBeTruthy();
   });
 });

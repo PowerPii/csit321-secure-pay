@@ -56,6 +56,11 @@ export function SignIn() {
       <Typography color="text.secondary" variant="body2" mt={1} mb={3}>
         For merchant operators, administrators and fraud analysts.
       </Typography>
+      {new URLSearchParams(location.search).get("ended") === "idle" && (
+        <Alert severity="info" sx={{ mb: 2 }} role="status">
+          You were signed out after 15 minutes without activity. Sign in again to continue.
+        </Alert>
+      )}
       <Box component="form" onSubmit={submit} noValidate>
         <Stack gap={2}>
           <TextField label="Email" type="email" autoComplete="username" value={email} required

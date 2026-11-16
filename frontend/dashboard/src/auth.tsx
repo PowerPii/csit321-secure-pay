@@ -25,10 +25,10 @@ export function useMe() {
 
 export function useSignOut() {
   const client = useQueryClient();
-  return async () => {
+  return async (reason?: "idle") => {
     await api("/auth/logout", { method: "POST" }).catch(() => undefined);
     client.clear();
-    window.location.assign(`${import.meta.env.BASE_URL}login`);
+    window.location.assign(`${import.meta.env.BASE_URL}login${reason ? `?ended=${reason}` : ""}`);
   };
 }
 

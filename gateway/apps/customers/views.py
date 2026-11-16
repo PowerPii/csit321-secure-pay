@@ -107,6 +107,17 @@ class PasswordView(CustomerView):
                          "every other device.", "sessions_ended": ended})
 
 
+class ProfileView(CustomerView):
+    """GET: the personal data kept about the customer. POST {current_password, full_name?,
+    email?}: correct it (FR-ACC-13)."""
+
+    def get(self, request):
+        return Response(service.personal_data(self.session(request).customer))
+
+    def post(self, request):
+        return Response(service.update_details(self.session(request), request.data, request))
+
+
 class PaymentsView(CustomerView):
     def get(self, request):
         return Response(service.history(self.session(request).customer))

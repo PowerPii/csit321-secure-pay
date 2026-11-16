@@ -1,6 +1,7 @@
 """D1 sign-in, D2 two-step verification, sign-out and the current staff member."""
 from typing import ClassVar
 
+from django.conf import settings
 from django.contrib.auth import get_user, logout
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import ensure_csrf_cookie
@@ -41,6 +42,9 @@ def staff_to_dict(account: StaffAccount) -> dict:
         "merchant": ({"id": merchant.public_id, "name": merchant.name,
                       "status": merchant.status}
                      if merchant else None),
+        # FR-ACC-10: the dashboard warns at idle_warning_minutes, signs out at idle_minutes.
+        "idle_minutes": settings.SESSION_COOKIE_AGE // 60,
+        "idle_warning_minutes": settings.GATEWAY_RULES["IDLE_WARNING_MINUTES"],
     }
 
 

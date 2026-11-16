@@ -4,6 +4,7 @@
 // C7 not completed. No UI library, to keep the bundle small and auditable.
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { getMe, type Customer } from "./accountApi";
+import { ConsentBox } from "./Privacy";
 import { addCard, ApiError, getSession, resendCode, submit, verify, type Session } from "./api";
 import {
   brandName,
@@ -165,6 +166,7 @@ function CardForm({
   const [busy, setBusy] = useState(false);
   const [now, setNow] = useState(Date.now());
   const [customer, setCustomer] = useState<Customer | null>(null);
+  const [consent, setConsent] = useState(false);
 
   useEffect(() => {
     const t = window.setInterval(() => setNow(Date.now()), 1000);
@@ -197,6 +199,7 @@ function CardForm({
     if (!parseExpiry(expiry)) e.expiry = "Enter the expiry date as MM / YY.";
     if (!/^\d{3,4}$/.test(cvc)) e.cvc = "Enter the 3 or 4 digit security code.";
     if (!name.trim()) e.name = "Enter the name shown on the card.";
+    if (!consent) e.privacy_consent = "Agree to the privacy notice to pay.";
     return e;
   }
 
@@ -214,6 +217,7 @@ function CardForm({
         expiry_month: exp.month,
         expiry_year: exp.year,
         cvc,
+        privacy_consent: true,
         ...(session.email_required ? { email } : {}),
       });
     } catch (err) {
@@ -276,6 +280,9 @@ function CardForm({
         <input id="name" autoComplete="cc-name" placeholder="As shown on card"
           value={name} onChange={(e) => setName(e.target.value)} />
       </Field>
+      <ConsentBox checked={consent} onChange={setConsent} error={errors.privacy_consent}>
+        I agree that SecurePay uses my details to process and protect this payment, as the privacy notice says.
+      </ConsentBox>
       <button className="btn primary" type="submit" disabled={busy}>
         Pay {money(session.amount)}
       </button>

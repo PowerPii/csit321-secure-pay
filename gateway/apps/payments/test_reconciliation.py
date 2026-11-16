@@ -24,7 +24,7 @@ def pay(shop, number):
     payment = Payment.objects.get(public_id=shop.create_payment(valid_body()).json()["id"])
     browser = APIClient()
     base = f"/checkout/{payment.checkout_session_id}"
-    card = {"number": number, "expiry_month": 12, "expiry_year": 2030, "cvc": "123"}
+    card = {"number": number, "expiry_month": 12, "expiry_year": 2030, "cvc": "123", "privacy_consent": True}
     assert browser.post(f"{base}/card", card, format="json").status_code == 200
     assert browser.post(f"{base}/submit", {}, format="json").status_code == 200
     payment.refresh_from_db()

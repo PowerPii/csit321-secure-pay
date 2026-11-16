@@ -48,6 +48,7 @@ export interface CardInput {
   expiry_year: number;
   cvc: string;
   email?: string;
+  privacy_consent: true; // FR-ACC-12: the gateway refuses the card without it
 }
 
 export class ApiError extends Error {

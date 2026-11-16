@@ -114,6 +114,20 @@ describe("dashboard", () => {
     expect((await screen.findByRole("alert")).textContent).toMatch(/locked/);
   });
 
+  it("warns before the idle sign-out and keeps the session on 'Stay signed in' (FR-ACC-10)", async () => {
+    // Shortened limits: warn after 0.6 s, sign out after 60 s.
+    const calls = mockFetch({
+      "GET /me": () => json({ ...operator, idle_warning_minutes: 0.01, idle_minutes: 1 }),
+      "GET /payments": () => json(list),
+    });
+    at("/payments");
+    const dialog = await screen.findByRole("dialog", {}, { timeout: 3000 });
+    expect(within(dialog).getByText(/You will be signed out in 0:5\d because of inactivity/)).toBeTruthy();
+    const before = calls.filter((c) => c.url === "/internal/me").length;
+    fireEvent.click(within(dialog).getByRole("button", { name: "Stay signed in" }));
+    await waitFor(() => expect(calls.filter((c) => c.url === "/internal/me").length).toBe(before + 1));
+  });
+
   it("lets an operator capture from the payment detail (D4)", async () => {
     const calls = mockFetch({
       "GET /me": () => json(operator),
