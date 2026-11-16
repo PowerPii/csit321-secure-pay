@@ -102,3 +102,45 @@ class RiskListEntry(models.Model):
 
     def __str__(self):
         return f"{self.kind} {self.action}: {self.label}"
+
+
+class FraudAlert(models.Model):
+    """One alert to fraud analysts for each flagged payment (FR-FRD-08, UC-51).
+
+    Created in the checkout's transaction when screening blocks a payment or asks for a
+    verification code. The one-to-one link to the decision record is what keeps an event from
+    raising a second alert: a later step on the same payment (a wrong code, a retry of the same
+    submission) finds the alert that is already there. Unscreened attempts (screening
+    unavailable) are a security matter for administrators (UC-39, UC-40), not a fraud alert.
+    """
+
+    public_id = models.CharField(max_length=32, unique=True, editable=False)  # fal_...
+    screening = models.OneToOneField(ScreeningEvent, on_delete=models.PROTECT,
+                                     related_name="alert")
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.public_id} {self.screening_id}"
+
+    def save(self, *args, **kwargs):
+        if not self.public_id:
+            self.public_id = new_id("fal")
+        super().save(*args, **kwargs)
+
+
+class FraudAlertRead(models.Model):
+    """When one staff member opened (or dismissed) an alert. Each analyst has their own
+    unread list, so one analyst reading an alert does not hide it from the others."""
+
+    alert = models.ForeignKey(FraudAlert, on_delete=models.CASCADE, related_name="reads")
+    staff = models.ForeignKey("accounts.StaffAccount", on_delete=models.CASCADE,
+                              related_name="+")
+    read_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["alert", "staff"], name="one_read_per_alert_staff"),
+        ]

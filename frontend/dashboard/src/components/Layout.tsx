@@ -6,6 +6,7 @@ import {
   useMediaQuery, useTheme,
 } from "@mui/material";
 import { useCallback, useState, type FormEvent } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import { CAN, useSignOut, useStaff } from "../auth";
@@ -16,15 +17,30 @@ const SIDEBAR = 232;
 const NAV: { to: string; label: string; page: keyof typeof CAN }[] = [
   { to: "/payments", label: "Payments", page: "payments" },
   { to: "/reviews", label: "Fraud review", page: "reviews" },
+  { to: "/alerts", label: "Fraud alerts", page: "alerts" },
+  { to: "/reports", label: "Fraud reports", page: "reports" },
   { to: "/merchants", label: "Merchants", page: "merchants" },
   { to: "/api-keys", label: "API keys", page: "keys" },
   { to: "/audit", label: "Audit log", page: "audit" },
 ];
 
+/** NFR-PER-03: a new fraud alert shows on the dashboard within 10 seconds (polled every 5). */
+function useUnreadAlerts(enabled: boolean): number {
+  const unread = useQuery({
+    queryKey: ["alerts-unread"],
+    queryFn: () => api<{ unread: number; latest_at: string | null }>("/alerts/unread"),
+    enabled,
+    refetchInterval: 5_000,
+    refetchIntervalInBackground: true,
+  });
+  return unread.data?.unread ?? 0;
+}
+
 function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const staff = useStaff();
   const location = useLocation();
   const signOut = useSignOut();
+  const unread = useUnreadAlerts(CAN.alerts.includes(staff.role));
   return (
     <Stack sx={{ width: SIDEBAR, height: "100%", bgcolor: "#efefef", p: 2.5, boxSizing: "border-box" }}>
       <Typography variant="h6" fontWeight={700}>SecurePay</Typography>
@@ -42,6 +58,13 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
               sx={{ borderRadius: 1.5, mb: 0.5, "&.Mui-selected": { bgcolor: "#d6d6d6", fontWeight: 600 } }}
             >
               <ListItemText primary={n.label} primaryTypographyProps={{ fontWeight: active ? 600 : 400 }} />
+              {n.page === "alerts" && unread > 0 && (
+                <Box component="span" aria-hidden="true"
+                  sx={{ ml: 1, px: 0.9, minWidth: 22, height: 22, borderRadius: 11, bgcolor: "#333", color: "#fff",
+                    fontSize: 12, fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+                  {unread > 99 ? "99+" : unread}
+                </Box>
+              )}
             </ListItemButton>
           );
         })}
@@ -73,6 +96,20 @@ function SearchBox() {
         sx={{ fontSize: 14 }}
       />
     </Paper>
+  );
+}
+
+/** Top-bar link to new fraud alerts, so they show on every screen width (the sidebar is a
+ *  drawer on phones). */
+function AlertsLink() {
+  const staff = useStaff();
+  const unread = useUnreadAlerts(CAN.alerts.includes(staff.role));
+  if (!unread) return null;
+  return (
+    <Button component={Link} to="/alerts" size="small" variant="contained" role="status"
+      aria-label={`${unread} unread fraud alert${unread === 1 ? "" : "s"}`} sx={{ whiteSpace: "nowrap", flexShrink: 0 }}>
+      {unread > 99 ? "99+" : unread} new alert{unread === 1 ? "" : "s"}
+    </Button>
   );
 }
 
@@ -139,7 +176,8 @@ export default function Layout() {
             </IconButton>
           )}
           <SearchBox />
-          <Typography variant="body2" sx={{ ml: "auto", display: { xs: "none", sm: "block" } }}>{scope}</Typography>
+          <AlertsLink />
+          <Typography variant="body2" sx={{ ml: { xs: 0, sm: "auto" }, display: { xs: "none", sm: "block" } }}>{scope}</Typography>
         </Stack>
         <Box component="main" sx={{ px: { xs: 2, md: 3.5 }, py: 3, maxWidth: 1240 }}>
           {staff.merchant?.status === "pending" && (

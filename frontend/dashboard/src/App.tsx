@@ -8,7 +8,7 @@ import { ApiError } from "./api/client";
 import { RequireStaff, RoleGate } from "./auth";
 import Layout from "./components/Layout";
 import {
-  ApiKeys, AuditLog, CaseDetail, ForgotPassword, Merchants, PaymentDetail, PaymentsList, Register, ResetPassword,
+  ApiKeys, AuditLog, CaseDetail, ForgotPassword, FraudAlerts, FraudReports, Merchants, PaymentDetail, PaymentsList, Register, ResetPassword,
   ReviewQueue, SignIn, Totp, VerifyEmail,
 } from "./routes";
 import { theme } from "./theme";
@@ -54,6 +54,8 @@ export default function App() {
               <Route path="/payments/:paymentId/refund" element={<PaymentDetail refund />} />
               <Route path="/reviews" element={<RoleGate page="reviews"><ReviewQueue /></RoleGate>} />
               <Route path="/reviews/:caseId" element={<RoleGate page="reviews"><CaseDetail /></RoleGate>} />
+              <Route path="/alerts" element={<RoleGate page="alerts"><FraudAlerts /></RoleGate>} />
+              <Route path="/reports" element={<RoleGate page="reports"><FraudReports /></RoleGate>} />
               <Route path="/merchants" element={<RoleGate page="merchants"><Merchants /></RoleGate>} />
               <Route path="/api-keys" element={<RoleGate page="keys"><ApiKeys /></RoleGate>} />
               <Route path="/audit" element={<RoleGate page="audit"><AuditLog /></RoleGate>} />

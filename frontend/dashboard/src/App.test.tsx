@@ -183,6 +183,7 @@ describe("dashboard", () => {
       related: [] };
     const calls = mockFetch({
       "GET /me": () => json(analyst),
+      "GET /alerts/unread": () => json({ unread: 0, latest_at: null }),
       "GET /reviews": () => json({ count: 1, page: 1, page_size: 25, counts: { open: 1, mine: 0, closed: 0 }, data: [caseRow] }),
       "GET /reviews/scr_9": () => json(caseDetail),
       "POST /reviews/scr_9": () => json({ ...caseDetail, review: { ...caseDetail.review, status: "closed",

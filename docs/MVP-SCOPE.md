@@ -43,7 +43,7 @@ If the demo shows that path end to end, plus the three failure stories below, th
 3. API key rotation and revocation, merchant self-registration with email verification (MM 1, 4, 5). Self-registration was built in sprint 10; rotation and revocation are still to do.
 4. Rate limits per key configurable by admin, security alerts, integrity hashes, key rotation, PCI self-checks (AS 8, 9, 12, 14, 15). DRF default throttles are on from day one.
 5. Customer accounts, payment history, password reset, idle session warnings, PDPA data view (AA 1 to 13). Guests only in the MVP. Password reset was built in sprint 10 (staff accounts); customer accounts, sign-in lockout, payment history and customer password reset in sprint 11. The idle warning at 13 minutes (customer pages and dashboard), the privacy notice with consent at sign-up and checkout, and the customer's view and correction of their details (FR-ACC-10 to FR-ACC-13) followed on 16 Nov 2026.
-6. Fraud reports and CSV export (FM 10), real-time analyst alerts (FM 8).
+6. Fraud reports and CSV export (FM 10), real-time analyst alerts (FM 8). Built on 16 Nov 2026: Fraud alerts (one per flagged payment, per-analyst read state, unread badge polled every 5 s) and Fraud reports (period, merchant, day or week trend, CSV export, audit-logged) on the staff dashboard.
 7. PayNow QR (CP 16 to 18, SD 5). "Could" in the requirements; out unless the team decides otherwise.
 
 ## 4. Where each piece lives
