@@ -3,8 +3,8 @@
 A case is a screening decision of Block or Verify; its ID is the decision record's `scr_...`
 ID. Analysts assign cases, record a finding (confirmed fraud, false positive, inconclusive)
 with notes, and reopen them. A finding never changes the payment (apps.internal rule).
-Blocklisting from a case (FR-FRD-09) and searches by card, email or IP (FR-FRD-06) are later
-items (MVP-SCOPE "Not in the MVP" 2).
+Blocklisting from a case (FR-FRD-09) and searches by card, email or IP (FR-FRD-06) are in
+apps.internal.views.blocklist.
 """
 from datetime import datetime, time, timedelta
 

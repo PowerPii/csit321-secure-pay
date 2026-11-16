@@ -27,6 +27,7 @@ from apps.risk.models import ScreeningEvent, ScreeningOutcome
 from apps.risk.pipeline import (
     RULES_VERSION,
     Attempt,
+    DbRules,
     Decision,
     Outcome,
     Pipeline,
@@ -101,7 +102,7 @@ def screen_payment(payment: Payment, *, ip: str | None = None,
     attempt = attempt_for(payment, ip, now)
     started = time.perf_counter()
     try:
-        decision = _run(pipeline or Pipeline(), attempt)
+        decision = _run(pipeline or Pipeline(rules=DbRules()), attempt)
     except ScreeningUnavailable as exc:
         elapsed = round((time.perf_counter() - started) * 1000, 2)
         logger.warning("Screening unavailable for %s: %s", payment.public_id, exc)

@@ -379,3 +379,66 @@ export interface Limits {
   updated_at: string | null;
   updated_by: string | null;
 }
+
+/** FR-FRD-02: one fraud rule (current revision unless listed as history). */
+export interface FraudRule {
+  id: string;
+  revision: number;
+  code: string;
+  description: string | null;
+  feature: string;
+  op: "gt" | "gte" | "lt" | "lte" | "eq";
+  value: number;
+  action: "block" | "verify";
+  enabled: boolean;
+  condition: string;
+  created_at: string;
+  created_by: string | null;
+  superseded_at: string | null;
+  ruleset_version: string;
+}
+
+export interface RuleConflict { rule_id: string; code: string; kind: string; message: string }
+
+export interface RuleSet {
+  version: string;
+  frozen: { since: string; by: string; note: string } | null;
+  rules: FraudRule[];
+  features: string[];
+  ops: { value: string; label: string }[];
+  fixed: string[];
+}
+
+/** FR-FRD-09: a block list entry (masked). */
+export interface BlocklistEntry {
+  id: number;
+  kind: "card" | "email" | "ip";
+  action: string;
+  display: string;
+  reason: string;
+  active: boolean;
+  added_by: string | null;
+  source_case: string | null;
+  created_at: string;
+  removed_by: string | null;
+  removed_at: string | null;
+  removal_reason: string | null;
+}
+
+/** FR-FRD-06: screened attempts sharing a card, email or IP. */
+export interface HistorySearch extends Page<{
+  case_id: string | null;
+  payment: { id: string; reference: string; status: PaymentStatus };
+  merchant: MerchantRef;
+  amount: number;
+  card: string | null;
+  outcome: string;
+  score: number | null;
+  reasons: string[];
+  occurred_at: string;
+}> {
+  by: "card" | "email" | "ip";
+  searched: string;
+  summary: { attempts: number; merchants: number; blocked: number; flagged: number };
+  blocklisted: BlocklistEntry | null;
+}

@@ -14,6 +14,7 @@ import {
   CASE_DECISION_LABELS, cardLabel, FINDING_LABELS, longDate, money, reasonLabel, shortDate, STATUS_LABELS,
 } from "../format";
 import { FraudDecision } from "./FraudDecision";
+import { BlocklistDialog } from "./FraudTools";
 
 const TABS = [
   { key: "open", label: "Open" },
@@ -138,6 +139,7 @@ function linkLine(c: LinkCount | null, unit: string): string {
 function CasePanel({ caseId, compact = false, onClose }: { caseId: string; compact?: boolean; onClose?: () => void }) {
   const staff = useStaff();
   const client = useQueryClient();
+  const [blocking, setBlocking] = useState<{ kind: "card" | "ip"; case_id: string; label: string } | null>(null);
   const detail = useQuery({ queryKey: ["case", caseId], queryFn: () => api<Detail>(`/reviews/${caseId}`) });
   const [finding, setFinding] = useState("");
   const [notes, setNotes] = useState("");
@@ -181,9 +183,20 @@ function CasePanel({ caseId, compact = false, onClose }: { caseId: string; compa
         <Row label="Customer" value={c.payment.customer ?? "guest"} />
         <Row label="Screened" value={longDate(c.occurred_at)} />
       </Box>
-      <Button size="small" component={Link} to={`/payments/${c.payment.id}`} sx={{ alignSelf: "flex-start", px: 0 }}>
-        Open payment
-      </Button>
+      <Stack direction="row" gap={1} flexWrap="wrap">
+        <Button size="small" component={Link} to={`/payments/${c.payment.id}`} sx={{ px: 0, mr: 1 }}>Open payment</Button>
+        {c.payment.card && (
+          <Button size="small" variant="outlined" onClick={() => setBlocking({ kind: "card", case_id: c.id, label: cardLabel(c.payment.card!) })}>
+            Blocklist card
+          </Button>
+        )}
+        {la.ip && (
+          <Button size="small" variant="outlined" onClick={() => setBlocking({ kind: "ip", case_id: c.id, label: `IP of ${c.payment.reference}` })}>
+            Blocklist IP
+          </Button>
+        )}
+      </Stack>
+      <BlocklistDialog target={blocking} onClose={() => setBlocking(null)} />
 
       <Typography fontWeight={600}>Linked activity ({la.window_hours} h either side)</Typography>
       <Box>

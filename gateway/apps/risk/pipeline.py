@@ -6,7 +6,8 @@ trained model:
 
     features  apps.risk.features.SqlFeatures   prior-activity counts and card history (fs-0.2)
     lists     DbRiskLists                      seeded block / review lists
-    rules     Rules                            deterministic, versioned (rules-0.1)
+    rules     Rules / DbRules                  deterministic, versioned; editable by
+                                               administrators (apps.risk.rulebook, FR-FRD-02)
     model     apps.risk.scoring.active_model() StubModel until an artefact is installed
     policy    Policy                           versioned thresholds; an artefact may ship its own
 
@@ -106,25 +107,54 @@ class DbRiskLists:
                 .values_list("kind", "action", "label")]
 
 
+@dataclass(frozen=True)
+class RuleSpec:
+    """One editable rule: `feature op value` -> action, recorded as reason `code`."""
+
+    code: str
+    feature: str
+    op: str  # gt, gte, lt, lte, eq
+    value: float
+    action: str  # block or verify
+
+    def matches(self, value: float) -> bool:
+        return {"gt": value > self.value, "gte": value >= self.value, "lt": value < self.value,
+                "lte": value <= self.value, "eq": value == self.value}[self.op]
+
+
+# rules-0.1 as it was hard-coded in the MVP; the seeded rule set in the database is the same.
+DEFAULT_RULES = (
+    RuleSpec("card_attempt_burst", "card_attempts_10m", "gte", 5, "block"),
+    RuleSpec("high_amount", "amount_cents", "gt", 50_000, "verify"),
+)
+
+
 @dataclass
 class Rules:
-    """rules-0.1. Hard-coded in the MVP; admin-editable rules (FR-FRD-02) come later."""
+    """Block and review lists and the amount ceiling (fixed), then the editable rules.
 
-    burst_attempts_10m: int = 5  # earlier attempts with the same card in 10 minutes -> block
-    verify_above_cents: int = 50_000  # S$500 -> simulated verification
+    `items` defaults to rules-0.1; screening uses DbRules, which reads the administrators'
+    current rule set (FR-FRD-02)."""
+
+    items: tuple[RuleSpec, ...] = DEFAULT_RULES
+    version: str = RULES_VERSION
+
+    def _load(self) -> None:
+        """Hook for DbRules; called inside the pipeline's error handling."""
 
     def evaluate(self, attempt: Attempt, features: dict[str, float],
                  hits: list[ListHit]) -> tuple[Outcome | None, list[str]]:
+        self._load()
         blocks, verifies = [], []
         for hit in hits:
             (blocks if hit.action == "block" else verifies).append(
                 f"{'blocklisted' if hit.action == 'block' else 'review_list'}_{hit.kind}")
         if attempt.amount_cents > settings.GATEWAY_RULES["MAX_AMOUNT_CENTS"]:
             blocks.append("amount_over_limit")
-        if features.get("card_attempts_10m", 0) >= self.burst_attempts_10m:
-            blocks.append("card_attempt_burst")
-        if attempt.amount_cents > self.verify_above_cents:
-            verifies.append("high_amount")
+        values = {**features, "amount_cents": float(attempt.amount_cents)}
+        for rule in self.items:
+            if rule.feature in values and rule.matches(values[rule.feature]):
+                (blocks if rule.action == "block" else verifies).append(rule.code)
         if blocks:
             return Outcome.BLOCK, sorted(set(blocks))
         if verifies:
@@ -150,6 +180,15 @@ class Policy:
         if score >= self.thresholds.verify_threshold:
             return Outcome.VERIFY, ["model_score_medium"]
         return Outcome.ALLOW, []
+
+
+class DbRules(Rules):
+    """The current rule set from the database, read once per screening."""
+
+    def _load(self) -> None:
+        from apps.risk.rulebook import current_rule_set
+
+        self.version, self.items = current_rule_set()
 
 
 class ScreeningUnavailable(Exception):
@@ -187,6 +226,7 @@ class Pipeline:
             reasons=reasons + more,
             features=feats,
             model_version=self.model.version,
+            rules_version=self.rules.version,
             policy_version=policy.version,
             elapsed_ms=round(elapsed, 2),
             by_rule=outcome is not Outcome.ALLOW and not more,
