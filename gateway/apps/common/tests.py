@@ -63,3 +63,39 @@ def test_django_admin_is_routed_only_when_enabled(settings, enabled):
         settings.ADMIN_ENABLED = original
         importlib.reload(config.urls)
         clear_url_caches()
+
+
+# --- Branded HTML emails (demo-day polish) ------------------------------------------------
+
+def test_branded_backend_adds_escaped_html_and_keeps_the_text(settings):
+    from django.core import mail
+    from django.core.mail import get_connection, send_mail
+
+    from apps.common.branded_email import BrandedEmailBackend
+
+    settings.EMAIL_INNER_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+    mail.outbox = []
+    body = ("Thank you. Your payment to <Volt & Co.> was approved.\n\n"
+            "Amount:     S$249.00\nReference:  SP-ABCD-1234\n\n"
+            "https://gateway.example/guest/status?ref=SP-ABCD-1234\n")
+    send_mail("Receipt", body, "a@example.com", ["b@example.com"],
+              connection=get_connection("apps.common.branded_email.BrandedEmailBackend"))
+    [sent] = mail.outbox
+    assert sent.body == body
+    [(html, kind)] = sent.alternatives
+    assert kind == "text/html"
+    assert "&lt;Volt &amp; Co.&gt;" in html and "<Volt" not in html
+    assert ">Amount</td>" in html and "S$249.00" in html
+    assert 'href="https://gateway.example/guest/status?ref=SP-ABCD-1234"' in html
+    assert "TEST MODE" in html
+    assert isinstance(get_connection("apps.common.branded_email.BrandedEmailBackend"),
+                      BrandedEmailBackend)
+
+
+def test_verification_code_is_shown_large():
+    from apps.common.branded_email import html_for
+
+    html = html_for("123456 is your SecurePay verification code",
+                    "Your SecurePay verification code is 123456\n")
+    assert "letter-spacing:8px" in html and ">123456</span>" in html
+    assert "letter-spacing:8px" not in html_for("Receipt", "Hello\n")
