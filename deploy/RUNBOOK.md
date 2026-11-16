@@ -331,6 +331,31 @@ docker run --rm --network deploy_gateway -v deploy_caddy_ca:/ca:ro \
 Never put the key on the website or in slides. `SIM_TEST_CONTROLS=0` in `deploy/.env` turns
 the controls off.
 
+## 11a. Demo day (Volt & Co.)
+
+The demo shop plays **Volt & Co.**, a fictional gadget store. Once, after the deploy that
+brings it, give the merchant its new name (the payment page, receipts and dashboard show it):
+
+```bash
+$P exec gateway python manage.py demo_check --merchant mer_... --rename "Volt & Co."
+```
+
+On the morning of a demo and again an hour before:
+
+1. **Health:** `$P exec gateway python manage.py demo_check --merchant mer_...`. Every line
+   should be PASS; fix any FAIL (the line says what to look at) and close open security
+   alerts so the Security page starts clean.
+2. **Fresh cards:** `$P exec simulator python manage.py new_demo_card --count 3` prints
+   numbers in the simulator's demo range (SIMULATOR-CONTRACT.md section 5). They approve and
+   have no screening history, unlike `4242 4242 4242 4242` after weeks of rehearsals.
+3. **Fresh customer emails:** use a new `@example.com` address per run, such as
+   `mei.0402@example.com`, so the email history is empty too.
+4. **Card testing (S3) from another network:** screening also counts attempts per IP for an
+   hour, so run the "fraudster" step from a phone hotspot, not the presenter's laptop.
+5. **No merges** to `main` in the 48 hours before the demo: auto-deploy would restart the
+   stack.
+6. **Mailpit:** delete old messages in the inbox so the demo emails are easy to find.
+
 ## 12. When something is wrong
 
 | Symptom | Look at |
