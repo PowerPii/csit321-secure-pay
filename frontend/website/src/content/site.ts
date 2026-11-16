@@ -6,6 +6,15 @@
 
 export const REPO_URL = "https://github.com/PowerPii/csit321-secure-pay";
 
+/**
+ * The live demo gateway (Fifa hosts it; sslip.io name on the server's static IP).
+ * Set VITE_GATEWAY_URL in Vercel when the server moves, and every link and code sample follows.
+ */
+export const GATEWAY_URL: string = (import.meta.env.VITE_GATEWAY_URL || "https://gateway.35-213-144-96.sslip.io").replace(/\/+$/, "");
+export const API_BASE = `${GATEWAY_URL}/v1`;
+export const DASHBOARD_URL = `${GATEWAY_URL}/dashboard`;
+export const REGISTER_URL = `${DASHBOARD_URL}/register`;
+
 /** Optional: set VITE_CONTACT_EMAIL in Vercel to make the contact form open an email. */
 export const CONTACT_EMAIL: string | undefined = import.meta.env.VITE_CONTACT_EMAIL || undefined;
 

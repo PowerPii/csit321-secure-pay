@@ -1,9 +1,10 @@
 import type { Snippet } from "../components/CodeBlock";
+import { API_BASE, GATEWAY_URL } from "./site";
 
 export const CREATE_PAYMENT: Snippet[] = [
   {
     label: "curl",
-    code: `curl https://api.securepay.example/v1/payments \\
+    code: `curl ${API_BASE}/payments \\
   -H "Authorization: Bearer sp_test_..." \\
   -H "Idempotency-Key: $(uuidgen)" \\
   -H "Content-Type: application/json" \\
@@ -22,7 +23,7 @@ export const CREATE_PAYMENT: Snippet[] = [
     label: "Node.js",
     code: `import { randomUUID } from "node:crypto";
 
-const res = await fetch("https://api.securepay.example/v1/payments", {
+const res = await fetch("${API_BASE}/payments", {
   method: "POST",
   headers: {
     Authorization: \`Bearer \${process.env.SECUREPAY_API_KEY}\`,
@@ -45,7 +46,7 @@ const payment = await res.json();
     code: `import os, uuid, requests
 
 res = requests.post(
-    "https://api.securepay.example/v1/payments",
+    "${API_BASE}/payments",
     headers={
         "Authorization": f"Bearer {os.environ['SECUREPAY_API_KEY']}",
         "Idempotency-Key": str(uuid.uuid4()),  # reuse only when retrying
@@ -74,7 +75,7 @@ export const PAYMENT_RESPONSE: Snippet[] = [
   "amount": 4290,
   "currency": "SGD",
   "order_reference": "order_1042",
-  "checkout_url": "https://pay.securepay.example/pay/cs_...",
+  "checkout_url": "${GATEWAY_URL}/pay/cs_...",
   "checkout_expires_at": "2026-11-13T05:30:00Z",
   "sequence": 1
 }`,
@@ -140,12 +141,12 @@ export const CAPTURE: Snippet[] = [
   {
     label: "Capture",
     code: `# capture the full amount
-curl -X POST https://api.securepay.example/v1/payments/pay_4fJ8.../capture \\
+curl -X POST ${API_BASE}/payments/pay_4fJ8.../capture \\
   -H "Authorization: Bearer sp_test_..." \\
   -H "Idempotency-Key: $(uuidgen)" -d '{}'
 
 # then refund part of it
-curl -X POST https://api.securepay.example/v1/payments/pay_4fJ8.../refunds \\
+curl -X POST ${API_BASE}/payments/pay_4fJ8.../refunds \\
   -H "Authorization: Bearer sp_test_..." \\
   -H "Idempotency-Key: $(uuidgen)" -d '{ "amount": 690, "reason": "item returned" }'`,
   },

@@ -82,7 +82,7 @@ export function CodeBlock({ snippets, title }: { snippets: Snippet[]; title?: st
 function highlight(src: string): string {
   const esc = src.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   return esc.replace(
-    /((?<=^|\s)(?:#|\/\/)[^\n]*)|("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')|\b(curl|const|await|import|from|if|return|def|async|function|POST|GET|true|false|null)\b|\b(\d+)\b/gm,
+    /((?<=^|\s)(?:#|\/\/)[^\n]*)|("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')|\b(curl|const|await|import|from|if|return|def|async|function|POST|GET|true|false|null)\b|(?<![\w.-])(\d+)(?![\w.-])/gm,
     (m, c, s, k, n) => (c ? `<span class="c">${m}</span>` : s ? `<span class="s">${m}</span>` : k ? `<span class="k">${m}</span>` : n ? `<span class="n">${m}</span>` : m),
   );
 }
