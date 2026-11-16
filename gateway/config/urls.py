@@ -7,7 +7,6 @@ from apps.common.views import HealthView
 
 urlpatterns = [
     path("healthz", HealthView.as_view(), name="health"),
-    path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path("v1/", include("apps.payments.urls")),
     path("v1/", include("apps.refunds.urls")),
     path("checkout/", include("apps.checkout.urls")),
@@ -15,6 +14,11 @@ urlpatterns = [
     path("customer/", include("apps.customers.urls")),
     path("internal/", include("apps.internal.urls")),
 ]
+
+# The OpenAPI schema lists every route, the staff API's included, so it is only served in
+# local development (DEBUG), never on the public server.
+if settings.DEBUG:
+    urlpatterns.insert(0, path("api/schema/", SpectacularAPIView.as_view(), name="schema"))
 
 if settings.ADMIN_ENABLED:
     urlpatterns.insert(0, path("admin/", admin.site.urls))

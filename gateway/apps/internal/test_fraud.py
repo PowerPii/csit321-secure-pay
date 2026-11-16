@@ -10,6 +10,7 @@ from django.utils import timezone
 from apps.audit.models import AuditEvent
 from apps.internal.tests import pay, post
 from apps.internal.views.fraud import report_csv
+from apps.internal.views.payments import local_zone
 from apps.payments.models import Payment
 from apps.risk.alerts import raise_fraud_alert
 from apps.risk.models import FraudAlert, ScreeningEvent
@@ -153,7 +154,9 @@ def test_report_filters_by_merchant_and_period(analyst, flagged, other_shop):
     assert [m["name"] for m in data["merchants"]] == ["Demo Shop"]
     assert data["findings"]["unreviewed"] == 0
 
-    old = (timezone.now() - timedelta(days=60)).date()
+    # The report counts days in Singapore time, so take the date there (after 16:00 UTC the
+    # UTC date is a day behind).
+    old = (timezone.now() - timedelta(days=60)).astimezone(local_zone()).date()
     data = analyst.get(f"/internal/reports/fraud?from={old}&to={old + timedelta(days=6)}").json()
     assert data["totals"]["screened"] == 0  # no data: an empty report, not an error
     assert len(data["trend"]) == 7

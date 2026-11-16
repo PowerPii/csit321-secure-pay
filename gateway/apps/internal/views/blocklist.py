@@ -31,7 +31,11 @@ from apps.payments.models import Payment
 from apps.risk import hashing
 from apps.risk.models import RiskListEntry, ScreeningEvent, ScreeningOutcome
 
-FINGERPRINT = re.compile(r"^[0-9a-f]{16,64}$")
+# A card fingerprint is an HMAC-SHA256 in hex (apps/vault/fingerprint.py): exactly 64 digits.
+FINGERPRINT = re.compile(r"^[0-9a-f]{64}$")
+# Something typed like a card number (13 to 19 digits, maybe with spaces or dashes). Refused
+# before anything else so it is never echoed back, used as a key or written to the audit log.
+CARD_NUMBER = re.compile(r"^[0-9][0-9 -]{11,24}[0-9]$")
 FIELD = {"card": "card_fingerprint", "email": "email_hash", "ip": "ip_hash"}
 
 
@@ -71,6 +75,9 @@ def search_key(by: str, value: str) -> tuple[str, str]:
     value = (value or "").strip()
     if not value:
         raise invalid("missing_field", "Enter what to search for.", param="value")
+    if CARD_NUMBER.match(value) and 13 <= len(re.sub(r"[ -]", "", value)) <= 19:
+        raise invalid("card_number_not_accepted", "Card numbers are never searched or stored. "
+                      "Enter the card fingerprint, or a payment ID or reference.", param="value")
     if by in ("card", "ip"):
         event = _event_for_payment(value)
         if event is not None:
