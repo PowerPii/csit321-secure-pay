@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
 import { api, ApiError, post, type Staff } from "../api/client";
-import { ShieldIcon } from "../components/ui";
+import { BrandMark, ShieldIcon } from "../components/ui";
 
 interface Setup { secret: string; otpauth_uri: string; qr_svg: string }
 interface LoginReply { next: "totp"; email: string; setup: Setup | null }
@@ -51,7 +51,10 @@ export function SignIn() {
 
   return (
     <Card>
-      <Typography variant="h6" fontWeight={700}>SecurePay</Typography>
+      <Stack direction="row" alignItems="center" spacing={1.2}>
+        <BrandMark size={28} />
+        <Typography variant="h6" fontWeight={700}>SecurePay</Typography>
+      </Stack>
       <Typography variant="h5" component="h1" mt={2}>Sign in to the dashboard</Typography>
       <Typography color="text.secondary" variant="body2" mt={1} mb={3}>
         For merchant operators, administrators and fraud analysts.
@@ -117,7 +120,7 @@ export function CodeInput({ value, onChange, autoFocus = true }: { value: string
           }}
           sx={{
             width: 46, height: 54, textAlign: "center", fontSize: 22, border: "1px solid #8a8a8a",
-            borderRadius: 1.5, outlineColor: "#333",
+            borderRadius: 1.5, outlineColor: "#0F2240",
           }}
         />
       ))}

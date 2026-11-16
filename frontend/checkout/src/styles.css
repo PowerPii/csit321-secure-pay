@@ -3,13 +3,15 @@
    below 768 px. A stylesheet rather than inline styles, so the CSP needs no
    'unsafe-inline'. */
 :root {
-  --ink: #1f1f1f;
-  --ink-2: #333;
+  /* SecurePay brand (same as the marketing site): navy ink, saffron signal colour. */
+  --ink: #0A1830;
+  --ink-2: #0F2240;
+  --accent: #F5A524;
   --muted: #6b6b6b;
   --line: #d4d4d4;
-  --panel: #f2f2f2;
+  --panel: #FAF8F4;
   --error: #b42318;
-  --radius: 6px;
+  --radius: 10px;
   color: var(--ink);
   background: #fff;
   font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -26,7 +28,9 @@ p { margin: 0 0 8px; }
 .center { text-align: center; padding: 48px 16px; }
 
 .topbar { display: flex; justify-content: space-between; align-items: center; background: var(--ink-2); color: #fff; padding: 14px 64px; }
-.brand { font-weight: 700; font-size: 18px; }
+.brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; letter-spacing: -0.01em; }
+.brand svg { border-radius: 7px; box-shadow: 0 0 0 1px rgba(255,255,255,.25); }
+.testmode { font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #0A1830; background: var(--accent); border-radius: 999px; padding: 2px 9px; }
 .topbar-status { font-size: 13px; }
 
 .layout { display: grid; grid-template-columns: minmax(320px, 39%) 1fr; min-height: calc(100vh - 50px); }
@@ -50,7 +54,7 @@ dl { margin: 0; }
 .field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .field label { font-size: 13px; font-weight: 600; }
 .field input { width: 100%; font: inherit; padding: 10px 12px; border: 1px solid #9a9a9a; border-radius: var(--radius); background: #fff; }
-.field input:focus { outline: 2px solid var(--ink-2); outline-offset: 1px; }
+.field input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 .has-error input { border-color: var(--error); }
 .error { color: var(--error); font-size: 12px; }
 .alert { color: var(--error); background: #fdf0ef; border: 1px solid #f3c7c3; border-radius: var(--radius); padding: 10px 12px; }
