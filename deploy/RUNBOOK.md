@@ -1,7 +1,8 @@
 # Running SecurePay on the public server
 
-Sprint 9: the whole stack on one Ubuntu server in Fifa's account: an Oracle Cloud Always Free
-VM for now, or a DigitalOcean droplet on Student Pack credit (both covered below), with free
+Sprint 9: the whole stack on one Ubuntu server in Fifa's account: a Google Cloud VM on the
+free trial for now (chosen 16 Nov 2026), then a DigitalOcean droplet on Student Pack credit
+before the trial ends (both covered below), with free
 `sslip.io` names and Let's Encrypt certificates. The marketing website stays on
 Vercel and does not link here (decided 14 Nov 2026). Share the addresses with the team and
 assessors directly.
@@ -15,7 +16,7 @@ assessors directly.
 
 `<domain>` is the droplet's IPv4 with dashes plus `.sslip.io`: for `203.0.113.5` it is
 `203-0-113-5.sslip.io`. The names follow the IP, so keep it stable: a DigitalOcean droplet
-keeps its IP until it is destroyed; on Oracle, use a reserved public IP. Moving to another
+keeps its IP until it is destroyed; on Google Cloud, reserve a static external IP. Moving to another
 server later means new names, which is fine because nothing public links here.
 
 What is different from the local stack (`compose.yaml`): `DJANGO_DEBUG=0`; the Django admin is
@@ -27,24 +28,32 @@ Caddy image (no Node.js on the server); container logs are capped at 50 MB each.
 
 ## 1. Create the server (Fifa, once)
 
-Either option; the rest of the runbook is the same. Signing in below uses `ubuntu@` on Oracle
-and `root@` on DigitalOcean for step 2 only, and `securepay@` from then on.
+Either option; the rest of the runbook is the same. For step 2 only, sign in as your own
+Google Cloud user (`fifa@` below) or as `root@` on DigitalOcean; from then on as `securepay@`.
 
-**Oracle Cloud Always Free (for now)**
+**Google Cloud free trial (now, until about mid-February 2027)**
 
-1. Sign up with **home region Singapore** (it cannot be changed, and Always Free VMs only run
-   in the home region). Then upgrade the account to **Pay As You Go**: it stays free within the
-   Always Free limits, and Oracle no longer reclaims a mostly idle free VM after 7 days.
-2. Create an instance: image **Canonical Ubuntu 24.04**, shape **VM.Standard.A1.Flex (Arm)**
-   with **2 OCPU / 12 GB**, your laptop's SSH public key. "Out of capacity" means try another
-   availability domain, or again later.
-3. Networking > the instance's VNIC > IPv4 addresses: change the public IP to a **reserved**
-   public IP (free).
-4. The VCN's security list (or a network security group): add ingress rules from `0.0.0.0/0`
-   for **TCP 80**, **TCP 443** and **UDP 443**. SSH 22 is there by default.
+The trial gives US$300 for 90 days. When it ends the VM stops unless the account is upgraded,
+so move to DigitalOcean before then (copy the backups and secrets; the names change with the IP).
 
-Every image in the stack runs on Arm (Postgres, Caddy, Mailpit, Python and Node have Arm
-builds, and the Python packages have Arm wheels), and the model file loads the same way.
+1. Sign up at cloud.google.com/free and create a project (for example `securepay-demo`).
+   Enable the Compute Engine API when asked.
+2. VPC network > IP addresses > **Reserve external static IP address**: region
+   **asia-southeast1 (Singapore)**, IPv4, Standard or Premium tier.
+3. Compute Engine > VM instances > **Create instance**:
+   - Region **asia-southeast1 (Singapore)**, any zone
+   - Machine **e2-medium** (2 vCPU, 4 GB), roughly US$25 to 30 a month from the credit
+   - Boot disk: **Ubuntu 24.04 LTS (x86/64)**, **30 GB**, balanced persistent disk
+   - Networking: tick **Allow HTTP traffic** and **Allow HTTPS traffic**; under the network
+     interface, set External IPv4 address to the static IP from step 2
+   - Security > Manage access > **Add item**: paste your laptop's public key
+     (`~/.ssh/id_ed25519.pub`, ending in a comment such as `fifa`). That comment is the user
+     name you sign in with: `ssh fifa@<ip>`.
+4. Nothing else: Google's firewall now allows 22, 80 and 443 (HTTP/3 on UDP 443 is optional).
+
+The server-setup script notices that the external IP is NAT'd (the VM itself only holds a
+`10.x` address) and puts it on the loopback interface, so the worker's webhooks to the shop
+stay inside the VM.
 
 **DigitalOcean (Student Pack)**
 
@@ -57,7 +66,7 @@ builds, and the Python packages have Arm wheels), and the model file loads the s
 ## 2. Set up the server (once)
 
 ```bash
-ssh ubuntu@203.0.113.5      # Oracle;  DigitalOcean: ssh root@203.0.113.5
+ssh fifa@203.0.113.5        # Google Cloud;  DigitalOcean: ssh root@203.0.113.5
 curl -fsSL https://raw.githubusercontent.com/PowerPii/csit321-secure-pay/main/deploy/server-setup.sh -o setup.sh
 less setup.sh               # read it first
 sudo bash setup.sh
@@ -65,10 +74,10 @@ sudo bash setup.sh
 
 It installs security updates (and turns on daily automatic ones), Docker with the Compose
 plugin, a `securepay` user that signs in with the same SSH key, SSH with keys only and no root
-sign-in, a firewall with only 22, 80 and 443 open, and 2 GB of swap. On Oracle it also replaces
-the image's own reject-all iptables rules with that firewall, and puts the reserved public IP
-on the loopback interface so containers can reach the server's own public names (the worker's
-webhooks to the shop). **Before closing the first session**, check in a second terminal that `ssh securepay@203.0.113.5` works.
+sign-in, a firewall with only 22, 80 and 443 open, and 2 GB of swap. On clouds that NAT the
+public IP (Google Cloud, Oracle) it also puts that IP on the loopback interface so containers
+can reach the server's own public names (the worker's webhooks to the shop), and on Oracle it
+replaces the image's own reject-all iptables rules with that firewall. **Before closing the first session**, check in a second terminal that `ssh securepay@203.0.113.5` works.
 
 Team members get access by adding their public key to `/home/securepay/.ssh/authorized_keys`.
 
@@ -225,6 +234,6 @@ the controls off.
 | Every payment Blocked, `screening_unavailable` | `logs gateway`: model folder or `RISK_MODEL_VERSION` wrong (step 5) |
 | A service restarts over and over | `logs <service>`: usually a missing secret file (run `make-secrets.sh` again) |
 | Orders stay unpaid | `logs gateway-worker` (webhook delivery) and `logs merchant` |
-| Server slow or out of memory | `free -h`, `docker stats`; a droplet can be resized up without losing its IP; an Oracle A1 VM can grow to 4 OCPU / 24 GB within the free limits |
-| Oracle: pages time out from outside | The security list rules for 80/443 (step 1), then `sudo ufw status` |
+| Server slow or out of memory | `free -h`, `docker stats`; a droplet can be resized up without losing its IP; on Google Cloud, stop the VM, change the machine type (e2-standard-2, 8 GB) and start it (the static IP stays) |
+| Pages time out from outside | Google Cloud: the VM's "Allow HTTP/HTTPS traffic" boxes (network tags `http-server`, `https-server`); then `sudo ufw status` |
 | Need the Django admin for a one-off | Use `manage.py shell` through `$P exec` instead; the admin stays off on the public server |

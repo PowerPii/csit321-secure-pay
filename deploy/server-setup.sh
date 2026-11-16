@@ -1,6 +1,7 @@
 #!/bin/bash
 # One-time set-up of a fresh Ubuntu 24.04 server (deploy/RUNBOOK.md step 2): a DigitalOcean
-# droplet or an Oracle Cloud VM. Run as root (DigitalOcean) or with sudo (Oracle, user ubuntu):
+# droplet, a Google Cloud VM or an Oracle Cloud VM. Run as root (DigitalOcean) or with sudo
+# (Google Cloud, Oracle):
 #   curl -fsSL https://raw.githubusercontent.com/PowerPii/csit321-secure-pay/main/deploy/server-setup.sh -o setup.sh
 #   less setup.sh && sudo bash setup.sh
 #
@@ -39,7 +40,7 @@ fi
 usermod -aG sudo,docker securepay
 install -d -m 700 -o securepay -g securepay /home/securepay/.ssh
 # The keys of whoever ran this: root on DigitalOcean, the sudo user (ubuntu) on Oracle, where
-# root's own authorized_keys only says "log in as ubuntu".
+# root's own authorized_keys only says "log in as ubuntu" (Google Cloud: your own user).
 keys=/root/.ssh/authorized_keys
 if [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != root ]; then
   keys="$(getent passwd "$SUDO_USER" | cut -d: -f6)/.ssh/authorized_keys"
@@ -84,7 +85,7 @@ if ! swapon --show | grep -q /swapfile; then
   echo "/swapfile none swap sw 0 0" >> /etc/fstab
 fi
 
-# On clouds that NAT the public IP (Oracle, AWS, Azure) the server does not hold its own public
+# On clouds that NAT the public IP (Google Cloud, Oracle, AWS, Azure) the server does not hold its own public
 # address, so a container calling shop.<domain> (the worker's webhooks) would leave the cloud
 # and may not come back. With the address on the loopback interface, Docker routes it straight
 # to Caddy. DigitalOcean droplets already hold their IP, so nothing changes there.

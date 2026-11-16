@@ -10,7 +10,7 @@ Public server (sprint 9), step by step in **[`RUNBOOK.md`](RUNBOOK.md)**:
 - `compose.prod.yaml`: the same services with production settings (`DJANGO_DEBUG=0`, Django admin off, simulator private, webhooks to public addresses only, capped logs) and an on-demand `integration-tests` service.
 - `Caddyfile.prod` + `caddy/Dockerfile`: Let's Encrypt for `gateway.`, `shop.` and `mail.<domain>` (sslip.io), Mailpit behind basic auth, `/admin*` answered with 404, and the private `:8443` sites for the simulator hop; the image carries the checkout and dashboard builds.
 - `prod.env.example`: settings for `deploy/.env` on the server (domain, ACME email, model version, fault controls).
-- `server-setup.sh`: one-time hardening of a fresh Ubuntu 24.04 server (DigitalOcean or Oracle).
+- `server-setup.sh`: one-time hardening of a fresh Ubuntu 24.04 server (Google Cloud, DigitalOcean or Oracle).
 - `make-secrets.sh`: fresh secrets on the server and the demo inbox password.
 - `smoke-check.sh`: checks the public server from outside.
 
