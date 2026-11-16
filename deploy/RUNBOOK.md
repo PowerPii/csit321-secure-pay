@@ -10,6 +10,8 @@ assessors directly.
 **Current server (16 Nov 2026):** Google Cloud project `securepay-demo`, VM `securepay`
 (e2-medium, asia-southeast1), static IP `35.213.144.96`, domain `35-213-144-96.sslip.io`.
 First deploy: all smoke checks and all 11 integration tests passed on it.
+Automatic deploys are on (step 10) since 16 Nov 2026: the first run from GitHub Actions passed
+its smoke check.
 
 | Name | What | Who |
 | --- | --- | --- |
