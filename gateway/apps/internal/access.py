@@ -25,13 +25,18 @@ class StaffSessionAuthentication(authentication.SessionAuthentication):
         if not (hasattr(user, "is_verified") and user.is_verified()):
             return None  # password only: the TOTP step is still missing
         account = StaffAccount.objects.select_related("merchant").filter(user=user).first()
-        if account is None:
+        if account is None or account.status != StaffAccount.Status.ACTIVE:
             return None
+        if account.merchant is not None and account.merchant.status in MERCHANT_OFF:
+            return None  # FR-ADM-02: a suspended merchant's operators are signed out
         self.enforce_csrf(request)
         return user, account
 
     def authenticate_header(self, request):
         return "Session"
+
+
+MERCHANT_OFF = ("suspended", "deactivated", "rejected")
 
 
 class IsStaff(permissions.BasePermission):

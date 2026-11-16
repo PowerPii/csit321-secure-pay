@@ -335,7 +335,7 @@ components:
           type: integer
           minimum: 50
           maximum: 1000000
-          description: SGD cents. Above the merchant's own limit (FR-ADM-07, if set) answers 422 `amount_above_merchant_limit`.
+          description: SGD cents. Above the administrator's gateway-wide limit answers 422 `amount_above_limit`; above the merchant's own limit (FR-ADM-07, if set) 422 `amount_above_merchant_limit`.
         currency: { const: SGD }
         order_reference: { type: string, minLength: 1, maxLength: 64, pattern: '^[\x20-\x7E]+$' }
         return_url:
@@ -423,7 +423,7 @@ components:
         application/json:
           schema: { $ref: '../schemas/error.schema.json' }
     BusinessRule:
-      description: 'Valid request refused by a business rule. Codes: amount_above_merchant_limit, capture_exceeds_authorised, refund_exceeds_refundable.'
+      description: 'Valid request refused by a business rule. Codes: amount_above_limit, amount_above_merchant_limit, capture_exceeds_authorised, refund_exceeds_refundable.'
       headers:
         SecurePay-Signature: { $ref: '#/components/headers/Signature' }
         SecurePay-Request-Id: { $ref: '#/components/headers/RequestId' }
@@ -431,7 +431,7 @@ components:
         application/json:
           schema: { $ref: '../schemas/error.schema.json' }
     RateLimited:
-      description: 'More than 100 requests in a minute for this key (NFR-AVA-02). Code rate_limited.'
+      description: 'Over the rate limit for this key (100 a minute by default, NFR-AVA-02) or client IP address (300 by default); administrators can change both (FR-ADM-12). Code rate_limited.'
       headers:
         Retry-After: { $ref: '#/components/headers/RetryAfter' }
         SecurePay-Request-Id: { $ref: '#/components/headers/RequestId' }

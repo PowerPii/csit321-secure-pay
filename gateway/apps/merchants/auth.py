@@ -2,7 +2,6 @@
 import re
 from datetime import timedelta
 
-from django.conf import settings
 from django.utils import timezone
 from rest_framework import authentication, exceptions, permissions, throttling
 
@@ -49,14 +48,34 @@ class IsActiveMerchant(permissions.BasePermission):
 
 
 class ApiKeyRateThrottle(throttling.SimpleRateThrottle):
-    """100 requests a minute per key (NFR-AVA-02); other keys are not affected."""
+    """Requests a minute per key (NFR-AVA-02; 100 unless an administrator changed it,
+    FR-ADM-12); other keys are not affected."""
 
     scope = "merchant_api_key"
 
     def get_rate(self):
-        return f"{settings.GATEWAY_RULES['API_RATE_LIMIT_PER_MINUTE']}/min"
+        from apps.security.limits import current
+
+        return f"{current().api_key_requests_per_minute}/min"
 
     def get_cache_key(self, request, view):
         if not isinstance(request.auth, ApiKey):
             return None
         return self.cache_format % {"scope": self.scope, "ident": request.auth.pk}
+
+
+class MerchantIpRateThrottle(throttling.SimpleRateThrottle):
+    """Requests a minute per client IP address on the merchant API (FR-ADM-12)."""
+
+    scope = "merchant_api_ip"
+
+    def get_rate(self):
+        from apps.security.limits import current
+
+        return f"{current().ip_requests_per_minute}/min"
+
+    def get_cache_key(self, request, view):
+        from apps.common.clientip import client_ip
+
+        ip = client_ip(request)
+        return self.cache_format % {"scope": self.scope, "ident": ip} if ip else None

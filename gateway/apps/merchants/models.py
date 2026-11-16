@@ -22,7 +22,8 @@ class Merchant(models.Model):
         PENDING = "pending"
         ACTIVE = "active"
         REJECTED = "rejected"
-        SUSPENDED = "suspended"
+        SUSPENDED = "suspended"  # FR-ADM-02: API and dashboard off; can be reinstated
+        DEACTIVATED = "deactivated"  # permanent: keys revoked, history kept
 
     public_id = models.CharField(max_length=32, unique=True, editable=False)
     name = models.CharField(max_length=120)
@@ -39,13 +40,15 @@ class Merchant(models.Model):
     contact_name = models.CharField(max_length=120, blank=True)
     contact_email = models.EmailField(max_length=254, blank=True)
     email_verified_at = models.DateTimeField(null=True, blank=True)
+    status_reason = models.CharField(max_length=200, blank=True)  # suspension or deactivation
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         constraints = [
             models.CheckConstraint(
-                condition=Q(status__in=["pending", "active", "rejected", "suspended"]),
+                condition=Q(status__in=["pending", "active", "rejected", "suspended",
+                                         "deactivated"]),
                 name="merchant_status_valid",
             ),
             # "This business is already registered" (UC-16); a rejected one may apply again.

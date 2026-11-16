@@ -247,7 +247,8 @@ export interface CaseDetail extends CaseRow {
 export interface Merchant {
   id: string;
   name: string;
-  status: "pending" | "active" | "rejected" | "suspended";
+  status: "pending" | "active" | "rejected" | "suspended" | "deactivated";
+  status_reason?: string | null;
   webhook_url: string | null;
   webhook_url_approved: boolean;
   max_amount_cents: number | null;
@@ -342,4 +343,39 @@ export interface SecurityAlert {
 
 export interface SecurityAlertList extends Page<SecurityAlert> {
   open: number;
+}
+
+/** FR-ADM-02 to FR-ADM-05: a staff account as administrators manage it. */
+export interface StaffRow {
+  id: string;
+  name: string;
+  email: string;
+  role: Role;
+  role_label: string;
+  merchant: MerchantRef | null;
+  status: "active" | "suspended" | "deactivated";
+  status_reason: string | null;
+  status_changed_at: string | null;
+  last_sign_in_at: string | null;
+  created_at: string;
+}
+
+export interface StaffList {
+  data: StaffRow[];
+  roles: { value: Role; label: string }[];
+}
+
+/** FR-ADM-07, FR-ADM-12: limits an administrator sets. */
+export interface LimitValues {
+  max_amount_cents: number;
+  api_key_requests_per_minute: number;
+  ip_requests_per_minute: number;
+}
+
+export interface Limits {
+  effective: LimitValues;
+  defaults: LimitValues;
+  bounds: { max_amount_cents: [number, number]; requests_per_minute: [number, number] };
+  updated_at: string | null;
+  updated_by: string | null;
 }

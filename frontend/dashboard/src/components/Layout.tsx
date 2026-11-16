@@ -21,6 +21,8 @@ const NAV: { to: string; label: string; page: keyof typeof CAN }[] = [
   { to: "/reports", label: "Fraud reports", page: "reports" },
   { to: "/merchants", label: "Merchants", page: "merchants" },
   { to: "/api-keys", label: "API keys", page: "keys" },
+  { to: "/accounts", label: "Accounts", page: "accounts" },
+  { to: "/limits", label: "Limits", page: "limits" },
   { to: "/audit", label: "Audit log", page: "audit" },
   { to: "/security", label: "Security alerts", page: "security" },
 ];

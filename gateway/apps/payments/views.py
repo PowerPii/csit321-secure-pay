@@ -15,6 +15,7 @@ from apps.payments import settlement
 from apps.payments.idempotency import run_idempotent
 from apps.payments.models import Operation, Payment
 from apps.payments.serializers import payment_to_dict
+from apps.security.limits import current as current_limits
 
 CREATE_FIELDS = ("amount", "currency", "order_reference", "return_url", "customer_email",
                  "description", "line_items")
@@ -84,6 +85,12 @@ def validate_create(body: dict, merchant) -> dict:
 
     line_items = validate_line_items(body.get("line_items"), amount)
 
+    # FR-ADM-07: the administrator's gateway-wide limit, then the merchant's own; both
+    # before screening.
+    if amount > current_limits().max_amount_cents:
+        raise ApiError(422, "amount_above_limit",
+                       "The amount exceeds the limit per payment set by the gateway.",
+                       param="amount")
     if merchant.max_amount_cents is not None and amount > merchant.max_amount_cents:
         raise ApiError(422, "amount_above_merchant_limit",
                        "The amount is above the limit set for your account.", param="amount")

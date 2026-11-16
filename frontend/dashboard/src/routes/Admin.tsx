@@ -11,6 +11,33 @@ import { useSearchParams } from "react-router-dom";
 import { api, post, query, type AuditRow, type Merchant, type Page } from "../api/client";
 import { Badge, ErrorAlert, PageHeader } from "../components/ui";
 import { longDate, money, parseMoney, titleCase } from "../format";
+import { StatusDialog, type StatusAction } from "./Manage";
+
+function LimitDialog({ merchant, onClose }: { merchant: Merchant | null; onClose: () => void }) {
+  const client = useQueryClient();
+  const [value, setValue] = useState<string | null>(null);
+  const text = value ?? (merchant?.max_amount_cents ? (merchant.max_amount_cents / 100).toFixed(2) : "");
+  const cents = text.trim() ? parseMoney(text) : null;
+  const save = useMutation({
+    mutationFn: () => post<Merchant>(`/merchants/${merchant!.id}/limit`, { max_amount_cents: cents }),
+    onSuccess: () => { client.invalidateQueries({ queryKey: ["merchants"] }); close(); },
+  });
+  const close = () => { setValue(null); save.reset(); onClose(); };
+  return (
+    <Dialog open={!!merchant} onClose={close} fullWidth maxWidth="xs" aria-labelledby="limit-title">
+      <DialogTitle id="limit-title">Limit for {merchant?.name}</DialogTitle>
+      <DialogContent>
+        <TextField label="Maximum per payment (SGD); empty = gateway limit" value={text} onChange={(e) => setValue(e.target.value)}
+          fullWidth autoFocus sx={{ mt: 1 }} />
+        <ErrorAlert error={save.error} />
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={close}>Cancel</Button>
+        <Button variant="contained" disabled={save.isPending || (!!text.trim() && cents === null)} onClick={() => save.mutate()}>Save</Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
 
 function CreateMerchant({ open, onClose }: { open: boolean; onClose: () => void }) {
   const client = useQueryClient();
@@ -72,6 +99,8 @@ export function Merchants() {
   const [rejecting, setRejecting] = useState<Merchant | null>(null);
   const [reason, setReason] = useState("");
   const [notice, setNotice] = useState("");
+  const [status, setStatus] = useState<{ kind: "merchant"; id: string; name: string; action: StatusAction } | null>(null);
+  const [limitOf, setLimitOf] = useState<Merchant | null>(null);
   const list = useQuery({ queryKey: ["merchants"], queryFn: () => api<{ data: Merchant[] }>("/merchants") });
   const refresh = () => client.invalidateQueries({ queryKey: ["merchants"] });
   const approve = useMutation({
@@ -88,7 +117,7 @@ export function Merchants() {
   });
   return (
     <>
-      <PageHeader title="Merchants" subtitle="Approve merchants and their webhook addresses"
+      <PageHeader title="Merchants" subtitle="Approve, suspend or deactivate merchants, and set their limits and webhook addresses"
         action={<Button variant="outlined" size="large" onClick={() => setCreating(true)}>New merchant</Button>} />
       <ErrorAlert error={list.error ?? approve.error ?? reject.error ?? webhook.error} />
       {notice && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setNotice("")}>{notice}</Alert>}
@@ -115,6 +144,7 @@ export function Merchants() {
                 </TableCell>
                 <TableCell>
                   <Badge label={titleCase(m.status)} tone={m.status === "active" ? "dark" : "neutral"} />
+                  {m.status_reason && <Typography variant="caption" display="block" mt={0.5}>{m.status_reason}</Typography>}
                   {m.registration && m.status === "pending" && (
                     <Typography variant="caption" display="block" mt={0.5}>
                       {m.registration.email_verified_at ? "Email verified" : "Email not verified"}
@@ -133,7 +163,10 @@ export function Merchants() {
                   )}
                 </TableCell>
                 <TableCell sx={{ fontFamily: "monospace", fontSize: 12 }}>{m.api_key?.hint ?? "none"}</TableCell>
-                <TableCell>{m.max_amount_cents ? money(m.max_amount_cents) : "global"}</TableCell>
+                <TableCell sx={{ whiteSpace: "nowrap" }}>
+                  {m.max_amount_cents ? money(m.max_amount_cents) : "gateway"}
+                  {m.status !== "deactivated" && <Button size="small" onClick={() => setLimitOf(m)}>Edit</Button>}
+                </TableCell>
                 <TableCell sx={{ whiteSpace: "nowrap" }}>{longDate(m.created_at)}</TableCell>
                 <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>
                   {m.status === "pending" && (
@@ -143,6 +176,15 @@ export function Merchants() {
                       <Button variant="outlined" size="small" onClick={() => setRejecting(m)}>Reject</Button>
                     </Stack>
                   )}
+                  {m.status === "active" && (
+                    <Button size="small" onClick={() => setStatus({ kind: "merchant", id: m.id, name: m.name, action: "suspend" })}>Suspend</Button>
+                  )}
+                  {m.status === "suspended" && (
+                    <Button size="small" onClick={() => setStatus({ kind: "merchant", id: m.id, name: m.name, action: "reinstate" })}>Reinstate</Button>
+                  )}
+                  {(m.status === "active" || m.status === "suspended") && (
+                    <Button size="small" color="error" onClick={() => setStatus({ kind: "merchant", id: m.id, name: m.name, action: "deactivate" })}>Deactivate</Button>
+                  )}
                 </TableCell>
               </TableRow>
             ))}
@@ -150,6 +192,8 @@ export function Merchants() {
         </Table>
       </TableContainer>
       <CreateMerchant open={creating} onClose={() => setCreating(false)} />
+      <StatusDialog target={status} onClose={() => setStatus(null)} onDone={() => { setStatus(null); refresh(); }} />
+      <LimitDialog merchant={limitOf} onClose={() => setLimitOf(null)} />
       <Credentials merchant={approved} onClose={() => setApproved(null)} />
       <Dialog open={!!rejecting} onClose={() => setRejecting(null)} fullWidth maxWidth="xs">
         <DialogTitle>Reject {rejecting?.name}</DialogTitle>
