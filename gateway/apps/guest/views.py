@@ -4,38 +4,15 @@ Same origin as the page, JSON only (a cross-site form cannot post JSON without a
 preflight), and the session cookie is SameSite=Strict, HttpOnly, Secure and limited to
 /guest/status, so another site can neither send nor read it.
 """
-from typing import ClassVar
-
 from django.conf import settings
-from rest_framework.parsers import JSONParser
-from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from rest_framework.throttling import AnonRateThrottle
-from rest_framework.views import APIView
 
 from apps.common.clientip import client_ip
-from apps.common.errors import invalid
+from apps.common.views import PublicJSONView
 from apps.guest import service
 
 
-class GuestView(APIView):
-    authentication_classes: ClassVar = []
-    permission_classes: ClassVar = [AllowAny]
-    parser_classes: ClassVar = [JSONParser]
-    throttle_classes: ClassVar = [AnonRateThrottle]
-
-    def finalize_response(self, request, response, *args, **kwargs):
-        response = super().finalize_response(request, response, *args, **kwargs)
-        response["Cache-Control"] = "no-store"
-        response["X-Robots-Tag"] = "noindex"
-        return response
-
-    @staticmethod
-    def body(request) -> dict:
-        if not isinstance(request.data, dict):
-            raise invalid("invalid_json", "The request body must be a JSON object.")
-        return request.data
-
+class GuestView(PublicJSONView):
     @staticmethod
     def token(request) -> str | None:
         return request.COOKIES.get(service.COOKIE)

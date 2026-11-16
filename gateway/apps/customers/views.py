@@ -8,27 +8,14 @@ of a CSRF token (decided 13 Nov 2026).
 from typing import ClassVar
 
 from django.conf import settings
-from rest_framework.parsers import JSONParser
-from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle, ScopedRateThrottle
-from rest_framework.views import APIView
 
+from apps.common.views import PublicJSONView, body_or_empty
 from apps.customers import service
 
 
-class CustomerView(APIView):
-    authentication_classes: ClassVar = []
-    permission_classes: ClassVar = [AllowAny]
-    parser_classes: ClassVar = [JSONParser]
-    throttle_classes: ClassVar = [AnonRateThrottle]
-
-    def finalize_response(self, request, response, *args, **kwargs):
-        response = super().finalize_response(request, response, *args, **kwargs)
-        response["Cache-Control"] = "no-store"
-        response["X-Robots-Tag"] = "noindex"
-        return response
-
+class CustomerView(PublicJSONView):
     @staticmethod
     def token(request) -> str | None:
         return request.COOKIES.get(service.COOKIE)
@@ -139,7 +126,7 @@ class ResetCheckView(_AuthStep):
     """POST {token} -> {email}, or 400 link_invalid. Does not use the link."""
 
     def post(self, request):
-        data = request.data if isinstance(request.data, dict) else {}
+        data = body_or_empty(request)
         return Response(service.check_reset_link(data.get("token")))
 
 

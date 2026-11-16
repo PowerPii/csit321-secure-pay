@@ -24,6 +24,7 @@ from apps.audit.models import AuditEvent
 from apps.audit.models import record as audit
 from apps.common.errors import ApiError, invalid, not_found
 from apps.common.timefmt import rfc3339
+from apps.common.views import body_or_empty
 from apps.internal.access import ADMIN, StaffAPIView
 from apps.internal.views.payments import _date, _int, local_zone
 from apps.merchants.models import ApiKey, Merchant
@@ -89,7 +90,7 @@ class MerchantListView(StaffAPIView):
         return Response({"object": "list", "data": [merchant_to_dict(m) for m in merchants]})
 
     def post(self, request):
-        body = request.data if isinstance(request.data, dict) else {}
+        body = body_or_empty(request)
         name = body.get("name")
         if not isinstance(name, str) or not 1 <= len(name.strip()) <= 120:
             raise invalid("invalid_field", "Enter a business name of up to 120 characters.",
@@ -188,7 +189,7 @@ class MerchantWebhookView(StaffAPIView):
     roles = ADMIN
 
     def post(self, request, merchant_id: str):
-        body = request.data if isinstance(request.data, dict) else {}
+        body = body_or_empty(request)
         approved = body.get("approved")
         if not isinstance(approved, bool):
             raise invalid("invalid_field", "'approved' must be true or false.",

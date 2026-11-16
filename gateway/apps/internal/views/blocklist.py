@@ -24,6 +24,7 @@ from apps.audit.models import AuditEvent
 from apps.audit.models import record as audit
 from apps.common.errors import ApiError, invalid, not_found
 from apps.common.timefmt import rfc3339
+from apps.common.views import body_or_empty
 from apps.internal.access import ADMIN, ANALYST_OR_ADMIN, StaffAPIView
 from apps.internal.views.payments import _int
 from apps.internal.views.reviews import FLAGGED
@@ -37,10 +38,6 @@ FINGERPRINT = re.compile(r"^[0-9a-f]{64}$")
 # before anything else so it is never echoed back, used as a key or written to the audit log.
 CARD_NUMBER = re.compile(r"^[0-9][0-9 -]{11,24}[0-9]$")
 FIELD = {"card": "card_fingerprint", "email": "email_hash", "ip": "ip_hash"}
-
-
-def _body(request) -> dict:
-    return request.data if isinstance(request.data, dict) else {}
 
 
 def _payment(value: str) -> Payment | None:
@@ -195,7 +192,7 @@ class BlocklistView(StaffAPIView):
                          "can_remove": self.staff.is_admin})
 
     def post(self, request):
-        body = _body(request)
+        body = body_or_empty(request)
         kind = body.get("kind")
         if kind not in ("card", "ip"):
             raise invalid("invalid_field", "Only cards and IP addresses can be blocklisted "
@@ -249,7 +246,7 @@ class BlocklistRemoveView(StaffAPIView):
     roles = ADMIN
 
     def post(self, request, entry_id: int):
-        reason = _reason(_body(request))
+        reason = _reason(body_or_empty(request))
         with transaction.atomic():
             entry = RiskListEntry.objects.select_for_update().filter(
                 Q(pk=entry_id), Q(active=True)).first()

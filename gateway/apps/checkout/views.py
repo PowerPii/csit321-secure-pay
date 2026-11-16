@@ -3,39 +3,16 @@
 JSON only, so a cross-site form post cannot reach it (the browser would need a CORS
 preflight). Replies are never cached, and the card number is never echoed or logged.
 """
-from typing import ClassVar
-
-from rest_framework.parsers import JSONParser
-from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from rest_framework.throttling import AnonRateThrottle
-from rest_framework.views import APIView
 
 from apps.checkout import service
 from apps.common.clientip import client_ip
-from apps.common.errors import invalid
+from apps.common.views import PublicJSONView
 from apps.customers.service import COOKIE as CUSTOMER_COOKIE
 
 
-class CheckoutView(APIView):
-    authentication_classes: ClassVar = []
-    permission_classes: ClassVar = [AllowAny]
-    parser_classes: ClassVar = [JSONParser]
-    throttle_classes: ClassVar = [AnonRateThrottle]
-
-    def finalize_response(self, request, response, *args, **kwargs):
-        response = super().finalize_response(request, response, *args, **kwargs)
-        response["Cache-Control"] = "no-store"
-        response["X-Robots-Tag"] = "noindex"
-        return response
-
-    @staticmethod
-    def body(request) -> dict:
-        data = request.data
-        if not isinstance(data, dict):
-            raise invalid("invalid_json", "The request body must be a JSON object.")
-        return data
-
+class CheckoutView(PublicJSONView):
+    pass
 
 class SessionView(CheckoutView):
     """GET: order summary and current state (C3, and C6/C7 after a reload)."""
@@ -81,6 +58,5 @@ class ResendView(CheckoutView):
         return Response(service.to_dict(payment))
 
 
-class ResultView(CheckoutView):
-    def get(self, request, session_id):
-        return Response(service.to_dict(service.load(session_id)))
+class ResultView(SessionView):
+    pass

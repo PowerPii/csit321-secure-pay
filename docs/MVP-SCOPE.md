@@ -62,7 +62,7 @@ If the demo shows that path end to end, plus the three failure stories below, th
 | Test cards | `simulator/apps/operations/test_cards.py` |
 | Shop pages | `merchant/apps/shop/` |
 
-Every endpoint is routed but returns `501 Not Implemented` until someone builds it. Search for `NotImplementedView` to see what is left (after sprint 8, nothing in the MVP).
+All MVP endpoints were implemented by sprint 8. The unused `NotImplementedView` scaffold has been removed.
 
 | Piece (sprint 8) | Code |
 | --- | --- |

@@ -1,3 +1,6 @@
+import { jsonClient } from "./http";
+export { ApiError } from "./http";
+
 // The hosted checkout API (gateway/apps/checkout). Same origin, JSON only, session-bound:
 // the browser sends card details and "pay"; it can never set merchant, amount or currency.
 
@@ -51,38 +54,8 @@ export interface CardInput {
   privacy_consent: true; // FR-ACC-12: the gateway refuses the card without it
 }
 
-export class ApiError extends Error {
-  constructor(
-    public status: number,
-    public code: string,
-    message: string,
-    public param: string | null = null,
-  ) {
-    super(message);
-  }
-}
-
-const API_BASE = "/checkout";
-
-async function call(path: string, init?: RequestInit): Promise<Session> {
-  let response: Response;
-  try {
-    response = await fetch(`${API_BASE}/${path}`, {
-      ...init,
-      headers: { Accept: "application/json", "Content-Type": "application/json" },
-      credentials: "same-origin",
-      cache: "no-store",
-    });
-  } catch {
-    throw new ApiError(0, "network_error", "We couldn't reach SecurePay. Check your connection and try again.");
-  }
-  const body = await response.json().catch(() => null);
-  if (!response.ok) {
-    const err = body?.error;
-    throw new ApiError(response.status, err?.code ?? "unknown_error", err?.message ?? "Something went wrong.", err?.param ?? null);
-  }
-  return body as Session;
-}
+const request = jsonClient("/checkout");
+const call = (path: string, init?: RequestInit) => request<Session>(path, init);
 
 export const getSession = (sessionId: string) => call(encodeURIComponent(sessionId));
 

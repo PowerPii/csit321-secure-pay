@@ -16,6 +16,7 @@ from apps.audit.models import AuditEvent
 from apps.audit.models import record as audit
 from apps.common.errors import ApiError, invalid, not_found
 from apps.common.timefmt import rfc3339
+from apps.common.views import body_or_empty
 from apps.internal.access import ADMIN, StaffAPIView
 from apps.internal.views.payments import _int
 from apps.security.models import AlertKind, SecurityAlert
@@ -119,7 +120,7 @@ class SecurityAlertResolveView(StaffAPIView):
     roles = ADMIN
 
     def post(self, request, alert_id: str):
-        body = request.data if isinstance(request.data, dict) else {}
+        body = body_or_empty(request)
         note = body.get("note")
         if not isinstance(note, str) or not 1 <= len(note.strip()) <= 1000:
             raise invalid("missing_field", "Add a note of up to 1000 characters on what you "

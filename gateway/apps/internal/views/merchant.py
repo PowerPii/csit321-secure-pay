@@ -24,6 +24,7 @@ from apps.audit.models import AuditEvent
 from apps.audit.models import record as audit
 from apps.common.errors import ApiError, invalid
 from apps.common.timefmt import rfc3339
+from apps.common.views import body_or_empty
 from apps.internal.access import OPERATOR, StaffAPIView
 from apps.internal.views.admin import _webhook_url
 from apps.merchants.models import ApiKey, Merchant
@@ -96,7 +97,7 @@ class _KeyChangeView(_OwnMerchantView):
         return key
 
     def _body(self) -> dict:
-        return self.request.data if isinstance(self.request.data, dict) else {}
+        return body_or_empty(self.request)
 
 
 class OwnApiKeyRotateView(_KeyChangeView):
@@ -149,7 +150,7 @@ class OwnApiKeyRevokeView(_KeyChangeView):
 
 class OwnWebhookView(_OwnMerchantView):
     def post(self, request):
-        body = request.data if isinstance(request.data, dict) else {}
+        body = body_or_empty(request)
         url = _webhook_url(body.get("webhook_url"))
         if not url:
             raise invalid("missing_field", "Enter the webhook URL.", param="webhook_url")

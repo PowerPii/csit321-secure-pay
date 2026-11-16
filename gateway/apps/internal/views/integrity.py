@@ -15,6 +15,7 @@ from apps.audit.models import AuditEvent
 from apps.audit.models import record as audit
 from apps.common.errors import ApiError, invalid, not_found
 from apps.common.timefmt import rfc3339
+from apps.common.views import body_or_empty
 from apps.internal.access import ADMIN, StaffAPIView
 from apps.internal.views.payments import _int
 from apps.security import keyring, maintenance
@@ -100,7 +101,7 @@ class IntegrityRunNowView(StaffAPIView):
     roles = ADMIN
 
     def post(self, request):
-        body = request.data if isinstance(request.data, dict) else {}
+        body = body_or_empty(request)
         kind = body.get("kind")
         if kind not in MaintenanceRun.Kind.values:
             raise invalid("invalid_kind", "Choose integrity, self_check or retention.", "kind")
@@ -115,7 +116,7 @@ class KeyRotateView(StaffAPIView):
     roles = ADMIN
 
     def post(self, request):
-        body = request.data if isinstance(request.data, dict) else {}
+        body = body_or_empty(request)
         purpose = body.get("purpose")
         if purpose not in DataKey.Purpose.values:
             raise invalid("invalid_purpose", "Choose vault or field.", "purpose")

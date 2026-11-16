@@ -17,6 +17,7 @@ from apps.audit.models import AuditEvent
 from apps.audit.models import record as audit
 from apps.common.errors import invalid, not_found
 from apps.common.timefmt import rfc3339
+from apps.common.views import body_or_empty
 from apps.internal.access import ADMIN, ANALYST_OR_ADMIN, StaffAPIView
 from apps.risk import rulebook
 from apps.risk.features import FEATURE_NAMES
@@ -49,10 +50,6 @@ def ruleset_dict() -> dict:
     }
 
 
-def _body(request) -> dict:
-    return request.data if isinstance(request.data, dict) else {}
-
-
 class _RulesView(StaffAPIView):
     def _audit(self, action, target_id, **details):
         audit(action, actor_type=AuditEvent.ActorType.STAFF, actor_id=self.staff.public_id,
@@ -69,7 +66,7 @@ class RuleSetView(_RulesView):
         return Response(ruleset_dict())
 
     def post(self, request):
-        body = _body(request)
+        body = body_or_empty(request)
         spec = rulebook.validate(body.get("rule") if isinstance(body.get("rule"), dict) else {})
         rule, warnings = rulebook.save(self.staff.public_id, spec,
                                        confirm_conflicts=body.get("confirm_conflicts") is True)
@@ -84,7 +81,7 @@ class RuleCheckView(_RulesView):
     roles = ADMIN
 
     def post(self, request):
-        body = _body(request)
+        body = body_or_empty(request)
         spec = rulebook.validate(body.get("rule") if isinstance(body.get("rule"), dict) else {})
         rule_id = body.get("rule_id") if isinstance(body.get("rule_id"), str) else None
         return Response({"conflicts": rulebook.conflicts(spec, ignore_rule_id=rule_id)})
@@ -102,7 +99,7 @@ class RuleDetailView(_RulesView):
         return Response({"id": rule_id, "revisions": [rule_to_dict(r) for r in revisions]})
 
     def post(self, request, rule_id: str):
-        body = _body(request)
+        body = body_or_empty(request)
         spec = rulebook.validate(body.get("rule") if isinstance(body.get("rule"), dict) else {})
         rule, warnings = rulebook.save(self.staff.public_id, spec, rule_id=rule_id[:32],
                                        confirm_conflicts=body.get("confirm_conflicts") is True)
@@ -116,7 +113,7 @@ class RuleEnabledView(_RulesView):
     roles = ADMIN
 
     def post(self, request, rule_id: str):
-        enabled = _body(request).get("enabled")
+        enabled = body_or_empty(request).get("enabled")
         if not isinstance(enabled, bool):
             raise invalid("invalid_field", "'enabled' must be true or false.", param="enabled")
         rule = rulebook.set_enabled(self.staff.public_id, rule_id[:32], enabled)
@@ -129,7 +126,7 @@ class RuleFreezeView(_RulesView):
     roles = ADMIN
 
     def post(self, request):
-        note = _body(request).get("note")
+        note = body_or_empty(request).get("note")
         if not isinstance(note, str) or not 1 <= len(note.strip()) <= 200:
             raise invalid("missing_field", "Say which evaluation run this is (up to 200 "
                           "characters).", param="note")

@@ -1,6 +1,6 @@
 // Guest status API (gateway/apps/guest, contracts/openapi/guest-status.v1.yaml). Same origin,
 // JSON only. The unlocked payment lives in an HttpOnly cookie the page never sees.
-import { ApiError } from "./api";
+import { ApiError, jsonClient } from "./http";
 
 export interface CodeRequested {
   challenge_id: string;
@@ -34,34 +34,8 @@ export class GuestApiError extends ApiError {
   }
 }
 
-async function call<T>(path: string, init?: RequestInit): Promise<T> {
-  let response: Response;
-  try {
-    response = await fetch(`/guest/status/${path}`, {
-      ...init,
-      headers: { Accept: "application/json", "Content-Type": "application/json" },
-      credentials: "same-origin",
-      cache: "no-store",
-    });
-  } catch {
-    throw new GuestApiError(0, "network_error", "We couldn't reach SecurePay. Check your connection and try again.", null, null, null);
-  }
-  if (response.status === 204) return undefined as T;
-  const body = await response.json().catch(() => null);
-  if (!response.ok) {
-    const err = body?.error;
-    const retry = Number(response.headers.get("Retry-After"));
-    throw new GuestApiError(
-      response.status,
-      err?.code ?? "unknown_error",
-      err?.message ?? "Something went wrong.",
-      err?.param ?? null,
-      typeof body?.attempts_remaining === "number" ? body.attempts_remaining : null,
-      Number.isFinite(retry) && retry > 0 ? retry : null,
-    );
-  }
-  return body as T;
-}
+const call = jsonClient("/guest/status", ({ status, code, message, param, retryAfter, attemptsRemaining }) =>
+  new GuestApiError(status, code, message, param, attemptsRemaining, retryAfter));
 
 export const requestCode = (reference: string, email: string) =>
   call<CodeRequested>("code", { method: "POST", body: JSON.stringify({ reference, email }) });

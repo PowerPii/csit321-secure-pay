@@ -20,6 +20,7 @@ from apps.audit.models import AuditEvent
 from apps.audit.models import record as audit
 from apps.common.errors import ApiError, invalid, not_found
 from apps.common.timefmt import rfc3339
+from apps.common.views import body_or_empty
 from apps.events.models import OutboxEvent
 from apps.internal.access import ADMIN, OPERATOR, StaffAPIView, get_payment, visible_payments
 from apps.internal.serializers import mask_email, payment_row, screening_to_dict
@@ -349,7 +350,7 @@ class _SettleView(StaffAPIView):
 
     def post(self, request, payment_id: str):
         payment = get_payment(self.staff, payment_id)
-        body = request.data if isinstance(request.data, dict) else {}
+        body = body_or_empty(request)
         operation, created = settlement.start(payment.public_id, self.op_type, self.actor(),
                                               merchant=self.staff.merchant, body=dict(body))
         payment, operation = settlement.settle(operation, created, request.request_id)
@@ -392,7 +393,7 @@ class RefundView(StaffAPIView):
 
     def post(self, request, payment_id: str):
         payment = get_payment(self.staff, payment_id)
-        body = request.data if isinstance(request.data, dict) else {}
+        body = body_or_empty(request)
         refund, created = refunds.start(payment.public_id, self.staff.merchant, dict(body),
                                         self.actor())
         refund = refunds.submit(refund, created, request.request_id)

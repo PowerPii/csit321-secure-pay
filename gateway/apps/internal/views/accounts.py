@@ -12,12 +12,9 @@ from rest_framework.throttling import AnonRateThrottle, ScopedRateThrottle
 
 from apps.accounts import reset
 from apps.common.errors import invalid
+from apps.common.views import body_or_empty
 from apps.internal.views.auth import _SignInStep
 from apps.merchants import registration
-
-
-def _body(request) -> dict:
-    return request.data if isinstance(request.data, dict) else {}
 
 
 class _EmailSendingStep(_SignInStep):
@@ -29,7 +26,7 @@ class PasswordResetRequestView(_EmailSendingStep):
     """POST {email} -> 202 with the same message whether or not the email has an account."""
 
     def post(self, request):
-        email = _body(request).get("email")
+        email = body_or_empty(request).get("email")
         if not isinstance(email, str) or not email.strip() or "@" not in email:
             raise invalid("missing_field", "Enter your email address.", param="email")
         reset.request_reset(request._request, email[:254])
@@ -41,14 +38,14 @@ class PasswordResetCheckView(_SignInStep):
     """POST {token} -> {email, mfa_required}, or 400 link_invalid. Does not use the link."""
 
     def post(self, request):
-        return Response(reset.check_link(_body(request).get("token")))
+        return Response(reset.check_link(body_or_empty(request).get("token")))
 
 
 class PasswordResetConfirmView(_SignInStep):
     """POST {token, password, code?} -> 200 once the password is changed."""
 
     def post(self, request):
-        body = _body(request)
+        body = body_or_empty(request)
         account = reset.reset_password(request._request, body.get("token"),
                                        body.get("password"), body.get("code"))
         return Response({"email": account.email, "message": "Your password has been changed. "
@@ -60,7 +57,7 @@ class RegisterView(_EmailSendingStep):
     is already registered."""
 
     def post(self, request):
-        message = registration.register(request._request, _body(request))
+        message = registration.register(request._request, body_or_empty(request))
         return Response({"message": message}, status=status.HTTP_202_ACCEPTED)
 
 
@@ -68,7 +65,7 @@ class RegisterVerifyView(_SignInStep):
     """POST {token} -> the pending merchant (the D7 "Registration received" state)."""
 
     def post(self, request):
-        merchant = registration.verify_email(request._request, _body(request).get("token"))
+        merchant = registration.verify_email(request._request, body_or_empty(request).get("token"))
         return Response({"merchant": {"id": merchant.public_id, "name": merchant.name,
                                       "status": merchant.status},
                          "email": merchant.contact_email})

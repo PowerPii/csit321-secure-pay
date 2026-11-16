@@ -17,6 +17,7 @@ from apps.audit.models import AuditEvent
 from apps.audit.models import record as audit
 from apps.common.errors import ApiError, invalid, not_found
 from apps.common.timefmt import rfc3339
+from apps.common.views import body_or_empty
 from apps.internal.access import ANALYST_OR_ADMIN, StaffAPIView
 from apps.internal.models import ReviewCase
 from apps.internal.serializers import mask_email, screening_to_dict, verification_state
@@ -241,7 +242,7 @@ class ReviewDetailView(StaffAPIView):
         return Response(case_detail(get_case(case_id)))
 
     def post(self, request, case_id: str):
-        body = request.data if isinstance(request.data, dict) else {}
+        body = body_or_empty(request)
         action = body.get("action")
         if action not in ("assign", "unassign", "save", "reopen"):
             raise invalid("invalid_field", "'action' must be assign, unassign, save or reopen.",

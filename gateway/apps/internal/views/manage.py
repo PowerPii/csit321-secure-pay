@@ -36,6 +36,7 @@ from apps.audit.models import AuditEvent
 from apps.audit.models import record as audit
 from apps.common.errors import ApiError, invalid, not_found
 from apps.common.timefmt import rfc3339
+from apps.common.views import body_or_empty
 from apps.internal.access import ADMIN, StaffAPIView
 from apps.internal.views.admin import merchant_to_dict
 from apps.merchants.models import Merchant
@@ -61,10 +62,6 @@ def staff_row(account: StaffAccount) -> dict:
         "last_sign_in_at": rfc3339(account.last_sign_in_at),
         "created_at": rfc3339(account.created_at),
     }
-
-
-def _body(request) -> dict:
-    return request.data if isinstance(request.data, dict) else {}
 
 
 def _action_and_reason(body: dict) -> tuple[str, str]:
@@ -130,7 +127,7 @@ class StaffListView(_AdminView):
 
 class StaffStatusView(_AdminView):
     def post(self, request, staff_id: str):
-        action, reason = _action_and_reason(_body(request))
+        action, reason = _action_and_reason(body_or_empty(request))
         with transaction.atomic():
             # Lock every administrator row so two admins cannot suspend each other at once
             # and leave none (FR-ADM-05).
@@ -190,7 +187,7 @@ class StaffRoleView(_AdminView):
               details={"actor_role": account.role})
 
     def post(self, request, staff_id: str):
-        body = _body(request)
+        body = body_or_empty(request)
         role = body.get("role")
         if role not in Role.values:
             raise invalid("invalid_field", "Choose merchant_operator, fraud_analyst or "
@@ -227,7 +224,7 @@ class StaffRoleView(_AdminView):
 
 class MerchantStatusView(_AdminView):
     def post(self, request, merchant_id: str):
-        action, reason = _action_and_reason(_body(request))
+        action, reason = _action_and_reason(body_or_empty(request))
         with transaction.atomic():
             merchant = Merchant.objects.select_for_update().filter(
                 public_id=merchant_id[:32]).first()
@@ -281,7 +278,7 @@ def _limit(value, param, low, high, allow_null=True):
 
 class MerchantLimitView(_AdminView):
     def post(self, request, merchant_id: str):
-        body = _body(request)
+        body = body_or_empty(request)
         if "max_amount_cents" not in body:
             raise invalid("missing_field", "Send max_amount_cents (null removes the limit).",
                           param="max_amount_cents")
@@ -323,7 +320,7 @@ class LimitsView(_AdminView):
         return Response(limits_dict())
 
     def post(self, request):
-        body = _body(request)
+        body = body_or_empty(request)
         rules = settings.GATEWAY_RULES
         changes = {}
         for field in self.FIELDS:

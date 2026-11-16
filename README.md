@@ -4,7 +4,7 @@ CSIT321 final year project (FYP-26-S4-36). A simulated card payment gateway with
 
 **Start here:** [`docs/MVP-SCOPE.md`](docs/MVP-SCOPE.md) says what the MVP includes, the six demo stories it must pass, and the sprint order. The full design is in [`docs/architecture/ARCHITECTURE-RECOMMENDATION.md`](docs/architecture/ARCHITECTURE-RECOMMENDATION.md); wireframes are in [Figma](https://www.figma.com/design/RK2NOWzPLfnLbAIqcswi3E).
 
-Status: skeleton. Every MVP route is wired and returns `501 Not Implemented` until built. Real code so far: the payment state machine, card fingerprinting, the screening pipeline with a stub model, webhook signing and verification, and the simulator's test cards, each with tests.
+The MVP endpoints are implemented. See `docs/MVP-SCOPE.md` for completed sprints and the remaining roadmap. Local code-structure and validation notes are in `docs/REFACTORING.md`.
 
 | Folder | Trust domain | What |
 | --- | --- | --- |

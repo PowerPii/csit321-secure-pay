@@ -1,35 +1,39 @@
 """Shared view helpers."""
 from typing import ClassVar
 
-from rest_framework import status
+from rest_framework.parsers import JSONParser
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
+from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
 
+from apps.common.errors import invalid
 
-class NotImplementedView(APIView):
-    """Placeholder for a routed endpoint that has not been built yet.
 
-    Each route in the MVP is wired to one of these so the URL map, OpenAPI schema and
-    frontend can be built against the real paths. Replace it with the real view.
-    """
+def body_or_empty(request) -> dict:
+    """For endpoints whose field validators handle absent or non-object input."""
+    return request.data if isinstance(request.data, dict) else {}
 
+
+class PublicJSONView(APIView):
+    """Same-origin customer APIs; session checks remain in each endpoint's service."""
+
+    authentication_classes: ClassVar = []
     permission_classes: ClassVar = [AllowAny]
-    schema = None  # left out of the OpenAPI file until built
-    todo: str = ""
+    parser_classes: ClassVar = [JSONParser]
+    throttle_classes: ClassVar = [AnonRateThrottle]
 
-    def _reply(self, request, *args, **kwargs):
-        return Response(
-            {"error": "not_implemented", "todo": self.todo},
-            status=status.HTTP_501_NOT_IMPLEMENTED,
-        )
+    def finalize_response(self, request, response, *args, **kwargs):
+        response = super().finalize_response(request, response, *args, **kwargs)
+        response["Cache-Control"] = "no-store"
+        response["X-Robots-Tag"] = "noindex"
+        return response
 
-    get = post = put = patch = delete = _reply
-
-
-def todo(description: str):
-    """Return a NotImplementedView bound to a short description of the work left."""
-    return NotImplementedView.as_view(todo=description)
+    @staticmethod
+    def body(request) -> dict:
+        if not isinstance(request.data, dict):
+            raise invalid("invalid_json", "The request body must be a JSON object.")
+        return request.data
 
 
 class HealthView(APIView):

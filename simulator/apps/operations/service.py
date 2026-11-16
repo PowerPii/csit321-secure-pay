@@ -7,8 +7,9 @@ from datetime import date
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
-from apps.common.http import ApiError, rfc3339
+from apps.common.http import rfc3339
 from apps.common.ids import new_id
+from apps.common.validation import invalid, is_integer, json_object
 from apps.ledger.models import post_capture, post_hold, post_refund, post_release
 from apps.operations.models import Authorisation, OperationRecord
 from apps.operations.test_cards import Behaviour, brand_for, digits_only, luhn_ok
@@ -46,53 +47,40 @@ def to_dict(record: OperationRecord) -> dict:
     }
 
 
-def _bad(code, message, param=None):
-    return ApiError(400, code, message, param)
-
-
-def _is_int(value) -> bool:
-    return isinstance(value, int) and not isinstance(value, bool)
-
-
 def parse_authorise(raw: bytes) -> dict:
-    try:
-        body = json.loads(raw or b"")
-    except (ValueError, UnicodeDecodeError):
-        raise _bad("invalid_json", "The request body is not valid JSON.") from None
-    if not isinstance(body, dict):
-        raise _bad("invalid_json", "The request body must be a JSON object.")
+    body = json_object(raw)
     for name in AUTHORISE_FIELDS:
         if name not in body:
-            raise _bad("missing_field", f"'{name}' is required.", name)
+            raise invalid("missing_field", f"'{name}' is required.", name)
     for name in body:
         if name not in AUTHORISE_FIELDS:
-            raise _bad("invalid_field", f"Unknown field '{name}'.", name)
+            raise invalid("invalid_field", f"Unknown field '{name}'.", name)
     if not isinstance(body["operation_id"], str) or not OPERATION_ID.match(body["operation_id"]):
-        raise _bad("invalid_field", "'operation_id' must be op_ + 24 base62 characters.",
+        raise invalid("invalid_field", "'operation_id' must be op_ + 24 base62 characters.",
                    "operation_id")
     if not isinstance(body["merchant_id"], str) or not MERCHANT_ID.match(body["merchant_id"]):
-        raise _bad("invalid_field", "'merchant_id' is not a merchant ID.", "merchant_id")
+        raise invalid("invalid_field", "'merchant_id' is not a merchant ID.", "merchant_id")
     if not isinstance(body["payment_id"], str) or not PAYMENT_ID.match(body["payment_id"]):
-        raise _bad("invalid_field", "'payment_id' is not a payment ID.", "payment_id")
-    if not _is_int(body["amount"]) or not 1 <= body["amount"] <= 1_000_000:
-        raise _bad("invalid_field", "'amount' must be 1 to 1000000 cents.", "amount")
+        raise invalid("invalid_field", "'payment_id' is not a payment ID.", "payment_id")
+    if not is_integer(body["amount"]) or not 1 <= body["amount"] <= 1_000_000:
+        raise invalid("invalid_field", "'amount' must be 1 to 1000000 cents.", "amount")
     if body["currency"] != "SGD":
-        raise _bad("currency_not_supported", "Only SGD is supported.", "currency")
+        raise invalid("currency_not_supported", "Only SGD is supported.", "currency")
     card = body["card"]
     if not isinstance(card, dict) or set(card) != CARD_FIELDS:
-        raise _bad("invalid_field", "'card' needs number, expiry_month, expiry_year and cvc.",
+        raise invalid("invalid_field", "'card' needs number, expiry_month, expiry_year and cvc.",
                    "card")
     if not isinstance(card["number"], str) or not CARD_NUMBER.match(card["number"]):
-        raise _bad("invalid_field", "'card.number' must be 13 to 19 digits.", "card.number")
+        raise invalid("invalid_field", "'card.number' must be 13 to 19 digits.", "card.number")
     if not luhn_ok(card["number"]):
-        raise _bad("invalid_card", "The card number fails the Luhn check.", "card.number")
-    if not _is_int(card["expiry_month"]) or not 1 <= card["expiry_month"] <= 12:
-        raise _bad("invalid_field", "'card.expiry_month' must be 1 to 12.", "card.expiry_month")
-    if not _is_int(card["expiry_year"]) or not 2000 <= card["expiry_year"] <= 2099:
-        raise _bad("invalid_field", "'card.expiry_year' must be 2000 to 2099.",
+        raise invalid("invalid_card", "The card number fails the Luhn check.", "card.number")
+    if not is_integer(card["expiry_month"]) or not 1 <= card["expiry_month"] <= 12:
+        raise invalid("invalid_field", "'card.expiry_month' must be 1 to 12.", "card.expiry_month")
+    if not is_integer(card["expiry_year"]) or not 2000 <= card["expiry_year"] <= 2099:
+        raise invalid("invalid_field", "'card.expiry_year' must be 2000 to 2099.",
                    "card.expiry_year")
     if not isinstance(card["cvc"], str) or not CVC.match(card["cvc"]):
-        raise _bad("invalid_field", "'card.cvc' must be 3 or 4 digits.", "card.cvc")
+        raise invalid("invalid_field", "'card.cvc' must be 3 or 4 digits.", "card.cvc")
     return body
 
 
@@ -206,27 +194,22 @@ REFUND_ID = re.compile(r"^rfd_[0-9A-Za-z]{24}$")
 
 
 def _parse_object(raw: bytes, fields: set[str]) -> dict:
-    try:
-        body = json.loads(raw or b"")
-    except (ValueError, UnicodeDecodeError):
-        raise _bad("invalid_json", "The request body is not valid JSON.") from None
-    if not isinstance(body, dict):
-        raise _bad("invalid_json", "The request body must be a JSON object.")
+    body = json_object(raw)
     for name in sorted(fields):
         if name not in body:
-            raise _bad("missing_field", f"'{name}' is required.", name)
+            raise invalid("missing_field", f"'{name}' is required.", name)
     for name in body:
         if name not in fields:
-            raise _bad("invalid_field", f"Unknown field '{name}'.", name)
+            raise invalid("invalid_field", f"Unknown field '{name}'.", name)
     for name in ("operation_id", "authorisation_id"):
         if not isinstance(body[name], str) or not OPERATION_ID.match(body[name]):
-            raise _bad("invalid_field", f"'{name}' must be op_ + 24 base62 characters.", name)
+            raise invalid("invalid_field", f"'{name}' must be op_ + 24 base62 characters.", name)
     if body["operation_id"] == body["authorisation_id"]:
-        raise _bad("invalid_field", "'operation_id' must be a new ID, not the authorisation's.",
+        raise invalid("invalid_field", "'operation_id' must be a new ID, not the authorisation's.",
                    "operation_id")
-    if "amount" in fields and (not _is_int(body["amount"])
+    if "amount" in fields and (not is_integer(body["amount"])
                                or not 1 <= body["amount"] <= 1_000_000):
-        raise _bad("invalid_field", "'amount' must be 1 to 1000000 cents.", "amount")
+        raise invalid("invalid_field", "'amount' must be 1 to 1000000 cents.", "amount")
     return body
 
 
@@ -241,7 +224,7 @@ def parse_cancel(raw: bytes) -> dict:
 def parse_refund(raw: bytes) -> dict:
     body = _parse_object(raw, REFUND_FIELDS)
     if not isinstance(body["refund_id"], str) or not REFUND_ID.match(body["refund_id"]):
-        raise _bad("invalid_field", "'refund_id' must be rfd_ + 24 base62 characters.",
+        raise invalid("invalid_field", "'refund_id' must be rfd_ + 24 base62 characters.",
                    "refund_id")
     return body
 

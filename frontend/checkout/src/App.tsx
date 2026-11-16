@@ -1,3 +1,4 @@
+import { Field, Row } from "./ui";
 // Hosted checkout. Served by the gateway under a strict CSP: no third-party scripts, and
 // the browser never decides merchant, amount or currency. Screens follow the Figma page
 // "Customer & merchant flows": C3 card entry, C4 checking, C5 verification code, C6 approved,
@@ -297,16 +298,6 @@ function CardForm({
   );
 }
 
-export function Field({ label, error, id, children }: { label: string; error?: string; id: string; children: ReactNode }) {
-  return (
-    <div className={`field${error ? " has-error" : ""}`}>
-      <label htmlFor={id}>{label}</label>
-      {children}
-      {error && <span className="error" role="alert">{error}</span>}
-    </div>
-  );
-}
-
 function VerifyCode({
   sessionId,
   session,
@@ -521,15 +512,6 @@ function NotCompleted({ session }: { session: Session }) {
         {v.button(m)}
       </a>
       <span className="badge">{v.badge}</span>
-    </div>
-  );
-}
-
-export function Row({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="row">
-      <dt>{label}</dt>
-      <dd>{children}</dd>
     </div>
   );
 }
