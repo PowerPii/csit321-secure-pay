@@ -22,6 +22,7 @@ const NAV: { to: string; label: string; page: keyof typeof CAN }[] = [
   { to: "/merchants", label: "Merchants", page: "merchants" },
   { to: "/api-keys", label: "API keys", page: "keys" },
   { to: "/audit", label: "Audit log", page: "audit" },
+  { to: "/security", label: "Security alerts", page: "security" },
 ];
 
 /** NFR-PER-03: a new fraud alert shows on the dashboard within 10 seconds (polled every 5). */
@@ -36,11 +37,34 @@ function useUnreadAlerts(enabled: boolean): number {
   return unread.data?.unread ?? 0;
 }
 
+/** FR-ADM-08 / NFR-PER-03: open security alerts for administrators, polled every 5 s. */
+function useOpenSecurityAlerts(enabled: boolean): number {
+  const open = useQuery({
+    queryKey: ["security-open"],
+    queryFn: () => api<{ open: number; latest_at: string | null }>("/security/alerts/open-count"),
+    enabled,
+    refetchInterval: 5_000,
+    refetchIntervalInBackground: true,
+  });
+  return open.data?.open ?? 0;
+}
+
+function Count({ n }: { n: number }) {
+  return (
+    <Box component="span" aria-hidden="true"
+      sx={{ ml: 1, px: 0.9, minWidth: 22, height: 22, borderRadius: 11, bgcolor: "#333", color: "#fff",
+        fontSize: 12, fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+      {n > 99 ? "99+" : n}
+    </Box>
+  );
+}
+
 function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const staff = useStaff();
   const location = useLocation();
   const signOut = useSignOut();
   const unread = useUnreadAlerts(CAN.alerts.includes(staff.role));
+  const security = useOpenSecurityAlerts(CAN.security.includes(staff.role));
   return (
     <Stack sx={{ width: SIDEBAR, height: "100%", bgcolor: "#efefef", p: 2.5, boxSizing: "border-box" }}>
       <Typography variant="h6" fontWeight={700}>SecurePay</Typography>
@@ -58,13 +82,8 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
               sx={{ borderRadius: 1.5, mb: 0.5, "&.Mui-selected": { bgcolor: "#d6d6d6", fontWeight: 600 } }}
             >
               <ListItemText primary={n.label} primaryTypographyProps={{ fontWeight: active ? 600 : 400 }} />
-              {n.page === "alerts" && unread > 0 && (
-                <Box component="span" aria-hidden="true"
-                  sx={{ ml: 1, px: 0.9, minWidth: 22, height: 22, borderRadius: 11, bgcolor: "#333", color: "#fff",
-                    fontSize: 12, fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
-                  {unread > 99 ? "99+" : unread}
-                </Box>
-              )}
+              {n.page === "alerts" && unread > 0 && <Count n={unread} />}
+              {n.page === "security" && security > 0 && <Count n={security} />}
             </ListItemButton>
           );
         })}
@@ -109,6 +128,19 @@ function AlertsLink() {
     <Button component={Link} to="/alerts" size="small" variant="contained" role="status"
       aria-label={`${unread} unread fraud alert${unread === 1 ? "" : "s"}`} sx={{ whiteSpace: "nowrap", flexShrink: 0 }}>
       {unread > 99 ? "99+" : unread} new alert{unread === 1 ? "" : "s"}
+    </Button>
+  );
+}
+
+/** Top-bar link to open security alerts (administrators). */
+function SecurityLink() {
+  const staff = useStaff();
+  const open = useOpenSecurityAlerts(CAN.security.includes(staff.role));
+  if (!open) return null;
+  return (
+    <Button component={Link} to="/security" size="small" variant="outlined" role="status"
+      aria-label={`${open} open security alert${open === 1 ? "" : "s"}`} sx={{ whiteSpace: "nowrap", flexShrink: 0 }}>
+      {open > 99 ? "99+" : open} security alert{open === 1 ? "" : "s"}
     </Button>
   );
 }
@@ -177,6 +209,7 @@ export default function Layout() {
           )}
           <SearchBox />
           <AlertsLink />
+          <SecurityLink />
           <Typography variant="body2" sx={{ ml: { xs: 0, sm: "auto" }, display: { xs: "none", sm: "block" } }}>{scope}</Typography>
         </Stack>
         <Box component="main" sx={{ px: { xs: 2, md: 3.5 }, py: 3, maxWidth: 1240 }}>

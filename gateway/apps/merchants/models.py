@@ -116,7 +116,8 @@ class ApiKey(models.Model):
 
     class Meta:
         constraints = [
-            # One active key per merchant in the MVP (rotation is a later Should item).
+            # One active key per merchant: rotation revokes the old key and issues the new
+            # one in the same transaction (FR-MER-04).
             models.UniqueConstraint(
                 fields=["merchant"], condition=Q(revoked_at__isnull=True),
                 name="one_active_api_key_per_merchant",

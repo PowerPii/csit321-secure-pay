@@ -226,6 +226,13 @@ def _record_failure(account: CustomerAccount, request) -> bool:
     _audit("customer.sign_in_failed", account, request)
     if locked:
         _audit("customer.locked", account, request, minutes=_rules()["CUSTOMER_LOCKOUT_MINUTES"])
+        from apps.security.alerts import raise_alert
+        from apps.security.models import AlertKind, Severity
+
+        raise_alert(AlertKind.CUSTOMER_LOCKED, severity=Severity.LOW, source=account.public_id,
+                    summary=(f"Customer account {account.public_id} was locked after "
+                             f"{_rules()['CUSTOMER_LOCKOUT_FAILURES']} wrong passwords."),
+                    details={"stage": "password"})
     return locked
 
 

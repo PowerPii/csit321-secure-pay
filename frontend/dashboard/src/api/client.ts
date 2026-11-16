@@ -275,6 +275,7 @@ export interface OwnMerchant {
   api_key: { id: string; hint: string; created_at: string; last_used_at: string | null } | null;
   can_generate_key: boolean;
   credentials?: { api_key: string; signing_secret: string };
+  revoked_keys?: { id: string; hint: string; created_at: string; revoked_at: string }[];
 }
 
 export interface AuditRow {
@@ -317,4 +318,28 @@ export interface FraudReport {
   findings: { confirmed_fraud: number; false_positive: number; inconclusive: number; unreviewed: number };
   top_reasons: { reason: string; count: number }[];
   trend: { start: string; screened: number; flagged: number; blocked: number; confirmed_fraud: number }[];
+}
+
+/** FR-ADM-08: a security alert for administrators; repeats are grouped with a count. */
+export interface SecurityAlert {
+  id: string;
+  kind: string;
+  kind_label: string;
+  severity: "low" | "medium" | "high";
+  source: string;
+  merchant_id: string | null;
+  summary: string;
+  details: Record<string, unknown>;
+  count: number;
+  first_seen_at: string;
+  last_seen_at: string;
+  status: "open" | "resolved";
+  resolved_by: string | null;
+  resolved_at: string | null;
+  resolution_note: string | null;
+  related_audit?: AuditRow[];
+}
+
+export interface SecurityAlertList extends Page<SecurityAlert> {
+  open: number;
 }

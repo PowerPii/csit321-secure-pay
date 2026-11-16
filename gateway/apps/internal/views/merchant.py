@@ -3,16 +3,23 @@ address.
 
 * GET /internal/merchant: status, key hint, webhook address and whether it is approved.
 * POST /internal/merchant/api-key: once the merchant is approved and has no active key, issue
-  one with a fresh signing secret, shown once (FR-MER-03). Rotation and revocation are later
-  Should items (FR-MER-04, FR-MER-05), so a second key is refused.
+  one with a fresh signing secret, shown once (FR-MER-03).
+* POST /internal/merchant/api-key/rotate {code}: after the TOTP code is confirmed, revoke the
+  active key and issue a new key and signing secret, shown once (FR-MER-04, UC-18). The old
+  key is refused from that moment.
+* POST /internal/merchant/api-key/revoke {code, confirm_last_key}: after the TOTP code is
+  confirmed, revoke the active key. Revoking the only active key stops payments until a new
+  key is generated, so it needs `confirm_last_key: true` (FR-MER-05); without it the reply is
+  409 last_active_key and nothing changes.
 * POST /internal/merchant/webhook {webhook_url}: submit the address for administrator approval
   (FR-MER-10). A new address is never used until an administrator approves it (FR-ADM-13).
 """
 from django.db import transaction
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.response import Response
 
-from apps.accounts import mail
+from apps.accounts import mail, signin
 from apps.audit.models import AuditEvent
 from apps.audit.models import record as audit
 from apps.common.errors import ApiError, invalid
@@ -35,6 +42,11 @@ def own_merchant_to_dict(merchant: Merchant) -> dict:
                      "created_at": rfc3339(key.created_at),
                      "last_used_at": rfc3339(key.last_used_at)} if key else None),
         "can_generate_key": merchant.is_active_merchant and key is None,
+        "revoked_keys": [{"id": k.public_id, "hint": k.hint + "…",
+                          "created_at": rfc3339(k.created_at),
+                          "revoked_at": rfc3339(k.revoked_at)}
+                         for k in merchant.api_keys.filter(revoked_at__isnull=False)
+                         .order_by("-revoked_at")[:5]],
     }
 
 
@@ -65,7 +77,7 @@ class OwnApiKeyView(_OwnMerchantView):
                                "an administrator has approved the merchant.")
             if merchant.api_keys.filter(revoked_at__isnull=True).exists():
                 raise ApiError(409, "api_key_exists", "This merchant already has an active API "
-                               "key. Key rotation is not available yet.")
+                               "key. Rotate it instead.")
             secret = merchant.rotate_signing_secret()
             merchant.save(update_fields=["signing_secret_encrypted", "updated_at"])
             api_key, plaintext = ApiKey.issue(merchant)
@@ -74,6 +86,65 @@ class OwnApiKeyView(_OwnMerchantView):
         data = own_merchant_to_dict(merchant)
         data["credentials"] = {"api_key": plaintext, "signing_secret": secret}
         return Response(data, status=status.HTTP_201_CREATED)
+
+
+class _KeyChangeView(_OwnMerchantView):
+    def _active_key(self, merchant: Merchant) -> ApiKey:
+        key = merchant.api_keys.filter(revoked_at__isnull=True).first()
+        if key is None:
+            raise ApiError(409, "no_active_api_key", "This merchant has no active API key.")
+        return key
+
+    def _body(self) -> dict:
+        return self.request.data if isinstance(self.request.data, dict) else {}
+
+
+class OwnApiKeyRotateView(_KeyChangeView):
+    """New key and signing secret, shown once; the old key stops working at once."""
+
+    def post(self, request):
+        body = self._body()
+        merchant = self.staff.merchant
+        if not merchant.is_active_merchant:
+            raise ApiError(409, "merchant_not_active", "Only an active merchant can rotate its "
+                           "API key.")
+        self._active_key(merchant)  # nothing to rotate: say so before asking for the code
+        signin.confirm_with_totp(request._request, self.staff, body.get("code"), "rotate_key")
+        with transaction.atomic():
+            merchant = self._locked_merchant()
+            old = self._active_key(merchant)
+            old.revoked_at = timezone.now()
+            old.save(update_fields=["revoked_at"])
+            secret = merchant.rotate_signing_secret()
+            merchant.save(update_fields=["signing_secret_encrypted", "updated_at"])
+            new, plaintext = ApiKey.issue(merchant)
+            self._audit("api_key.rotated", merchant, target_type="api_key",
+                        target_id=new.public_id, old_api_key_id=old.public_id, mfa=True)
+        data = own_merchant_to_dict(merchant)
+        data["credentials"] = {"api_key": plaintext, "signing_secret": secret}
+        return Response(data)
+
+
+class OwnApiKeyRevokeView(_KeyChangeView):
+    def post(self, request):
+        body = self._body()
+        merchant = self.staff.merchant
+        key = self._active_key(merchant)
+        others = merchant.api_keys.filter(revoked_at__isnull=True).exclude(pk=key.pk).exists()
+        if not others and body.get("confirm_last_key") is not True:
+            # FR-MER-05: checked before the code, so the warning comes first.
+            raise ApiError(409, "last_active_key", "This is your only active API key. Once it "
+                           "is revoked your server cannot create payments or check them until "
+                           "you generate a new key.", extra={"active_keys": 1})
+        signin.confirm_with_totp(request._request, self.staff, body.get("code"), "revoke_key")
+        with transaction.atomic():
+            merchant = self._locked_merchant()
+            key = self._active_key(merchant)
+            key.revoked_at = timezone.now()
+            key.save(update_fields=["revoked_at"])
+            self._audit("api_key.revoked", merchant, target_type="api_key",
+                        target_id=key.public_id, mfa=True, last_key=not others)
+        return Response(own_merchant_to_dict(merchant))
 
 
 class OwnWebhookView(_OwnMerchantView):

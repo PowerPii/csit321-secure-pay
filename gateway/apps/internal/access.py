@@ -70,6 +70,20 @@ class StaffAPIView(APIView):
                 exc = not_signed_in()
         return super().handle_exception(exc)
 
+    def finalize_response(self, request, response, *args, **kwargs):
+        response = super().finalize_response(request, response, *args, **kwargs)
+        account = getattr(request, "_auth", None)
+        if (response.status_code == 404 and isinstance(account, StaffAccount)
+                and account.is_operator):
+            # FR-MER-09: an operator asking for another merchant's payment gets 404 (FR-MER-08);
+            # the attempt is logged and repeated attempts alert administrators.
+            from apps.audit.models import AuditEvent
+            from apps.security.crossmerchant import log_if_cross_merchant
+
+            log_if_cross_merchant(request, kwargs, account.merchant,
+                                  AuditEvent.ActorType.STAFF, account.public_id)
+        return response
+
     @property
     def staff(self) -> StaffAccount:
         return self.request.auth

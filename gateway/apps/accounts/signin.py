@@ -85,6 +85,15 @@ def _record_failure(account: StaffAccount, request, stage: str) -> bool:
         _audit("staff.locked", account, request,
                minutes=_rules()["STAFF_LOCKOUT_MINUTES"])
         _alert_locked(account)
+        from apps.security.alerts import raise_alert
+        from apps.security.models import AlertKind, Severity
+
+        raise_alert(AlertKind.STAFF_LOCKED, severity=Severity.MEDIUM, source=account.public_id,
+                    merchant_id=account.merchant.public_id if account.merchant else "",
+                    summary=(f"Dashboard account {account.public_id} ({account.get_role_display()}) "
+                             f"was locked after {_rules()['STAFF_LOCKOUT_FAILURES']} failed "
+                             f"attempts (last at the {stage} step)."),
+                    details={"stage": stage, "role": account.role})
     return locked
 
 
@@ -201,3 +210,26 @@ def check_code(request, code: str) -> StaffAccount:
         failed_attempts=0, locked_until=None, last_sign_in_at=timezone.now())
     _audit("staff.signed_in", account, request, mfa_setup=first_setup)
     return account
+
+
+def confirm_with_totp(request, account: StaffAccount, code, action: str) -> None:
+    """Step-up MFA for a sensitive action by a signed-in staff member (FR-MER-04, UC-18).
+
+    The current code from the authenticator app must be entered again. A wrong code cancels
+    the action and counts towards the same lockout as sign-in; the failure that locks the
+    account also signs it out.
+    """
+    if not isinstance(code, str):
+        raise ApiError(400, "missing_field", "Enter the 6-digit code from your authenticator "
+                       "app to confirm.", param="code")
+    code = code.strip().replace(" ", "")
+    device = confirmed_device(account)
+    if device is not None and len(code) == 6 and code.isdigit() and device.verify_token(code):
+        return
+    if _record_failure(account, request, f"confirm:{action}"):
+        from django.contrib.auth import logout
+
+        logout(request)
+        raise locked_error(StaffAccount.objects.get(pk=account.pk))
+    raise ApiError(403, "code_incorrect", "That code is not right, so nothing was changed. "
+                   "Enter the current 6-digit code from your authenticator app.", param="code")
