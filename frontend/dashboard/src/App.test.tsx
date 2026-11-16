@@ -58,6 +58,15 @@ function detail(over: Record<string, unknown> = {}) {
       attempts: 1, last_http_status: 200, last_error: null, next_attempt_at: null, delivered_at: "2026-11-02T06:52:06Z" }],
     timeline: [{ at: "2026-11-02T06:52:00Z", action: "payment.created", actor_type: "merchant_api", actor: "key_abcdefgh",
       target_type: "payment", target_id: "pay_1", details: {} }],
+    correlation_id: "pay_1",
+    trail: [
+      { at: "2026-11-02T06:52:00Z", kind: "payment", id: "pay_1", title: "Payment created", status: "created",
+        request_id: null, correlation_id: "pay_1" },
+      { at: "2026-11-02T06:52:03Z", kind: "screening", id: "scr_1", title: "Screening: verify", status: "verify",
+        detail: "score 0.4100", request_id: null, correlation_id: "pay_1" },
+      { at: "2026-11-02T06:52:06Z", kind: "webhook", id: "evt_1", title: "Webhook payment.authorised", status: "delivered",
+        detail: "1 attempt(s)", request_id: null, correlation_id: "pay_1" },
+    ],
     actions: { capture: true, cancel: true, refund: false, recheck: false, review: false },
     ...over,
   };
@@ -141,6 +150,10 @@ describe("dashboard", () => {
     expect(screen.getByText("0.47")).toBeTruthy();
     expect(screen.getByText("Amount over S$ 500")).toBeTruthy();
     expect(screen.getByText("Created by merchant API")).toBeTruthy();
+    const trail = screen.getByRole("table", { name: "Full timeline" });  // FR-TXN-16
+    expect(within(trail).getByText("Screening: verify")).toBeTruthy();
+    expect(within(trail).getByText("Webhook payment.authorised")).toBeTruthy();
+    expect(screen.getAllByText("pay_1").length).toBeGreaterThan(1);
     fireEvent.click(screen.getByRole("button", { name: "Capture S$ 89.90" }));
     const dialog = await screen.findByRole("dialog");
     fireEvent.click(within(dialog).getByRole("button", { name: "Capture S$ 89.90" }));

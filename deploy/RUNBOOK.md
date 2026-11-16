@@ -258,7 +258,11 @@ crontab -e
 ```
 
 Copy them off the server now and then (from a laptop): `scp -r securepay@203.0.113.5:fyp-backups ./`.
-A dump is only useful together with the secrets (step 4), which are not in it. Restore one
+A dump is only useful together with the secrets (step 4), which are not in it.
+The `vault_encryption_key` and `field_encryption_key` secrets are master keys: the data keys
+in the database are encrypted with them (rotate the data keys on the dashboard's Integrity and
+keys page, at least every 90 days). Never regenerate those two files on a running server, or
+card data in flight, signing secrets and queued emails can no longer be read. Restore one
 database: `$P exec -T db pg_restore -U postgres --clean -d gateway < gateway.dump`.
 
 ## 10. Updating after a merge

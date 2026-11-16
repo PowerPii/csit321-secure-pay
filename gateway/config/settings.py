@@ -235,6 +235,20 @@ GATEWAY_RULES = {
     # within the window raise a security alert. Every attempt is in the audit log anyway.
     "CROSS_MERCHANT_ALERT_ATTEMPTS": 3,
     "CROSS_MERCHANT_ALERT_WINDOW_MINUTES": 10,
+    # NFR-ENC-03: data keys are rotated at least every 90 days; the key report and the
+    # self-check flag an active key from KEY_WARNING_DAYS and fail it at KEY_MAX_AGE_DAYS.
+    "KEY_MAX_AGE_DAYS": 90,
+    "KEY_WARNING_DAYS": 80,
+    # FR-ADM-09, NFR-INT-02: how often the worker checks payment hashes and the audit chain,
+    # and how old an audit entry must be before it is chained (lets slow commits land first).
+    "INTEGRITY_CHECK_HOURS": 6,
+    "AUDIT_SEAL_GRACE_SECONDS": 120,
+    # FR-ADM-15: card data self-checks, daily.
+    "SELF_CHECK_HOURS": 24,
+    # NFR-PRI-01: personal data older than this is deleted or anonymised by the daily run
+    # (12 months is a project assumption, URS Section 4.7.1).
+    "RETENTION_DAYS": 365,
+    "RETENTION_RUN_HOURS": 24,
     "STAFF_LOCKOUT_FAILURES": 5,
     "STAFF_LOCKOUT_MINUTES": 15,
     # After a correct password, the TOTP code must follow within this time.
@@ -332,3 +346,19 @@ EMAIL_HOST = env("EMAIL_HOST", "localhost")
 EMAIL_PORT = int(env("EMAIL_PORT", "1025"))
 EMAIL_TIMEOUT = 5
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", "SecurePay <no-reply@securepay.localhost>")
+
+# NFR-PRI-01: every log line goes through a filter that masks email addresses and phone
+# numbers (apps/common/logmask.py). Django's own loggers keep their defaults otherwise.
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "filters": {"mask_personal_data": {"()": "apps.common.logmask.MaskPersonalData"}},
+    "handlers": {
+        "console": {"class": "logging.StreamHandler", "filters": ["mask_personal_data"]},
+    },
+    "root": {"handlers": ["console"], "level": env("LOG_LEVEL", "INFO")},
+    "loggers": {
+        "django": {"handlers": ["console"], "level": env("LOG_LEVEL", "INFO"),
+                   "propagate": False},
+    },
+}

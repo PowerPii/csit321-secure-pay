@@ -16,9 +16,13 @@ CONTRACTS = Path(__file__).resolve().parent.parent / "contracts"
 
 @pytest.fixture(autouse=True)
 def _clear_throttle_cache():
+    from apps.security import keyring
+
     cache.clear()  # rate-limit counters must not leak between tests
+    keyring.forget_all()  # data key rows roll back with each test
     yield
     cache.clear()
+    keyring.forget_all()
 
 
 def _validator(name):

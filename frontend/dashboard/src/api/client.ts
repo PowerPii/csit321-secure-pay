@@ -150,6 +150,19 @@ export interface TimelineEntry {
   details: Record<string, unknown>;
 }
 
+/** FR-TXN-16: one row of the payment's correlated timeline. */
+export interface TrailEntry {
+  at: string;
+  kind: "payment" | "screening" | "operation" | "refund" | "webhook" | "email" | "audit";
+  id: string;
+  title: string;
+  status: string | null;
+  detail?: string | null;
+  request_id: string | null;
+  actor_type?: string;
+  correlation_id: string;
+}
+
 export interface Webhook {
   id: string;
   type: string;
@@ -192,6 +205,8 @@ export interface PaymentDetail {
   refunds: Refund[];
   webhooks: Webhook[];
   timeline: TimelineEntry[];
+  correlation_id: string;
+  trail: TrailEntry[];
   actions: { capture: boolean; cancel: boolean; refund: boolean; recheck: boolean; review: boolean };
 }
 
@@ -441,4 +456,55 @@ export interface HistorySearch extends Page<{
   searched: string;
   summary: { attempts: number; merchants: number; blocked: number; flagged: number };
   blocklisted: BlocklistEntry | null;
+}
+
+// Integrity, keys, self-checks and clean-up (FR-ADM-09, FR-ADM-14, FR-ADM-15, NFR-PRI-01).
+export type RunKind = "integrity" | "self_check" | "retention";
+
+export interface SelfCheckResult {
+  id: string;
+  name: string;
+  practice: string;
+  status: "passed" | "failed" | "not_checked";
+  detail: string;
+}
+
+export interface MaintenanceRun {
+  id: string;
+  kind: RunKind;
+  kind_label: string;
+  outcome: "passed" | "problems" | "error";
+  started_at: string;
+  finished_at: string;
+  started_by: string | null;
+  summary?: {
+    checks?: SelfCheckResult[];
+    counts?: Record<string, number>;
+    payments?: { checked: number; baselined: number; problems: number; findings: { payment_id: string; reference: string }[] };
+    audit?: { checked: number; unsealed_recent: number; problems: number; counts: Record<string, number>;
+      findings: { problem: string; position?: number; event_id?: number }[] };
+    older_than?: string;
+    error?: string;
+  };
+}
+
+export interface DataKeyRow {
+  id: string;
+  purpose: "vault" | "field";
+  purpose_label: string;
+  status: "active" | "decrypt_only";
+  created_at: string;
+  created_by: string | null;
+  retired_at: string | null;
+  age_days: number;
+  rotate_by: string | null;
+  overdue: boolean;
+  due_soon: boolean;
+}
+
+export interface IntegrityOverview {
+  runs: Record<RunKind, MaintenanceRun | null>;
+  schedule: Record<RunKind, { every_hours: number; next_at: string | null }>;
+  keys: DataKeyRow[];
+  key_max_age_days: number;
 }

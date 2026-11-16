@@ -24,6 +24,9 @@ class AlertKind(models.TextChoices):
     CUSTOMER_LOCKED = "customer_locked", "Customer account locked"
     CROSS_MERCHANT_ACCESS = "cross_merchant_access", "Repeated cross-merchant access"
     RATE_LIMIT_EXCEEDED = "rate_limit_exceeded", "Repeated rate-limit violations"
+    INTEGRITY_MISMATCH = "integrity_mismatch", "Integrity check found changed records"
+    KEY_AGE = "key_age", "Encryption key due for rotation"
+    SELF_CHECK_FAILED = "self_check_failed", "Card data self-check failed"
 
 
 class SecurityAlert(models.Model):
@@ -86,3 +89,84 @@ class GatewayLimits(models.Model):
 
     def __str__(self):
         return "Gateway limits"
+
+
+class DataKey(models.Model):
+    """A data encryption key, stored wrapped (encrypted) by the master key (FR-ADM-14, NFR-ENC-03).
+
+    The master keys are the Compose secrets (VAULT_ENCRYPTION_KEY for card data,
+    FIELD_ENCRYPTION_KEY for signing secrets and email bodies); they never reach the database.
+    Data keys live here, in the main database, apart from the card data in the vault
+    database. Each purpose has one active key that encrypts new data; a rotation makes a new
+    active key and leaves the old ones decrypt-only, so nothing already stored stops opening.
+    Keys are never deleted.
+    """
+
+    class Purpose(models.TextChoices):
+        VAULT = "vault", "Card data (vault)"
+        FIELD = "field", "Signing secrets and email bodies"
+
+    class Status(models.TextChoices):
+        ACTIVE = "active"
+        DECRYPT_ONLY = "decrypt_only"
+
+    key_id = models.CharField(max_length=32, unique=True, editable=False)  # dk_...
+    purpose = models.CharField(max_length=8, choices=Purpose.choices)
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.ACTIVE)
+    # AES-256-GCM(master key, nonce, 32-byte key, associated data = key_id), base64.
+    wrapped_key = models.CharField(max_length=128)
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.CharField(max_length=32, blank=True)  # stf_..., empty = automatic
+    retired_at = models.DateTimeField(null=True, blank=True)
+    retired_by = models.CharField(max_length=32, blank=True)
+
+    class Meta:
+        ordering = ["purpose", "-created_at"]
+        constraints = [
+            models.UniqueConstraint(fields=["purpose"], condition=Q(status="active"),
+                                    name="one_active_data_key_per_purpose"),
+        ]
+
+    def __str__(self):
+        return f"{self.key_id} {self.purpose} {self.status}"
+
+    def save(self, *args, **kwargs):
+        if not self.key_id:
+            self.key_id = new_id("dk")
+        super().save(*args, **kwargs)
+
+
+class MaintenanceRun(models.Model):
+    """One run of a scheduled check or clean-up, kept as evidence (FR-ADM-09, FR-ADM-15,
+    NFR-INT-02, NFR-PRI-01). The worker starts each kind when its interval has passed;
+    an administrator can also start one from the dashboard."""
+
+    class Kind(models.TextChoices):
+        INTEGRITY = "integrity", "Integrity check"
+        SELF_CHECK = "self_check", "Card data self-checks"
+        RETENTION = "retention", "Personal data clean-up"
+
+    class Outcome(models.TextChoices):
+        PASSED = "passed"  # nothing wrong found / clean-up done
+        PROBLEMS = "problems"  # mismatches or failed checks; an alert was raised
+        ERROR = "error"  # the run itself failed; the error class is in summary
+
+    public_id = models.CharField(max_length=32, unique=True, editable=False)  # mrn_...
+    kind = models.CharField(max_length=16, choices=Kind.choices)
+    outcome = models.CharField(max_length=16, choices=Outcome.choices)
+    started_at = models.DateTimeField(db_index=True)
+    finished_at = models.DateTimeField()
+    started_by = models.CharField(max_length=32, blank=True)  # stf_..., empty = the worker
+    summary = models.JSONField(default=dict, blank=True)  # counts and findings, no personal data
+
+    class Meta:
+        ordering = ["-started_at"]
+        indexes = [models.Index(fields=["kind", "-started_at"])]
+
+    def __str__(self):
+        return f"{self.public_id} {self.kind} {self.outcome}"
+
+    def save(self, *args, **kwargs):
+        if not self.public_id:
+            self.public_id = new_id("mrn")
+        super().save(*args, **kwargs)
