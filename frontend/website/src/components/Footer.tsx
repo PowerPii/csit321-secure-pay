@@ -19,11 +19,11 @@ const COLUMNS = [
   {
     title: "Developers",
     links: [
+      { label: "Get started", to: "/developers#get-started" },
       { label: "Quickstart", to: "/developers#quickstart" },
-      { label: "Payment lifecycle", to: "/developers#lifecycle" },
-      { label: "Webhook signatures", to: "/developers#webhooks" },
+      { label: "API reference", to: "/developers/api" },
+      { label: "Webhook events", to: "/developers/api#events" },
       { label: "Test cards", to: "/developers#test-cards" },
-      { label: "Errors", to: "/developers#errors" },
     ],
   },
   {
