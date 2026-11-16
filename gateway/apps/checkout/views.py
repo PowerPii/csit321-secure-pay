@@ -14,6 +14,7 @@ from rest_framework.views import APIView
 from apps.checkout import service
 from apps.common.clientip import client_ip
 from apps.common.errors import invalid
+from apps.customers.service import COOKIE as CUSTOMER_COOKIE
 
 
 class CheckoutView(APIView):
@@ -57,7 +58,8 @@ class SubmitView(CheckoutView):
 
     def post(self, request, session_id):
         payment = service.load(session_id)
-        payment = service.submit(payment, request.request_id, ip=client_ip(request))
+        payment = service.submit(payment, request.request_id, ip=client_ip(request),
+                                 customer_token=request.COOKIES.get(CUSTOMER_COOKIE))
         return Response(service.to_dict(payment))
 
 

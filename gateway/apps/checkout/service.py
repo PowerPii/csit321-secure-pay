@@ -20,6 +20,7 @@ from apps.checkout import verification
 from apps.checkout.models import VerificationChallenge
 from apps.common.errors import ApiError, invalid, not_found
 from apps.common.timefmt import rfc3339
+from apps.customers.service import link_payment
 from apps.events.models import EventType
 from apps.events.outbox import record_payment_event
 from apps.payments import processor
@@ -197,10 +198,13 @@ def attach_card(payment: Payment, body: dict, request_id: str) -> Payment:
     return locked
 
 
-def submit(payment: Payment, request_id: str, ip: str | None = None) -> Payment:
+def submit(payment: Payment, request_id: str, ip: str | None = None,
+           customer_token: str | None = None) -> Payment:
     """Pay (C3 -> C4): screen, then allow (simulator), ask for a code (C5) or block (C7).
 
-    Submitting twice is harmless: the second call returns the payment as it is.
+    Submitting twice is harmless: the second call returns the payment as it is. A customer
+    signed in on this browser (`customer_token`, the sp_customer cookie) gets the payment in
+    their history (FR-ACC-04).
     """
     operation = card = None
     with transaction.atomic():
@@ -221,6 +225,10 @@ def submit(payment: Payment, request_id: str, ip: str | None = None) -> Payment:
             card_lost = True
         else:
             card_lost = False
+            if customer_token:
+                link_payment(payment, customer_token)
+                if payment.customer_id:
+                    Payment.objects.filter(pk=payment.pk).update(customer=payment.customer)
             operation, card = _screen_and_act(payment, request_id, ip)
     if card_lost:
         raise invalid("card_required", "Please enter your card details again.")

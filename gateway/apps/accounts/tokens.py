@@ -18,13 +18,20 @@ def _digest(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 
-def issue(user, purpose: str, ttl: timedelta) -> str:
-    """A new token for the user; earlier unused tokens for the same purpose stop working."""
+def _owner(owner) -> dict:
+    """A Django user (staff, merchant registration) or a customer account."""
+    if owner._meta.label_lower == "customers.customeraccount":
+        return {"customer": owner}
+    return {"user": owner}
+
+
+def issue(owner, purpose: str, ttl: timedelta) -> str:
+    """A new token for the owner; earlier unused tokens for the same purpose stop working."""
     now = timezone.now()
-    AccountToken.objects.filter(user=user, purpose=purpose, used_at__isnull=True).update(
+    AccountToken.objects.filter(**_owner(owner), purpose=purpose, used_at__isnull=True).update(
         used_at=now)
     token = secrets.token_urlsafe(32)  # 32 random bytes
-    AccountToken.objects.create(user=user, purpose=purpose, digest=_digest(token),
+    AccountToken.objects.create(**_owner(owner), purpose=purpose, digest=_digest(token),
                                 expires_at=now + ttl)
     return token
 
@@ -38,9 +45,9 @@ def link_invalid() -> ApiError:
 def _usable(purpose: str, token, lock: bool) -> AccountToken:
     if not isinstance(token, str) or not 20 <= len(token) <= 100:
         raise link_invalid()
-    rows = AccountToken.objects.select_related("user")
+    rows = AccountToken.objects.select_related("user", "customer")
     if lock:
-        rows = rows.select_for_update()
+        rows = rows.select_for_update(of=("self",))  # owners are outer joins now
     row = rows.filter(digest=_digest(token), purpose=purpose).first()
     if row is None or row.used_at is not None or timezone.now() >= row.expires_at:
         raise link_invalid()
@@ -59,6 +66,7 @@ def consume(purpose: str, token) -> AccountToken:
     return row
 
 
-def recent_count(user, purpose: str, minutes: int) -> int:
+def recent_count(owner, purpose: str, minutes: int) -> int:
     since = timezone.now() - timedelta(minutes=minutes)
-    return AccountToken.objects.filter(user=user, purpose=purpose, created_at__gte=since).count()
+    return AccountToken.objects.filter(**_owner(owner), purpose=purpose,
+                                       created_at__gte=since).count()

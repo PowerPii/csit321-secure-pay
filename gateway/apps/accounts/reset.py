@@ -10,7 +10,8 @@
    success the link is used up, every session of the account ends (FR-ACC-08), the lockout
    is cleared, the change is audited and the holder gets a notice.
 
-Built for staff accounts now; customer accounts (sprint 11) reuse it.
+Staff accounts. Customer accounts (apps.customers.reset) reuse the tokens, the rules and
+`end_sessions`-style ending of sessions with their own session table.
 """
 from datetime import timedelta
 
@@ -74,6 +75,8 @@ def request_reset(request, email: str) -> None:
 
 
 def _account_for(row: AccountToken) -> StaffAccount:
+    if row.user_id is None:  # a customer's link (apps.customers) is no use here
+        raise tokens.link_invalid()
     account = (StaffAccount.objects.select_related("user", "merchant")
                .filter(user=row.user, user__is_active=True).first())
     if account is None:

@@ -3,6 +3,7 @@
 // "Customer & merchant flows": C3 card entry, C4 checking, C5 verification code, C6 approved,
 // C7 not completed. No UI library, to keep the bundle small and auditable.
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { getMe, type Customer } from "./accountApi";
 import { addCard, ApiError, getSession, resendCode, submit, verify, type Session } from "./api";
 import {
   brandName,
@@ -163,10 +164,25 @@ function CardForm({
   const [errors, setErrors] = useState<Record<string, string>>(formError ? { form: formError } : {});
   const [busy, setBusy] = useState(false);
   const [now, setNow] = useState(Date.now());
+  const [customer, setCustomer] = useState<Customer | null>(null);
 
   useEffect(() => {
     const t = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(t);
+  }, []);
+
+  useEffect(() => {
+    // Signed in to a SecurePay account on this browser (C10): the payment joins its history
+    // (FR-ACC-04) and the receipt email is filled in. Signed out, nothing changes.
+    let live = true;
+    getMe()
+      .then((c) => {
+        if (!live) return;
+        setCustomer(c);
+        setEmail((e) => e || c.email);
+      })
+      .catch(() => undefined);
+    return () => { live = false; };
   }, []);
 
   useEffect(() => {
@@ -227,6 +243,11 @@ function CardForm({
   return (
     <form className="form" onSubmit={onSubmit} noValidate>
       {errors.form && <p className="alert" role="alert">{errors.form}</p>}
+      {customer && (
+        <p className="muted small" role="status">
+          Signed in as {customer.full_name}. This payment will appear in your payment history.
+        </p>
+      )}
       {session.email_required ? (
         <Field label="Email (for your receipt)" error={errors.email} id="email">
           <input id="email" type="email" autoComplete="email" placeholder="you@example.com"
