@@ -67,6 +67,10 @@ The card number decides what happens to an authorisation. Any expiry in the futu
 | 4000 0000 0000 0119 | Visa | Lost response: records the approval, never replies | Timeout; status query finds `approved` (demo story S4) |
 | 4000 0000 0000 0127 | Visa | Slow: records the approval, replies after 15 s | Timeout; the late reply arrives after the gateway gave up and is ignored; status query finds `approved` |
 | 4000 0000 0000 0135 | Visa | **New.** Lost request: records nothing, never replies | Timeout; status query finds `no_record`; payment declined `not_processed` (UC-28) |
+| 4242 4200 xxxx xxxx | Visa | **Demo range.** Any Luhn-valid 16-digit number with this prefix approves | `200 approved` |
+| 5555 5500 xxxx xxxx | Mastercard | **Demo range.** Same as above | `200 approved` |
+
+The demo ranges were added for demo day: fraud screening counts a card's earlier attempts over 30 days across the gateway, so a card used in many rehearsals starts to look risky. `python manage.py new_demo_card` on the simulator prints fresh numbers with no history. The exact numbers in the table above take precedence over the ranges.
 
 Capture, cancel and refund have no card, so their faults come from fault rules (section 7).
 

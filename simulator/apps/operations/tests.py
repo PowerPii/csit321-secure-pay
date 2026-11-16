@@ -222,3 +222,29 @@ def test_status_query_and_authorise_race_has_one_winner(settings):
         else:
             assert auth.status_code == 200 and query["status"] == "approved"
         assert OperationRecord.objects.filter(operation_id=op).count() == 1
+
+
+
+def test_demo_range_approves_only_luhn_valid_numbers():
+    from apps.operations.test_cards import luhn_ok, new_demo_card
+
+    for prefix in ("42424200", "55555500"):
+        number = new_demo_card(prefix)
+        assert number.startswith(prefix) and len(number) == 16 and luhn_ok(number)
+        assert behaviour_for(number) is Behaviour.APPROVE
+        bad = number[:-1] + str((int(number[-1]) + 1) % 10)
+        assert behaviour_for(bad) is Behaviour.DECLINE_GENERIC
+    assert behaviour_for("4242420000000000"[:15]) is Behaviour.DECLINE_GENERIC
+    assert brand_for(new_demo_card("55555500")) == "mastercard"
+
+
+def test_new_demo_card_command_prints_fresh_numbers():
+    from io import StringIO
+
+    from django.core.management import call_command
+
+    out = StringIO()
+    call_command("new_demo_card", count=3, stdout=out)
+    lines = out.getvalue().split("\n")[:3]
+    assert len({*lines}) == 3
+    assert all(behaviour_for(line) is Behaviour.APPROVE for line in lines)

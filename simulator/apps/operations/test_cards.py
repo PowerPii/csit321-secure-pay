@@ -30,8 +30,31 @@ def digits_only(pan: str) -> str:
     return "".join(c for c in pan if c.isdigit())
 
 
+# Demo card ranges (demo-day polish): any Luhn-valid 16-digit number with one of these
+# prefixes approves. Fraud screening counts a card's history over 30 days across the whole
+# gateway, so rehearsals with 4242... slowly make it look risky; a fresh number from
+# `manage.py new_demo_card` has no history and behaves the same on every demo run.
+DEMO_APPROVE_PREFIXES = ("42424200", "55555500")
+
+
 def behaviour_for(pan: str) -> Behaviour:
-    return TEST_CARDS.get(digits_only(pan), Behaviour.DECLINE_GENERIC)
+    digits = digits_only(pan)
+    if digits in TEST_CARDS:
+        return TEST_CARDS[digits]
+    if len(digits) == 16 and digits.startswith(DEMO_APPROVE_PREFIXES) and luhn_ok(digits):
+        return Behaviour.APPROVE
+    return Behaviour.DECLINE_GENERIC
+
+
+def new_demo_card(prefix: str = DEMO_APPROVE_PREFIXES[0]) -> str:
+    """A random Luhn-valid number in a demo approve range."""
+    import secrets
+
+    body = prefix + "".join(str(secrets.randbelow(10)) for _ in range(15 - len(prefix)))
+    for check in "0123456789":
+        if luhn_ok(body + check):
+            return body + check
+    raise AssertionError("unreachable")
 
 
 def brand_for(pan: str) -> str:
