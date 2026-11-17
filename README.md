@@ -26,7 +26,10 @@ The MVP endpoints are implemented. See `docs/MVP-SCOPE.md` for completed sprints
 ```bash
 # 1. secrets (see deploy/secrets/README.md)
 cd deploy/secrets && for f in *.example; do python3 -c "import secrets; print(secrets.token_urlsafe(48))" > "${f%.example}"; done && cd ../..
-python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())" > deploy/secrets/vault_encryption_key
+# the vault (AES-256-GCM) and field keys must be 32 random bytes in URL-safe base64
+for f in vault_encryption_key field_encryption_key; do
+  python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())" > "deploy/secrets/$f"
+done
 
 # 2. checkout page and staff dashboard bundles (Caddy serves them at
 #    https://gateway.localhost/pay/... and https://gateway.localhost/dashboard/)

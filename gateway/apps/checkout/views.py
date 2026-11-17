@@ -14,6 +14,7 @@ from apps.customers.service import COOKIE as CUSTOMER_COOKIE
 class CheckoutView(PublicJSONView):
     pass
 
+
 class SessionView(CheckoutView):
     """GET: order summary and current state (C3, and C6/C7 after a reload)."""
 
