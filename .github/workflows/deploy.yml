@@ -26,6 +26,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
+      # Demo merge freeze (RUNBOOK.md section 10a). The server has its own switch too
+      # (deploy/freeze.sh), which stops a deploy even if this variable is forgotten.
+      - name: Check the merge freeze
+        env:
+          UNTIL: ${{ vars.MERGE_FREEZE_UNTIL }}
+        run: |
+          if [ -n "$UNTIL" ] && [ "$(date -d "$UNTIL" +%s)" -gt "$(date +%s)" ]; then
+            echo "::error::Merge freeze until $UNTIL: not deploying. Run this workflow by hand after it ends."
+            exit 1
+          fi
       # The key can only run deploy/auto-deploy.sh on the server (a forced command in
       # authorized_keys), which fast-forwards to main, rebuilds and runs the smoke check.
       # Nothing from the repository runs here, so there is no checkout.

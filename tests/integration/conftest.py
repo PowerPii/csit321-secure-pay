@@ -22,7 +22,9 @@ SIMULATOR_URL = os.environ.get("SIMULATOR_URL", "https://simulator.localhost")
 MERCHANT_URL = os.environ.get("MERCHANT_URL", "https://shop.localhost")
 MAILPIT_URL = os.environ.get("MAILPIT_URL", "https://mail.localhost")
 
-APPROVE = "4242424242424242"
+# IT_APPROVE_CARD: a fresh demo card (simulator `new_demo_card`) for `demo.sh preflight`, whose
+# one test payment must not be blocked by the fixed card's screening history.
+APPROVE = os.environ.get("IT_APPROVE_CARD", "4242424242424242").replace(" ", "")
 APPROVE_2 = "5555555555554444"
 DECLINE = "4000000000000002"
 LOST_RESPONSE = "4000000000000119"

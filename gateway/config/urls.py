@@ -3,10 +3,11 @@ from django.contrib import admin
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView
 
-from apps.common.views import HealthView
+from apps.common.views import HealthView, ReadinessView
 
 urlpatterns = [
     path("healthz", HealthView.as_view(), name="health"),
+    path("readyz", ReadinessView.as_view(), name="ready"),
     path("v1/", include("apps.payments.urls")),
     path("v1/", include("apps.refunds.urls")),
     path("checkout/", include("apps.checkout.urls")),

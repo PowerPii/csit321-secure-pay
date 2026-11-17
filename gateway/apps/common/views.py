@@ -43,3 +43,46 @@ class HealthView(APIView):
 
     def get(self, request):
         return Response({"status": "ok"})
+
+
+# The worker writes its heartbeat every 15 s; two minutes without one means it has stopped.
+WORKER_STALE_AFTER_SECONDS = 120
+
+
+def readiness_problems() -> list[str]:
+    """What stops the gateway from doing its whole job right now (empty = ready)."""
+    from datetime import timedelta
+
+    from django.db import DatabaseError, connections
+    from django.utils import timezone
+
+    from apps.events.models import WorkerHeartbeat
+
+    problems = []
+    for alias, name in (("default", "database"), ("vault", "vault")):
+        try:
+            with connections[alias].cursor() as cursor:
+                cursor.execute("SELECT 1")
+        except DatabaseError:
+            problems.append(name)
+    if "database" not in problems:
+        cutoff = timezone.now() - timedelta(seconds=WORKER_STALE_AFTER_SECONDS)
+        if not WorkerHeartbeat.objects.filter(name="worker", seen_at__gte=cutoff).exists():
+            problems.append("worker")
+    return problems
+
+
+class ReadinessView(APIView):
+    """/readyz for uptime monitors: 200 when the databases answer and the worker is alive,
+    503 with the failing part names otherwise. /healthz only says the web process is up."""
+
+    permission_classes: ClassVar = [AllowAny]
+    authentication_classes: ClassVar = []
+    schema = None
+
+    def get(self, request):
+        problems = readiness_problems()
+        response = Response({"status": "degraded", "problems": problems} if problems
+                            else {"status": "ok"}, status=503 if problems else 200)
+        response["Cache-Control"] = "no-store"
+        return response

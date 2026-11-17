@@ -16,9 +16,12 @@ Public server (sprint 9), step by step in **[`RUNBOOK.md`](RUNBOOK.md)**:
 - `move-server.sh`: moves the stack to a new server and/or domain: `export` on the old server makes one encrypted file (databases, secrets, `.env`, fraud model), `import` on the new one restores it and moves the webhook URLs (`manage.py change_domain`). RUNBOOK.md section 13.
 - `auto-deploy.sh`: updates the server to the latest `main` and runs the smoke check; GitHub Actions (`.github/workflows/deploy.yml`) runs it after CI passes on `main`.
 - `setup-auto-deploy.sh`: one-time set-up of that: an SSH key locked to `auto-deploy.sh`, and the values to add in GitHub.
+- `watchdog.sh` (sprint 16): cron every 5 minutes; checks containers, the gateway's `/readyz` (databases + worker heartbeat), the shop's `/healthz`, disk, memory, certificate and backup age; restarts a service that stays down; posts to the team chat (Discord/Slack webhook or Telegram). RUNBOOK.md section 9a.
+- `freeze.sh` (sprint 16): deploy freeze before a demo; `auto-deploy.sh` refuses while it is on. The GitHub variable `MERGE_FREEZE_UNTIL` is the other half. RUNBOOK.md section 10a.
+- `demo.sh`: `seed` a fresh stack with the Volt & Co. demo, `reset` it on demo mornings, `preflight` an hour before (READY / NOT READY). [`docs/DEMO-DAY.md`](../docs/DEMO-DAY.md).
 
 Both:
 
 - `postgres/init/`: creates the gateway, simulator and merchant databases, their roles, and the vault schema with its own role.
 - `secrets/`: templates for the Compose secret files.
-- `backup/backup.sh`: `pg_dump` of all three databases, 14 days kept.
+- `backup/backup.sh`: `pg_dump` of all three databases, 14 days kept. `backup/verify.sh` restores the newest one into scratch databases to prove it works (weekly cron).

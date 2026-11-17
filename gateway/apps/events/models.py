@@ -146,3 +146,18 @@ class OutboundEmail(models.Model):
         if not self.public_id:
             self.public_id = new_id("eml")
         super().save(*args, **kwargs)
+
+
+class WorkerHeartbeat(models.Model):
+    """When the worker loop last finished a pass (one row per worker name).
+
+    The readiness check (/readyz) and demo_check read it, so an uptime monitor notices a
+    stopped worker: payments still go through without it, but webhooks, emails and
+    reconciliation quietly stop.
+    """
+
+    name = models.CharField(max_length=32, primary_key=True)
+    seen_at = models.DateTimeField()
+
+    def __str__(self):
+        return f"{self.name} {self.seen_at:%Y-%m-%d %H:%M:%S}"

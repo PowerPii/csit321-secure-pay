@@ -11,10 +11,15 @@ import time
 
 from django.core.management.base import BaseCommand
 from django.db import close_old_connections
+from django.utils import timezone
 
 from apps.payments import jobs
 
 logger = logging.getLogger(__name__)
+
+# The heartbeat is written at most this often (seconds), not on every one-second pass.
+HEARTBEAT_EVERY = 15
+_last_beat = 0.0
 
 
 class Command(BaseCommand):
@@ -41,6 +46,23 @@ def run_pass() -> None:
             job()
         except Exception:
             logger.exception("Worker job %s failed", job.__name__)
+    beat()
+
+
+def beat(force: bool = False) -> None:
+    """Record that the loop is alive (apps.events.models.WorkerHeartbeat)."""
+    global _last_beat
+    now = time.monotonic()
+    if not force and now - _last_beat < HEARTBEAT_EVERY:
+        return
+    from apps.events.models import WorkerHeartbeat
+
+    try:
+        WorkerHeartbeat.objects.update_or_create(name="worker",
+                                                 defaults={"seen_at": timezone.now()})
+        _last_beat = now
+    except Exception:
+        logger.exception("Worker heartbeat failed")
 
 
 def deliver_outbox():
