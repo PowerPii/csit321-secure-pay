@@ -21,7 +21,8 @@ its smoke check.
 | `simulator.securepay.internal:8443` | Payment simulator, including its fault controls | Inside the server only |
 
 `<domain>` is the droplet's IPv4 with dashes plus `.sslip.io`: for `203.0.113.5` it is
-`203-0-113-5.sslip.io`. The names follow the IP, so keep it stable: a DigitalOcean droplet
+`203-0-113-5.sslip.io`. A real domain works the same way (section 13): set `DOMAIN` to it and
+point `gateway`, `shop` and `mail` at the server in its DNS. The names follow the IP, so keep it stable: a DigitalOcean droplet
 keeps its IP until it is destroyed; on Google Cloud, reserve a static external IP. Moving to another
 server later means new names, which is fine because nothing public links here.
 
@@ -40,7 +41,7 @@ Google Cloud user (`fifa@` below) or as `root@` on DigitalOcean; from then on as
 **Google Cloud free trial (now, until about mid-February 2027)**
 
 The trial gives US$300 for 90 days. When it ends the VM stops unless the account is upgraded,
-so move to DigitalOcean before then (copy the backups and secrets; the names change with the IP).
+so move to DigitalOcean before then with `deploy/move-server.sh` (section 13).
 
 1. Sign up at cloud.google.com/free and create a project (for example `securepay-demo`).
    Enable the Compute Engine API when asked.
@@ -128,7 +129,7 @@ access by adding their public key to `/home/securepay/.ssh/authorized_keys`.
 
 ```bash
 bash deploy/make-secrets.sh
-nano deploy/.env      # DOMAIN=203-0-113-5.sslip.io and ACME_EMAIL=<a team address>
+nano deploy/.env      # DOMAIN=203-0-113-5.sslip.io (or a real domain) and ACME_EMAIL=<a team address>
 ```
 
 The script makes every `deploy/secrets/*` file that does not exist yet (fresh random values;
@@ -367,3 +368,71 @@ On the morning of a demo and again an hour before:
 | Server slow or out of memory | `free -h`, `docker stats`; a droplet can be resized up without losing its IP; on Google Cloud, stop the VM, change the machine type (e2-standard-2, 8 GB) and start it (the static IP stays) |
 | Pages time out from outside | Google Cloud: the VM's "Allow HTTP/HTTPS traffic" boxes (network tags `http-server`, `https-server`); then `sudo ufw status` |
 | Need the Django admin for a one-off | Use `manage.py shell` through `$P exec` instead; the admin stays off on the public server |
+
+## 13. Moving to a new server or domain
+
+Sprint 12 (planned for about 20 Nov 2026, when the Student Pack arrives): from the Google Cloud
+trial VM to a DigitalOcean droplet, and from `sslip.io` to the Student Pack domain, in one go
+so the addresses change only once. `deploy/move-server.sh` carries everything that matters:
+the three databases, every secret (including the vault and field master keys, without which
+the copied data cannot be read), `deploy/.env` and the fraud model folder. Payments, refunds,
+staff accounts with their TOTP, merchants and their API keys, audit log and integrity seals,
+screening history and shop orders all come across unchanged.
+
+Not carried over: Mailpit messages (the demo inbox starts empty), certificates (Caddy gets new
+ones), the GitHub deploy key (made again in step 6 below).
+
+**1. Domain (Fifa, once).** Redeem the domain from the GitHub Student Developer Pack (for
+example a free `.me` from Namecheap or a `.tech`/`.live` from get.tech). In its DNS settings
+add three **A records**, `gateway`, `shop` and `mail`, pointing at the new server's IPv4 (or
+one `*` record). TTL 5 minutes while moving. Check from a laptop:
+`dig +short gateway.<domain>` prints the new IP.
+
+**2. New server.** Steps 1 to 3 above on DigitalOcean (droplet, `server-setup.sh`, code for
+`securepay`). Stop before step 4: the secrets come from the old server.
+
+**3. Export, on the old server** (stops the apps there; the database stays up for the copy):
+
+```bash
+cd ~/csit321-secure-pay && git pull
+bash deploy/move-server.sh export
+```
+
+It asks for a passphrase twice (put it in the team password manager) and writes one encrypted
+file, `~/securepay-move-<time>.tar.gz.enc`. From the laptop, pass it across:
+
+```bash
+scp securepay@<old-ip>:securepay-move-*.tar.gz.enc .
+scp securepay-move-*.tar.gz.enc securepay@<new-ip>:
+```
+
+**4. Import, on the new server:**
+
+```bash
+cd ~/csit321-secure-pay
+bash deploy/move-server.sh import ~/securepay-move-<time>.tar.gz.enc <new-domain>
+```
+
+It refuses to run on a server that already has secrets or a database. It restores the
+databases into a fresh volume, starts the stack and runs
+`manage.py change_domain --from <old> --to <new>`, which points the demo shop's webhook URL at
+`shop.<new-domain>` (audited as `merchant.webhook_url_moved`). Without a new domain it keeps
+the old one (a move with the same name, for example after DNS changes).
+
+**5. Check:** `bash deploy/smoke-check.sh <new-domain>` from a laptop (all ok once Caddy has
+its certificates; `logs caddy` shows them), then `demo_check` (section 11a), then one payment
+in the shop with a fresh demo card: the order turns paid, the receipt arrives in
+`https://mail.<new-domain>`.
+
+**6. Repoint automatic deploys:** on the new server `bash deploy/setup-auto-deploy.sh`, then
+on GitHub replace `DEPLOY_SSH_KEY`, `DEPLOY_HOST` and `DEPLOY_KNOWN_HOSTS` with the printed
+values. Until then a merge to `main` deploys to the old server. Add the backup crontab line
+(step 9).
+
+**7. Tidy up:** update the "Current server" line at the top of this file and the website's
+`VITE_GATEWAY_URL` (Vercel project settings; `frontend/website/src/content/site.ts` holds the
+fallback). Delete the move file from the laptop and both servers. Keep the old server stopped
+(`docker compose -f deploy/compose.prod.yaml down`, no `-v`) for a few days as a fallback,
+then delete the VM and release its static IP so the trial credit stops being used.
+
+To go back during the move: on the old server `docker compose -f deploy/compose.prod.yaml up -d`.

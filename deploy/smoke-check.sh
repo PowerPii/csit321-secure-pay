@@ -1,10 +1,12 @@
 #!/bin/bash
 # Checks the public server from outside (RUNBOOK.md step 8). Run from a laptop or the server:
 #   bash deploy/smoke-check.sh 203-0-113-5.sslip.io
+#   bash deploy/smoke-check.sh securepay-demo.me          # a real domain: IP from DNS
 # Exit code 0 = every check passed.
 set -uo pipefail
-domain="${1:?usage: smoke-check.sh <domain, e.g. 203-0-113-5.sslip.io>}"
-ip="${2:-$(echo "${domain%%.sslip.io}" | tr - .)}"  # optional 2nd argument: the IP
+. "$(dirname "$0")/public-ip.sh"
+domain="${1:?usage: smoke-check.sh <domain, e.g. 203-0-113-5.sslip.io> [ip]}"
+ip="${2:-$(public_ip "$domain")}"  # optional 2nd argument: the IP
 fail=0
 
 check() {  # description, expected HTTP status, curl arguments...
@@ -26,6 +28,11 @@ check "Django admin off (shop)"           404 "https://shop.$domain/admin/"
 check "API schema not public"             404 "https://gateway.$domain/api/schema/"
 check "demo inbox needs sign-in"          401 "https://mail.$domain/"
 check "HTTP redirects to HTTPS"           308 "http://gateway.$domain/healthz"
+
+if [ -z "$ip" ]; then
+  echo "FAIL  no IP for gateway.$domain (DNS not set up yet?); pass it as the 2nd argument"
+  exit 1
+fi
 
 # The simulator must not answer from outside: port 8443 is not published, and the private
 # names have no certificate on the public port.
