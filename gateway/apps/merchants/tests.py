@@ -105,3 +105,60 @@ def test_demo_check_fails_without_webhook(make_merchant, settings):
     with pytest.raises(SystemExit):
         call_command("demo_check", merchant=shop.public_id, stdout=out)
     assert "FAIL  Webhook URL missing" in out.getvalue()
+
+
+# --- change_domain (sprint 12: server and domain move) --------------------------------------
+
+def test_change_domain_moves_matching_webhook_urls_with_an_audit_event(make_merchant):
+    from io import StringIO
+
+    from django.core.management import call_command
+
+    from apps.audit.models import AuditEvent
+
+    old = "35-213-144-96.sslip.io"
+    shop = make_merchant(webhook_url=f"https://shop.{old}/webhooks/securepay?v=1",
+                         webhook_url_approved=True).merchant
+    other = make_merchant(name="Other Shop",
+                          webhook_url="https://shop.other-example.sg/hook").merchant
+    out = StringIO()
+    call_command("change_domain", old=old, new="SecurePay-Demo.me.", stdout=out)
+    shop.refresh_from_db()
+    other.refresh_from_db()
+    assert shop.webhook_url == "https://shop.securepay-demo.me/webhooks/securepay?v=1"
+    assert shop.webhook_url_approved is True
+    assert other.webhook_url == "https://shop.other-example.sg/hook"
+    event = AuditEvent.objects.get(action="merchant.webhook_url_moved")
+    assert event.merchant_id == shop.public_id
+    assert event.details["to"] == shop.webhook_url
+    assert "Moved 1 webhook URL(s)" in out.getvalue()
+
+
+def test_change_domain_dry_run_and_lookalike_hosts_change_nothing(make_merchant):
+    from io import StringIO
+
+    from django.core.management import call_command
+
+    from apps.audit.models import AuditEvent
+
+    shop = make_merchant(webhook_url="https://shop.example.sg/hook").merchant
+    lookalike = make_merchant(name="Lookalike",
+                              webhook_url="https://notexample.sg/hook").merchant
+    out = StringIO()
+    call_command("change_domain", old="example.sg", new="example.me", dry_run=True, stdout=out)
+    shop.refresh_from_db()
+    assert shop.webhook_url == "https://shop.example.sg/hook"
+    assert "Would move 1 webhook URL(s)" in out.getvalue()
+    call_command("change_domain", old="example.sg", new="example.me", stdout=StringIO())
+    lookalike.refresh_from_db()
+    assert lookalike.webhook_url == "https://notexample.sg/hook"
+    assert AuditEvent.objects.filter(action="merchant.webhook_url_moved").count() == 1
+
+
+def test_change_domain_rejects_urls_instead_of_domains(db):
+    import pytest
+    from django.core.management import call_command
+    from django.core.management.base import CommandError
+
+    with pytest.raises(CommandError):
+        call_command("change_domain", old="https://shop.example.sg", new="example.me")

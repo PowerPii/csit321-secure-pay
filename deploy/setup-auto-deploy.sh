@@ -31,8 +31,11 @@ trap 'rm -rf "$tmp"' EXIT
 ssh-keygen -q -t ed25519 -N "" -C "$tag" -f "$tmp/key"
 printf 'restrict,command="/bin/bash %s/deploy/auto-deploy.sh" %s\n' "$repo" "$(cat "$tmp/key.pub")" >> "$auth"
 
+. "$repo/deploy/public-ip.sh"
 domain="$(sed -n 's/^DOMAIN=//p' "$repo/deploy/.env" | tr -d "\"' ")"
-ip="$(echo "${domain%%.sslip.io}" | tr - .)"
+PUBLIC_IP="${PUBLIC_IP:-$(sed -n 's/^PUBLIC_IP=//p' "$repo/deploy/.env" | tr -d "\"' ")}"
+ip="$(public_ip "$domain")"
+[ -n "$ip" ] || { echo "no IP for gateway.$domain: set up DNS first, or PUBLIC_IP=<ip> in deploy/.env"; exit 1; }
 
 cat <<EOF
 

@@ -1,0 +1,13 @@
+/* SecurePay brand colours as CSS custom properties (sprint 12 branding kit).
+   Source of truth: tokens.json in this folder. */
+:root {
+  --sp-navy: #0F2240;    /* primary: top bars, buttons, the mark's tile */
+  --sp-ink: #0A1830;     /* body text */
+  --sp-saffron: #F5A524; /* signal colour: the mark's shield, Test mode badge, focus rings */
+  --sp-paper: #FAF8F4;   /* warm page background */
+  --sp-line: #E6E1D8;    /* dividers */
+  --sp-muted: #5B6475;   /* secondary text */
+  --sp-allow: #1F9D63;   /* screening outcomes: allow */
+  --sp-verify: #D98A0B;  /* verify */
+  --sp-block: #D9434B;   /* block */
+}
