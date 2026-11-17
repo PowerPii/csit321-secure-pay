@@ -61,6 +61,8 @@ export interface Staff {
   merchant: { id: string; name: string; status?: Merchant["status"] } | null;
   idle_minutes?: number; // FR-ACC-10: signed out after this many idle minutes
   idle_warning_minutes?: number; // ... and warned this many minutes in
+  backup_codes_left?: number; // one-time backup codes for two-step verification
+  backup_codes?: string[]; // only in the reply that finishes first-time setup, shown once
 }
 
 export interface Card { brand: string; last4: string }

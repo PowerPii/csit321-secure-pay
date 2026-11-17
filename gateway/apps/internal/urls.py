@@ -21,6 +21,7 @@ from apps.reconciliation.views import SimulatorNotificationView
 urlpatterns = [
     path("auth/login", auth.LoginView.as_view(), name="staff-login"),
     path("auth/totp", auth.TotpView.as_view(), name="staff-totp"),
+    path("auth/backup-code", auth.BackupCodeSignInView.as_view(), name="staff-backup-code"),
     path("auth/logout", auth.LogoutView.as_view(), name="staff-logout"),
     path("auth/password-reset", accounts.PasswordResetRequestView.as_view(),
          name="password-reset-request"),
@@ -32,6 +33,7 @@ urlpatterns = [
     path("register/verify", accounts.RegisterVerifyView.as_view(),
          name="merchant-register-verify"),
     path("me", auth.MeView.as_view(), name="staff-me"),
+    path("me/backup-codes", auth.OwnBackupCodesView.as_view(), name="staff-backup-codes"),
     path("merchant", merchant.OwnMerchantView.as_view(), name="own-merchant"),
     path("merchant/api-key", merchant.OwnApiKeyView.as_view(), name="own-api-key"),
     path("merchant/api-key/rotate", merchant.OwnApiKeyRotateView.as_view(),

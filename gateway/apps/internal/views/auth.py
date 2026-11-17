@@ -1,4 +1,5 @@
-"""D1 sign-in, D2 two-step verification, sign-out and the current staff member."""
+"""D1 sign-in, D2 two-step verification (or a backup code), sign-out, the current staff
+member and their backup codes."""
 from typing import ClassVar
 
 from django.conf import settings
@@ -11,7 +12,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
 
-from apps.accounts import signin
+from apps.accounts import backup_codes, signin
 from apps.accounts.models import StaffAccount
 from apps.audit.models import AuditEvent
 from apps.audit.models import record as audit
@@ -45,6 +46,8 @@ def staff_to_dict(account: StaffAccount) -> dict:
         # FR-ACC-10: the dashboard warns at idle_warning_minutes, signs out at idle_minutes.
         "idle_minutes": settings.SESSION_COOKIE_AGE // 60,
         "idle_warning_minutes": settings.GATEWAY_RULES["IDLE_WARNING_MINUTES"],
+        # The dashboard asks for new backup codes when few (or none) are left.
+        "backup_codes_left": backup_codes.remaining(account.user),
     }
 
 
@@ -71,7 +74,9 @@ class LoginView(_SignInStep):
 
 
 class TotpView(_SignInStep):
-    """GET: who is half signed in (for the D2 page). POST {code}: step 2, signs in."""
+    """GET: who is half signed in (for the D2 page). POST {code}: step 2, signs in.
+
+    After first-time setup the reply also carries `backup_codes`, shown this once."""
 
     def get(self, request):
         account = signin.pending_account(request._request)
@@ -82,8 +87,35 @@ class TotpView(_SignInStep):
         code = request.data.get("code")
         if not isinstance(code, str):
             raise invalid("missing_field", "Enter the 6-digit code.", param="code")
-        account = signin.check_code(request._request, code)
-        return Response(staff_to_dict(account))
+        result = signin.check_code(request._request, code)
+        data = staff_to_dict(result.account)
+        if result.backup_codes:
+            data["backup_codes"] = result.backup_codes
+        return Response(data)
+
+
+class BackupCodeSignInView(_SignInStep):
+    """POST {code}: step 2 with a one-time backup code instead of the authenticator app."""
+
+    def post(self, request):
+        code = request.data.get("code")
+        if not isinstance(code, str) or not code.strip():
+            raise invalid("missing_field", "Enter one of your backup codes.", param="code")
+        result = signin.check_backup_code(request._request, code[:64])
+        return Response(staff_to_dict(result.account))
+
+
+class OwnBackupCodesView(StaffAPIView):
+    """GET: how many backup codes are left. POST {code}: a new set, confirmed with the current
+    authenticator code; the reply carries the codes once and the old ones stop working."""
+
+    def get(self, request):
+        return Response(backup_codes.status(self.staff.user))
+
+    def post(self, request):
+        body = request.data if isinstance(request.data, dict) else {}
+        codes = signin.regenerate_backup_codes(request._request, self.staff, body.get("code"))
+        return Response({**backup_codes.status(self.staff.user), "codes": codes})
 
 
 class LogoutView(APIView):

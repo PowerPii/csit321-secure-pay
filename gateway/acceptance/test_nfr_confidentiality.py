@@ -216,6 +216,7 @@ MATRIX: dict[tuple[str, str], set[str] | str] = {
     ("internal/auth/login", "post"): "public",
     ("internal/auth/totp", "get"): "public",
     ("internal/auth/totp", "post"): "public",
+    ("internal/auth/backup-code", "post"): "public",
     ("internal/auth/logout", "post"): "public",
     ("internal/auth/password-reset", "post"): "public",
     ("internal/auth/password-reset/check", "post"): "public",
@@ -225,6 +226,8 @@ MATRIX: dict[tuple[str, str], set[str] | str] = {
     ("internal/simulator/notifications", "post"): "public",  # simulator signature
     # Staff dashboard
     ("internal/me", "get"): STAFF,
+    ("internal/me/backup-codes", "get"): STAFF,
+    ("internal/me/backup-codes", "post"): STAFF,
     ("internal/overview", "get"): STAFF,
     ("internal/payments", "get"): STAFF,
     ("internal/payments/{id}", "get"): STAFF,

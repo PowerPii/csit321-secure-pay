@@ -14,3 +14,4 @@ export { Accounts, LimitsPage } from "./Manage";
 export { Blocklist, FraudRules, HistorySearchPage } from "./FraudTools";
 export { IntegrityPage } from "./Integrity";
 export { default as Overview } from "./Overview";
+export { TwoStep } from "./TwoStep";

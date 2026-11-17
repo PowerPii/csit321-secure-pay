@@ -109,7 +109,12 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       <Paper sx={{ p: 1.5, bgcolor: "transparent" }}>
         <Typography fontWeight={600} variant="body2" noWrap title={staff.email}>{staff.name}</Typography>
         <Typography variant="body2" color="text.secondary">{staff.role_label}</Typography>
-        <Button size="small" onClick={() => signOut()} sx={{ mt: 0.5, px: 0 }}>Sign out</Button>
+        <Stack alignItems="flex-start" mt={0.5}>
+          <Button size="small" component={Link} to="/two-step" onClick={onNavigate} sx={{ px: 0, minWidth: 0 }}>
+            Two-step verification
+          </Button>
+          <Button size="small" onClick={() => signOut()} sx={{ px: 0, minWidth: 0 }}>Sign out</Button>
+        </Stack>
       </Paper>
     </Stack>
   );
@@ -194,6 +199,7 @@ function IdleWarning() {
 
 export default function Layout() {
   const staff = useStaff();
+  const location = useLocation();
   const theme = useTheme();
   const wide = useMediaQuery(theme.breakpoints.up("md"));
   const [open, setOpen] = useState(false);
@@ -234,6 +240,15 @@ export default function Layout() {
           {staff.merchant?.status === "pending" && (
             <Alert severity="info" sx={{ mb: 2 }}>
               {staff.merchant.name} is waiting for administrator approval. No API key is issued until then.
+            </Alert>
+          )}
+          {(staff.backup_codes_left ?? 10) <= 2 && !location.pathname.startsWith("/two-step") && (
+            <Alert severity="warning" sx={{ mb: 2 }}
+              action={<Button color="inherit" size="small" component={Link} to="/two-step">Make codes</Button>}>
+              {staff.backup_codes_left === 0
+                ? "You have no backup codes for two-step verification."
+                : `Only ${staff.backup_codes_left} backup code${staff.backup_codes_left === 1 ? "" : "s"} left.`}{" "}
+              Make new ones so you can still sign in if you lose your phone.
             </Alert>
           )}
           <Outlet />
