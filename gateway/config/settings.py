@@ -253,6 +253,8 @@ GATEWAY_RULES = {
     "STAFF_LOCKOUT_MINUTES": 15,
     # After a correct password, the TOTP code must follow within this time.
     "STAFF_TOTP_STEP_MINUTES": 5,
+    # One-time backup codes for staff two-step verification, made at authenticator setup.
+    "STAFF_BACKUP_CODES": 10,
     "WEBHOOK_SIGNATURE_TOLERANCE_SECONDS": 300,
     # Webhook delivery (contract section 7, confirmed 13 Nov 2026): retry for 72 h from the first
     # failure with these delays (+/-10% jitter), then a final attempt at 72 h; then undelivered.

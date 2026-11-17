@@ -217,6 +217,15 @@ EOF
 
 A new password for an existing account: `$P exec gateway python manage.py changepassword <email>`.
 
+Staff get 10 one-time backup codes when they first set up the authenticator app, and can make
+a new set under "Two-step verification" in the dashboard. Someone who has lost both their phone
+and their backup codes needs a reset (check who is asking first, outside the dashboard); the
+next sign-in then shows the setup QR code again:
+
+```bash
+$P exec gateway python manage.py reset_staff_mfa <email>
+```
+
 ## 8. Check it
 
 From a laptop:

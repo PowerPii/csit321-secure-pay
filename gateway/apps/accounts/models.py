@@ -146,3 +146,24 @@ class AccountToken(models.Model):
     def __str__(self):
         owner = f"user {self.user_id}" if self.user_id else f"customer {self.customer_id}"
         return f"{self.purpose} for {owner}"
+
+
+class BackupCode(models.Model):
+    """One single-use backup code for staff two-step verification (apps.accounts.backup_codes).
+
+    Only an HMAC of the code is kept; the plain code is shown once when the set is made.
+    """
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                             related_name="backup_codes")
+    digest = models.CharField(max_length=64, editable=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    used_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["user", "digest"], name="backup_code_unique"),
+        ]
+
+    def __str__(self):
+        return f"backup code for user {self.user_id} ({'used' if self.used_at else 'unused'})"

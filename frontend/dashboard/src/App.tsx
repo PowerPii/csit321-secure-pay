@@ -9,7 +9,7 @@ import { RequireStaff, RoleGate } from "./auth";
 import Layout from "./components/Layout";
 import {
   Accounts, ApiKeys, AuditLog, Blocklist, FraudRules, HistorySearchPage, LimitsPage, CaseDetail, ForgotPassword, FraudAlerts, FraudReports, Merchants, Overview, PaymentDetail, PaymentsList, Register, ResetPassword,
-  IntegrityPage, ReviewQueue, SecurityAlerts, SignIn, Totp, VerifyEmail,
+  IntegrityPage, ReviewQueue, SecurityAlerts, SignIn, Totp, TwoStep, VerifyEmail,
 } from "./routes";
 import { theme } from "./theme";
 
@@ -50,6 +50,7 @@ export default function App() {
             <Route path="/register/verify" element={<VerifyEmail />} />
             <Route element={<RequireStaff><Layout /></RequireStaff>}>
               <Route path="/overview" element={<Overview />} />
+              <Route path="/two-step" element={<TwoStep />} />
               <Route path="/payments" element={<PaymentsList />} />
               <Route path="/payments/:paymentId" element={<PaymentDetail />} />
               <Route path="/payments/:paymentId/refund" element={<PaymentDetail refund />} />

@@ -1,9 +1,13 @@
-// D1 Staff sign-in and D2 Two-step verification (with first-time authenticator setup).
-import { Alert, Box, Button, Link as MuiLink, Paper, Stack, TextField, Typography } from "@mui/material";
+// D1 Staff sign-in and D2 Two-step verification (with first-time authenticator setup, the
+// one-time backup codes shown after it, and signing in with a backup code instead).
+import {
+  Alert, Box, Button, Checkbox, FormControlLabel, Link as MuiLink, Paper, Stack, TextField, Typography,
+} from "@mui/material";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
 import { api, ApiError, post, type Staff } from "../api/client";
+import { BackupCodeList } from "../components/BackupCodes";
 import { BrandMark, ShieldIcon } from "../components/ui";
 
 interface Setup { secret: string; otpauth_uri: string; qr_svg: string }
@@ -136,8 +140,13 @@ export function Totp() {
   const [email, setEmail] = useState(state.email ?? "");
   const [setup] = useState<Setup | null>(state.setup ?? null);
   const [code, setCode] = useState("");
+  const [useBackup, setUseBackup] = useState(false);
+  const [backupCode, setBackupCode] = useState("");
+  const [newCodes, setNewCodes] = useState<string[] | null>(null);
+  const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const destination = state.from && state.from !== "/login" ? state.from : "/overview";
 
   useEffect(() => {
     if (!state.email) {
@@ -152,12 +161,20 @@ export function Totp() {
     setBusy(true);
     setError("");
     try {
-      const staff = await post<Staff>("/auth/totp", { code });
-      client.setQueryData(["me"], staff);
-      navigate(state.from && state.from !== "/login" ? state.from : "/overview", { replace: true });
+      const staff = useBackup
+        ? await post<Staff>("/auth/backup-code", { code: backupCode })
+        : await post<Staff>("/auth/totp", { code });
+      const { backup_codes: codes, ...me } = staff;
+      client.setQueryData(["me"], me);
+      if (codes?.length) {
+        setNewCodes(codes); // first-time setup: show the backup codes once before going on
+      } else {
+        navigate(destination, { replace: true });
+      }
     } catch (err) {
       setError(message(err));
       setCode("");
+      setBackupCode("");
       if (err instanceof ApiError && (err.code === "account_locked" || err.code === "sign_in_required")) {
         navigate("/login", { replace: true, state: {} });
       }
@@ -171,12 +188,45 @@ export function Totp() {
     navigate("/login", { replace: true });
   };
 
+  if (newCodes) {
+    return (
+      <Card maxWidth={480}>
+        <Stack alignItems="center" textAlign="center" mb={2}>
+          <ShieldIcon />
+          <Typography variant="h5" component="h1" mt={1.5}>Save your backup codes</Typography>
+          <Typography color="text.secondary" variant="body2" mt={1}>
+            Your authenticator app is set up. If you lose your phone, sign in with one of these codes instead.
+          </Typography>
+        </Stack>
+        <BackupCodeList codes={newCodes} email={email} />
+        <FormControlLabel sx={{ mt: 1.5 }}
+          control={<Checkbox checked={saved} onChange={(e) => setSaved(e.target.checked)} />}
+          label="I have saved these codes" />
+        <Button variant="contained" size="large" fullWidth sx={{ mt: 1 }} disabled={!saved}
+          onClick={() => navigate(destination, { replace: true })}>
+          Continue to the dashboard
+        </Button>
+      </Card>
+    );
+  }
+
+  const switchMode = () => {
+    setUseBackup(!useBackup);
+    setError("");
+    setCode("");
+    setBackupCode("");
+  };
+
   return (
     <Card>
       <Stack alignItems="center" textAlign="center">
         <ShieldIcon />
         <Typography variant="h5" component="h1" mt={1.5}>Two-step verification</Typography>
-        {setup ? (
+        {useBackup ? (
+          <Typography color="text.secondary" variant="body2" mt={1}>
+            Enter one of the backup codes you saved when you set up two-step verification. Each code works once.
+          </Typography>
+        ) : setup ? (
           <>
             <Typography color="text.secondary" variant="body2" mt={1}>
               First sign-in: scan this code with an authenticator app (Google Authenticator, Microsoft
@@ -196,13 +246,26 @@ export function Totp() {
         )}
       </Stack>
       <Box component="form" onSubmit={submit}>
-        <CodeInput value={code} onChange={setCode} />
-        <Button type="submit" variant="contained" size="large" fullWidth disabled={busy || code.length !== 6}>
+        {useBackup ? (
+          <TextField label="Backup code" value={backupCode} onChange={(e) => setBackupCode(e.target.value)}
+            placeholder="xxxxx-xxxxx" fullWidth autoFocus sx={{ my: 2 }}
+            inputProps={{ autoComplete: "off", autoCapitalize: "none", spellCheck: false, maxLength: 20,
+              style: { fontFamily: "monospace", fontSize: 18 } }} />
+        ) : (
+          <CodeInput value={code} onChange={setCode} />
+        )}
+        <Button type="submit" variant="contained" size="large" fullWidth
+          disabled={busy || (useBackup ? backupCode.replace(/[\s-]/g, "").length !== 10 : code.length !== 6)}>
           Verify
         </Button>
         {error && <Alert severity="error" role="alert" sx={{ mt: 2 }}>{error}</Alert>}
       </Box>
-      <Stack direction="row" justifyContent="flex-end" mt={2}>
+      <Stack direction="row" justifyContent={setup ? "flex-end" : "space-between"} mt={2} gap={1}>
+        {!setup && (
+          <MuiLink component="button" type="button" variant="body2" onClick={switchMode}>
+            {useBackup ? "Use your authenticator app" : "Lost your phone? Use a backup code"}
+          </MuiLink>
+        )}
         <MuiLink component="button" variant="body2" color="text.secondary" onClick={signOut}>
           Not you? Sign out
         </MuiLink>
