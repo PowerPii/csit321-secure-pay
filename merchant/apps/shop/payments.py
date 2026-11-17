@@ -4,10 +4,12 @@ import re
 
 from django.conf import settings
 from django.db import transaction
+from django.db.models import F, Value
+from django.db.models.functions import Greatest
 from django.utils import timezone
 
-from apps.shop import securepay
-from apps.shop.models import Order, PaymentAttempt
+from apps.shop import catalogue, securepay
+from apps.shop.models import Order, PaymentAttempt, Product
 
 logger = logging.getLogger(__name__)
 PAYMENT_ID = re.compile(r"^pay_[0-9A-Za-z]{24}$")
@@ -69,10 +71,17 @@ def apply_payment(attempt: PaymentAttempt, data: dict, order: Order) -> bool:
             attempt.captured_amount = data.get("captured_amount") or 0
             attempt.save()
         paid = attempt.status in PaymentAttempt.PAID
-        if paid:
-            Order.objects.filter(pk=order.pk, paid_at__isnull=True).update(
-                paid_at=timezone.now())
+        if paid and Order.objects.filter(pk=order.pk, paid_at__isnull=True).update(
+                paid_at=timezone.now()):
+            take_stock(order)  # once per order: only the first update finds paid_at empty
     return paid
+
+
+def take_stock(order: Order) -> None:
+    """Paid items leave the shelf. Stock never goes below zero (it is a demo, not a WMS)."""
+    for line in order.lines.exclude(sku=catalogue.SHIPPING_SKU):
+        Product.objects.filter(sku=line.sku).update(
+            stock=Greatest(F("stock") - line.quantity, Value(0)))
 
 
 def refresh(attempt: PaymentAttempt) -> None:

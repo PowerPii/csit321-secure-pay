@@ -1,0 +1,34 @@
+{% extends "shop/base.html" %}{% load shop %}
+{% block title %}{{ heading }} · Volt &amp; Co.{% endblock %}
+{% block search_value %}{{ query }}{% endblock %}
+{% block body %}
+<main class="wrap">
+  <p class="crumbs"><a href="{% url 'shop-home' %}">Home</a>{% if category %} / {{ heading }}{% endif %}</p>
+  <div class="listhead">
+    <div>
+      <h1>{{ heading }}</h1>
+      {% if blurb %}<p class="muted">{{ blurb }}</p>{% endif %}
+    </div>
+    {% if products %}
+    <nav class="sort" aria-label="Sort products">
+      <span class="muted small">Sort:</span>
+      {% for key, label in sort_options %}<a class="sortlink{% if sort == key %} on{% endif %}" href="?{% if query %}q={{ query|urlencode }}&amp;{% endif %}sort={{ key }}"{% if sort == key %} aria-current="true"{% endif %}>{{ label }}</a>{% endfor %}
+    </nav>
+    {% endif %}
+  </div>
+  <div class="chips">
+    <a class="chip" href="{% url 'shop-home' %}">All</a>
+    {% for key, label in categories %}<a class="chip{% if category == key %} on{% endif %}" href="{% url 'shop-category' key %}">{{ label }}</a>{% endfor %}
+  </div>
+  {% if products %}
+  <p class="muted small">{{ products|length }} product{{ products|length|pluralize }}</p>
+  <div class="grid">
+    {% for p in products %}{% include "shop/_card.html" %}{% endfor %}
+  </div>
+  {% elif query %}
+  <div class="empty"><p><strong>Nothing matches “{{ query }}”.</strong></p><p class="muted">Try a shorter word, like “charger” or “headphones”, or browse a category above.</p></div>
+  {% else %}
+  <div class="empty"><p class="muted">Type what you are looking for in the search box at the top.</p></div>
+  {% endif %}
+</main>
+{% endblock %}

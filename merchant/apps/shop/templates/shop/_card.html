@@ -1,0 +1,16 @@
+{% load shop %}<article class="product{% if p.sold_out %} soldout{% endif %}">
+  <a class="cover" href="{% url 'shop-product' p.sku %}" tabindex="-1">{% product_art p %}{% if p.sold_out %}<span class="tag out">Sold out</span>{% elif p.badge %}<span class="tag">{{ p.badge }}</span>{% endif %}</a>
+  <div class="info">
+    <a class="name" href="{% url 'shop-product' p.sku %}">{{ p.name }}</a>
+    <span class="blurb">{{ p.blurb }}</span>
+    <span class="price">{{ p.price_cents|money }}{% if p.low_stock %} <span class="lowstock">Only {{ p.stock }} left</span>{% endif %}</span>
+    {% if p.sold_out %}
+    <button class="btn block" type="button" disabled>Sold out</button>
+    {% else %}
+    <form method="post" action="{% url 'shop-cart-add' %}">{% csrf_token %}
+      <input type="hidden" name="sku" value="{{ p.sku }}">
+      <button class="btn block" type="submit">Add to cart</button>
+    </form>
+    {% endif %}
+  </div>
+</article>

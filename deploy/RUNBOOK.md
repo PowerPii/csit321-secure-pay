@@ -356,6 +356,9 @@ On the morning of a demo and again an hour before:
 5. **No merges** to `main` in the 48 hours before the demo: auto-deploy would restart the
    stack.
 6. **Mailpit:** delete old messages in the inbox so the demo emails are easy to find.
+7. **Stock:** paid orders take items off the shelf and a product at 0 shows "Sold out", so
+   put everything back: `$P exec merchant python manage.py restock` (25 of each). To show
+   the low-stock label on purpose: `restock --sku HEAD-01 --to 3`.
 
 ## 12. When something is wrong
 

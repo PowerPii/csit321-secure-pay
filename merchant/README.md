@@ -9,6 +9,14 @@ included, help pages and a test-mode strip on every page. Product pictures are i
 made for the project (`templatetags/shop.py`), so there are no image files or licences. The
 store's name, company details and UEN are invented and say so in the footer.
 
+Demo sprint 13 (Nov 2026) finished the store: category pages (`/category/audio`, sortable by
+price), search (`/search?q=`), stock counts ("Only 3 left", "Sold out"; paid orders take stock
+once, `manage.py restock` puts it back), quantity buttons in the cart, an order confirmation
+page with delivery details, progress and an estimated delivery day (Mon to Sat, 2 pm cut-off,
+`catalogue.estimated_delivery`), a "My orders" list with status, and branded 404/500 pages.
+Dates show in Singapore time. The shop has no shopper accounts on purpose: orders belong to
+the browser that placed them, and SecurePay's own customer accounts hold payment history.
+
 ## Run locally
 
 ```bash

@@ -94,7 +94,7 @@ PASSWORD_HASHERS = [
 ]
 
 LANGUAGE_CODE = "en-gb"
-TIME_ZONE = "UTC"
+TIME_ZONE = "Asia/Singapore"  # a Singapore store: dates on pages in SGT; the DB keeps UTC
 USE_I18N = True
 USE_TZ = True
 

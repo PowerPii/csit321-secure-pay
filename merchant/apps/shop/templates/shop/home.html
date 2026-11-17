@@ -1,7 +1,7 @@
 {% extends "shop/base.html" %}{% load shop %}
 {% block body %}
 <main class="wrap">
-  {% if hero and not category %}
+  {% if hero %}
   <section class="hero">
     <div>
       <span class="kicker">New this month</span>
@@ -13,27 +13,19 @@
   </section>
   {% endif %}
 
-  <h1>{{ category_name }}</h1>
-  <div class="chips">
-    <a class="chip{% if not category %} on{% endif %}" href="{% url 'shop-home' %}">All</a>
-    {% for key, label in categories %}<a class="chip{% if category == key %} on{% endif %}" href="{% url 'shop-home' %}?category={{ key }}">{{ label }}</a>{% endfor %}
+  <h2 class="section">Shop by category</h2>
+  <div class="tiles">
+    {% for tile in tiles %}
+    <a class="tile" href="{% url 'shop-category' tile.key %}">
+      {% if tile.product %}{% product_art tile.product "tile" %}{% endif %}
+      <span><strong>{{ tile.label }}</strong><span class="muted small">{{ tile.count }} product{{ tile.count|pluralize }}</span></span>
+    </a>
+    {% endfor %}
   </div>
 
+  <h2 class="section">All products</h2>
   <div class="grid">
-    {% for p in products %}
-    <article class="product">
-      <a class="cover" href="{% url 'shop-product' p.sku %}" tabindex="-1">{% product_art p %}{% if p.badge %}<span class="tag">{{ p.badge }}</span>{% endif %}</a>
-      <div class="info">
-        <a class="name" href="{% url 'shop-product' p.sku %}">{{ p.name }}</a>
-        <span class="blurb">{{ p.blurb }}</span>
-        <span class="price">{{ p.price_cents|money }}</span>
-        <form method="post" action="{% url 'shop-cart-add' %}">{% csrf_token %}
-          <input type="hidden" name="sku" value="{{ p.sku }}">
-          <button class="btn block" type="submit">Add to cart</button>
-        </form>
-      </div>
-    </article>
-    {% endfor %}
+    {% for p in products %}{% include "shop/_card.html" %}{% endfor %}
   </div>
 
   <section class="perks" aria-label="Why shop with us">
