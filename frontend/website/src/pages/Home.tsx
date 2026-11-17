@@ -10,11 +10,11 @@ import DashboardRoundedIcon from "@mui/icons-material/DashboardRounded";
 import { Link as RouterLink } from "react-router-dom";
 import { CodeBlock } from "../components/CodeBlock";
 import { CtaBand } from "../components/CtaBand";
-import { HeroVisual } from "../components/HeroVisual";
+import { Screenshot } from "../components/Screenshot";
 import { Section, SectionHeading } from "../components/Section";
 import { StatusChip } from "../components/StatusChip";
 import { usePageTitle } from "../components/usePageTitle";
-import { RULES } from "../content/site";
+import { MEASURED, RULES, SCREENS, SHOP_URL, TEAM } from "../content/site";
 import { CREATE_PAYMENT } from "../content/snippets";
 import { brand, fonts } from "../theme";
 
@@ -22,54 +22,54 @@ const PILLARS = [
   {
     icon: <ShoppingCartCheckoutRoundedIcon />,
     title: "Hosted checkout",
-    text: "A payment page you link to, not build. The amount is fixed on our side, so nobody can change the price in the browser.",
+    text: "The store sends the customer to our payment page. The amount is set by the store's server when it creates the payment, so it can't be edited in the browser.",
     to: "/product#checkout",
   },
   {
     icon: <LockPersonRoundedIcon />,
     title: "Card vault",
-    text: "Card details go straight into an encrypted vault and are deleted once the payment is submitted. Your servers only see a token.",
+    text: "Card details are encrypted with AES-256-GCM in a separate vault database and deleted once the payment is submitted. The store only gets a token.",
     to: "/product#vault",
   },
   {
     icon: <RadarRoundedIcon />,
     title: "Fraud screening",
-    text: "Every payment passes rules, a machine-learning model and a policy before the bank is asked. Allow, verify or block.",
+    text: "Each payment goes through rules, a gradient-boosted model and a policy before the bank is asked. The result is allow, verify or block.",
     to: "/product#fraud",
   },
   {
     icon: <WebhookRoundedIcon />,
     title: "Signed webhooks",
-    text: "Each status change is written with its event in one transaction, signed with HMAC-SHA256 and retried for 72 hours.",
+    text: "Each status change and its event are saved in one database transaction. Events are signed with HMAC-SHA256 and retried for 72 hours.",
     to: "/product#webhooks",
   },
   {
     icon: <ReplayRoundedIcon />,
     title: "Safe retries",
-    text: "Idempotency keys and stored operation IDs mean a timeout never turns into a double charge.",
+    text: "Every POST takes an idempotency key, and every bank call has an operation ID saved before it is sent. A lost reply is checked again, not charged twice.",
     to: "/product#reliability",
   },
   {
     icon: <DashboardRoundedIcon />,
     title: "Staff dashboard",
-    text: "Find any payment, see why it was screened the way it was, then capture, cancel or refund it.",
+    text: "Operators capture, cancel and refund. Analysts work a review queue that shows why each payment was flagged.",
     to: "/product#dashboard",
   },
 ];
 
 const STATS = [
-  { value: "≤ 200 ms", label: "screening time target at the 95th percentile" },
-  { value: "0", label: "card numbers kept after the payment is submitted" },
-  { value: "72 h", label: "of signed webhook retries, 14 attempts in all" },
-  { value: "24 h", label: "idempotency window on every POST" },
+  { value: MEASURED.screeningP95, label: `95th-percentile screening time over ${MEASURED.screeningRuns} payments at ${MEASURED.screeningRate}. Our target is ${RULES.screeningP95}.` },
+  { value: MEASURED.modelRocAuc, label: "ROC-AUC of the fraud model on days of data it never saw in training. Modest, so rules and email codes back it up." },
+  { value: "0", label: "card numbers kept after a payment is submitted. The vault row is deleted." },
+  { value: MEASURED.automatedTests, label: "automated tests, run in CI on every pull request." },
 ];
 
 const STEPS = [
   { n: "01", title: "Create a payment", text: "Your server calls POST /v1/payments with the amount and order. You get back a checkout link." },
   { n: "02", title: "Customer pays", text: "They enter a card on the hosted page. It is tokenised in the vault before anything else happens." },
-  { n: "03", title: "We screen it", text: "Rules, model and policy decide in milliseconds. Risky attempts get a one-time code by email." },
+  { n: "03", title: "Screening", text: `Rules, model and policy decide in about ${MEASURED.screeningP50} at median. Risky attempts get a one-time code by email.` },
   { n: "04", title: "Bank decides", text: "The simulated bank authorises or declines. Lost replies are reconciled with the original operation ID." },
-  { n: "05", title: "You get told", text: "A signed webhook reaches your store. Confirm it, ship the order, capture the funds." },
+  { n: "05", title: "Store is notified", text: "A signed webhook reaches the store. It checks the signature, ships the order and captures the funds." },
 ];
 
 export default function Home() {
@@ -110,28 +110,33 @@ export default function Home() {
                 <Box component="span" sx={{ width: 7, height: 7, borderRadius: "50%", bgcolor: brand.saffron }} />
                 Final-year project · simulated payments only
               </Box>
-              <Typography variant="h1" sx={{ fontSize: { xs: 44, sm: 56, md: 68 }, mb: 3 }}>
-                Payments that check{" "}
+              <Typography variant="h1" sx={{ fontSize: { xs: 40, sm: 50, md: 58 }, mb: 3 }}>
+                A payment gateway that screens for fraud{" "}
                 <Box component="span" sx={{ color: brand.saffron }}>
                   before
                 </Box>{" "}
-                they charge.
+                the bank is asked.
               </Typography>
               <Typography sx={{ fontSize: { xs: 18, md: 20 }, color: "rgba(255,255,255,0.75)", lineHeight: 1.6, maxWidth: 540, mb: 4 }}>
-                SecurePay is a payment gateway with fraud screening inside the payment itself. One API gives a merchant a hosted checkout, a card vault,
-                risk decisions and signed webhooks, built for Singapore dollar payments.
+                SecurePay is our CSIT321 final-year project. It takes Singapore dollar card payments through a hosted checkout, scores each one for fraud,
+                and sends it to a bank simulator we wrote ourselves. It is running now, with a demo store you can buy from using test cards.
               </Typography>
               <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-                <Button component={RouterLink} to="/contact" variant="contained" color="secondary" size="large" endIcon={<ArrowForwardRoundedIcon />}>
-                  Book a demo
+                <Button href={SHOP_URL} target="_blank" rel="noopener" variant="contained" color="secondary" size="large" endIcon={<ArrowForwardRoundedIcon />}>
+                  Try the demo store
                 </Button>
                 <Button component={RouterLink} to="/developers" size="large" sx={{ color: "#fff", border: "1px solid rgba(255,255,255,0.3)" }}>
-                  Explore the API
+                  Read the API docs
                 </Button>
               </Stack>
             </Grid>
             <Grid size={{ xs: 12, md: 6 }}>
-              <HeroVisual />
+              <Screenshot
+                shot={SCREENS.checkout}
+                url="SecurePay checkout · test mode"
+                caption="The hosted checkout, paying the demo store Volt & Co. with test card 4242 4242 4242 4242."
+                dark
+              />
             </Grid>
           </Grid>
         </Container>
@@ -156,9 +161,9 @@ export default function Home() {
       {/* Pillars */}
       <Section>
         <SectionHeading
-          overline="One gateway"
-          title="Everything between “Pay” and “Paid”"
-          lead="Most fraud tools are bolted on after the fact. SecurePay makes the risk decision part of the payment, so a blocked attempt never reaches the bank."
+          overline="What it does"
+          title="Six parts, all built and running"
+          lead="Screening runs before the bank is asked, so a blocked attempt never reaches the bank. Each part below links to the details."
         />
         <Grid container spacing={2.5}>
           {PILLARS.map((p) => (
@@ -196,8 +201,8 @@ export default function Home() {
             <SectionHeading
               dark
               overline="Fraud screening"
-              title="Three answers, decided in the payment path"
-              lead={`Deterministic rules catch the obvious cases. A gradient-boosted model scores the rest. A versioned policy turns the score into an action, and every decision keeps its reasons for the analyst.`}
+              title="Rules, then a model, then a policy"
+              lead={`Rules check the block list, bursts of attempts and amount limits. A HistGradientBoosting model, trained on the public IEEE-CIS fraud dataset, scores the payment and the card's recent history. The policy turns that score into one action, and the reasons are saved for the analyst.`}
             />
             <Button component={RouterLink} to="/product#fraud" sx={{ color: brand.saffron, px: 0 }} endIcon={<ArrowForwardRoundedIcon />}>
               How screening works
@@ -215,14 +220,14 @@ export default function Home() {
           <Grid size={{ xs: 12, md: 5 }}>
             <SectionHeading
               overline="For developers"
-              title="One request to start taking payments"
-              lead="A small REST API with predictable errors, idempotency on every POST and signed replies. Amounts are integers in cents; currency is SGD."
+              title="Create a payment with one API call"
+              lead="A REST API with seven endpoints. Amounts are whole numbers in cents and the currency is SGD. Every POST takes an idempotency key, and every reply is signed."
             />
             <Stack spacing={1.5} sx={{ mb: 4 }}>
               {[
                 "Idempotency-Key on every POST, kept for 24 hours",
                 "Each reply signed with your secret (SecurePay-Signature)",
-                "Errors you can branch on by code, not by message",
+                "30 documented error codes, each with a fixed name",
                 "OpenAPI 3.1 contract and JSON Schemas in the repo",
               ].map((t) => (
                 <Box key={t} sx={{ display: "flex", gap: 1.5, alignItems: "flex-start" }}>
@@ -243,7 +248,7 @@ export default function Home() {
 
       {/* Stats */}
       <Section>
-        <SectionHeading overline="Built to be checked" title="Numbers we design and test against" align="center" />
+        <SectionHeading overline="Measured" title="Results from our own tests" align="center" />
         <Grid container spacing={2.5}>
           {STATS.map((s) => (
             <Grid key={s.label} size={{ xs: 6, md: 3 }}>
@@ -257,13 +262,13 @@ export default function Home() {
           ))}
         </Grid>
         <Typography sx={{ color: "text.secondary", fontSize: 13, mt: 4, textAlign: "center" }}>
-          Targets from the project requirements, measured at {RULES.throughputTarget} on the test server. Not production figures.
+          Latency measured on a 4 vCPU cloud VM running the full Docker stack. Model score from held-out data. These are test results, not production figures.
         </Typography>
       </Section>
 
       {/* Steps */}
       <Section tone="white">
-        <SectionHeading overline="How it works" title="From cart to captured in five steps" />
+        <SectionHeading overline="How it works" title="What happens when a customer pays" />
         <Grid container spacing={2}>
           {STEPS.map((s) => (
             <Grid key={s.n} size={{ xs: 12, sm: 6, md: 12 / 5 }}>
@@ -276,6 +281,53 @@ export default function Home() {
               </Box>
             </Grid>
           ))}
+        </Grid>
+      </Section>
+
+      {/* Screens */}
+      <Section>
+        <SectionHeading
+          overline="Screens"
+          title="Taken from the running system"
+          lead="These are screenshots of the gateway and the Volt & Co. demo store, not mock-ups. Volt & Co. is a fictional shop we built to test the gateway."
+        />
+        <Grid container spacing={4}>
+          <Grid size={{ xs: 12, md: 6 }}>
+            <Screenshot shot={SCREENS.verify} caption="A payment flagged as risky. The customer must enter a 6-digit code sent by email, with 3 tries and 10 minutes." />
+          </Grid>
+          <Grid size={{ xs: 12, md: 6 }}>
+            <Screenshot shot={SCREENS.shop} caption="Volt & Co., the demo store. It calls the SecurePay API like any other merchant would." />
+          </Grid>
+          <Grid size={{ xs: 12 }}>
+            <Screenshot
+              shot={SCREENS.paymentDetail}
+              caption="The merchant's view of one payment: capture or cancel, plus the fraud decision and the rule that fired."
+            />
+          </Grid>
+        </Grid>
+      </Section>
+
+      {/* Team */}
+      <Section tone="white">
+        <Grid container spacing={{ xs: 4, md: 8 }} alignItems="center">
+          <Grid size={{ xs: 12, md: 5 }}>
+            <SectionHeading
+              overline="Who we are"
+              title="Five students at UOW, through SIM"
+              lead="We are the CSIT321 project team, building SecurePay over 26 weeks from October 2026."
+            />
+            <Button component={RouterLink} to="/about#team" sx={{ px: 0 }} endIcon={<ArrowForwardRoundedIcon />}>
+              Meet the team
+            </Button>
+          </Grid>
+          <Grid size={{ xs: 12, md: 7 }}>
+            {TEAM.map((m, i) => (
+              <Box key={m.name} sx={{ display: "flex", justifyContent: "space-between", gap: 2, flexWrap: "wrap", py: 1.75, borderTop: i ? `1px solid ${brand.line}` : "none" }}>
+                <Typography sx={{ fontWeight: 600 }}>{m.name}</Typography>
+                <Typography sx={{ color: "text.secondary" }}>{m.role}</Typography>
+              </Box>
+            ))}
+          </Grid>
         </Grid>
       </Section>
 
@@ -333,7 +385,7 @@ function PipelineDiagram() {
         ))}
       </Box>
       <Typography sx={{ fontSize: 13, color: "rgba(255,255,255,0.5)", mt: 2 }}>
-        If screening cannot answer within {RULES.screeningTimeout}, the payment is blocked as <code>screening_unavailable</code>. We fail closed.
+        If screening has no answer within {RULES.screeningTimeout}, the payment is blocked with the reason <code>screening_unavailable</code> rather than let through.
       </Typography>
     </Box>
   );

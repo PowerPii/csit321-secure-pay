@@ -72,7 +72,7 @@ export function Header() {
               <GitHubIcon fontSize="small" />
             </IconButton>
             <Button component={RouterLink} to="/contact" variant="contained">
-              Book a demo
+              Ask for a demo
             </Button>
           </Box>
           <Box sx={{ flex: 1, display: { md: "none" } }} />
@@ -102,7 +102,7 @@ export function Header() {
             View on GitHub
           </Button>
           <Button component={RouterLink} to="/contact" variant="contained">
-            Book a demo
+            Ask for a demo
           </Button>
         </Box>
       </Drawer>

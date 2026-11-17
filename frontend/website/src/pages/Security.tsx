@@ -16,13 +16,13 @@ import { brand } from "../theme";
 
 const CONTROLS = [
   { icon: <HttpsRoundedIcon />, title: "Encrypted in transit", text: "HTTPS only, TLS 1.2 or higher. Plain HTTP is refused, and webhooks go only to HTTPS endpoints." },
-  { icon: <KeyRoundedIcon />, title: "Card vault", text: "Card data is encrypted in its own database with its own key, and deleted once the payment is submitted." },
+  { icon: <KeyRoundedIcon />, title: "Card vault", text: "Card data is encrypted with AES-256-GCM in its own database with its own key, and deleted once the payment is submitted." },
   { icon: <FingerprintRoundedIcon />, title: "Keyed fingerprints", text: "Screening recognises repeat cards through a keyed fingerprint, never the card number itself." },
   { icon: <VerifiedUserRoundedIcon />, title: "Staff MFA", text: `Every staff account signs in with a password and TOTP. ${RULES.staffLockout} lockout.` },
   { icon: <HistoryEduRoundedIcon />, title: "Audit trail", text: "Every sign-in and every payment state change is written to an audit log with a request ID." },
   { icon: <ShieldRoundedIcon />, title: "Signed messages", text: "API replies and webhooks are signed with HMAC-SHA256 and carry a timestamp to stop replays." },
   { icon: <PolicyRoundedIcon />, title: "Least privilege", text: "Operators, analysts and administrators see only what their role allows; merchants only their own data." },
-  { icon: <BugReportRoundedIcon />, title: "Tested like an attacker", text: "A test and attack suite covers tampering, replay, duplicate requests and cross-merchant access." },
+  { icon: <BugReportRoundedIcon />, title: "Attack tests", text: "Automated tests try amount tampering, replayed webhooks, duplicate requests and reading another merchant’s data." },
 ];
 
 const REFERENCES = [
@@ -38,8 +38,8 @@ export default function Security() {
     <>
       <PageHero
         overline="Security"
-        title="Security is the product, not a feature of it"
-        lead="SecurePay was designed from a threat model: each trust boundary has a named control, a requirement and a test that proves it."
+        title="How SecurePay protects a payment"
+        lead="We started from a threat model. Each trust boundary has a named control, a requirement in our specification, and a test that checks it."
       />
       <Section>
         <SectionHeading overline="Controls" title="What protects a payment" />
@@ -65,7 +65,7 @@ export default function Security() {
             <SectionHeading
               overline="Standards"
               title="References, not certifications"
-              lead="We use these standards to decide what to build and test. A university prototype can’t hold them, and we don’t claim it does."
+              lead="We used these standards to decide what to build and test. A university prototype can’t be certified against them, and we don’t claim it is."
             />
           </Grid>
           <Grid size={{ xs: 12, md: 7 }}>
@@ -89,7 +89,7 @@ export default function Security() {
           </Typography>
         </Box>
       </Section>
-      <CtaBand title="Walk through the threat model with us" lead="We can show each control working in the demo, including the attacks it stops." />
+      <CtaBand title="Ask us to show a control working" lead="In the demo we can show a tampered amount refused, a replayed webhook rejected and a lost bank reply reconciled." />
     </>
   );
 }

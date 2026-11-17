@@ -19,7 +19,7 @@ const PLANS = [
     unit: "always",
     blurb: "Everything in the demo, against the simulated bank.",
     features: ["Hosted checkout and card vault", "Fraud screening on every payment", "Signed webhooks and test cards", "Staff dashboard with TOTP"],
-    cta: "Book a demo",
+    cta: "Ask for a demo",
     highlight: true,
   },
   {
@@ -67,7 +67,7 @@ export default function Pricing() {
     <>
       <PageHero
         overline="Pricing"
-        title="Simple pricing, for illustration"
+        title="Example pricing"
         lead="SecurePay is a student project and charges nobody. The plans below show how a gateway like it could be priced if it were launched."
       />
       <Section>
