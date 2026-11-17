@@ -1,19 +1,36 @@
+import { useState } from "react";
 import type { Session } from "../api";
-import { money } from "../format";
+import { initials, money } from "../format";
 import { LockIcon } from "./icons";
 
 export function OrderSummary({ session }: { session: Session }) {
+  // Phones show the total and fold the item list away, so the card form starts on the first
+  // screen; wider screens always show the list (styles.css).
+  const [open, setOpen] = useState(false);
+  const items = session.line_items ?? [];
+  const count = items.reduce((n, item) => n + item.quantity, 0);
   return (
     <aside className="panel-left" aria-label="Order summary">
       <div>
-        <p className="muted">Paying {session.merchant.name}</p>
+        <p className="store">
+          <span className="store-mark" aria-hidden="true">{initials(session.merchant.name)}</span>
+          <span className="store-name">{session.merchant.name}</span>
+        </p>
+        <p className="muted">{session.result === "approved" ? "Total paid" : "Total to pay"}</p>
         <p className="amount">{money(session.amount)}</p>
         <p className="muted small">
           Order {session.order_reference} · {session.currency}
         </p>
-        <dl className="lines">
-          {session.line_items
-            ? session.line_items.map((item, i) => (
+        {(items.length > 0 || session.description) && (
+          <button type="button" className="summary-toggle" aria-expanded={open} aria-controls="order-lines"
+            onClick={() => setOpen((o) => !o)}>
+            {open ? "Hide" : "Show"} order details
+            {count > 0 && ` (${count} item${count === 1 ? "" : "s"})`}
+          </button>
+        )}
+        <dl id="order-lines" className={`lines${open ? " open" : ""}`}>
+          {items.length > 0
+            ? items.map((item, i) => (
                 <div className="row" key={i}>
                   <dt>{item.name} × {item.quantity}</dt>
                   <dd>{money(item.unit_amount * item.quantity)}</dd>

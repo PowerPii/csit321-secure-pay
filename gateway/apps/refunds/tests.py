@@ -214,3 +214,40 @@ def test_two_refunds_at_once_cannot_exceed_the_payment(shop, fake_sim):
     assert Refund.objects.filter(payment=payment).count() == 1
     p = shop.get(f"/v1/payments/{payment.public_id}").json()
     assert (p["refunded_amount"], p["refundable_amount"]) == (3000, 1590)
+
+
+# --- refund receipt to the customer (demo sprint 14) -----------------------------------------
+
+def test_completed_refund_emails_the_customer_once(shop, captured, fake_sim):
+    from django.core import mail
+
+    from apps.events.emails import send_due
+    from apps.events.models import OutboundEmail
+
+    data = refund(shop, captured, 1500).json()
+    queued = OutboundEmail.objects.get(kind="refund_receipt")
+    assert queued.payment_id == captured.pk and queued.to == captured.customer_email
+    mail.outbox.clear()
+    send_due()
+    [message] = [m for m in mail.outbox if m.subject.startswith("Refund:")]
+    assert "S$15.00" in message.subject and captured.reference in message.subject
+    assert f"Refund ref:  {data['reference']}" in message.body
+    assert "(full refund)" not in message.body
+    assert f"/guest/status?ref={captured.reference}" in message.body
+
+    # A late or repeated answer for the same refund changes nothing and sends nothing more.
+    from apps.payments.processor import Answer, AnswerKind
+    from apps.refunds.service import apply_refund_answer
+
+    rfd = Refund.objects.get()
+    apply_refund_answer(rfd.operation_id, Answer(kind=AnswerKind.RECORDED,
+                                                 record={"status": "approved"}))
+    assert OutboundEmail.objects.filter(kind="refund_receipt").count() == 1
+
+
+def test_failed_refund_sends_no_refund_email(shop, captured, fake_sim):
+    from apps.events.models import OutboundEmail
+
+    fake_sim.refund_mode = "decline"
+    refund(shop, captured, 100)
+    assert not OutboundEmail.objects.filter(kind="refund_receipt").exists()

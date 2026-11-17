@@ -11,6 +11,7 @@ export type Result =
   | "approved"
   | "declined"
   | "not_completed"
+  | "verification_failed"
   | "pending"
   | "cancelled"
   | "expired"

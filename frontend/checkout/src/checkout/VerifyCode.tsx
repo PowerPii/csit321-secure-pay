@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { ApiError, getSession, resendCode, verify } from "../api";
 import { countdown, money } from "../format";
 import { Field } from "../ui";
+import { LockIcon } from "./icons";
 import { Checking } from "./Results";
 import { useSessionExpiry, type SessionFormProps } from "./session";
 
@@ -68,6 +69,7 @@ export function VerifyCode({
 
   return (
     <form className="form" onSubmit={onSubmit} noValidate>
+      <p className="step-pill">One more step</p>
       <h1>Check your email</h1>
       <p className="muted">
         To protect your card, enter the 6-digit code we sent to {v.sent_to ?? "your email"}.
@@ -82,8 +84,8 @@ export function VerifyCode({
         {" · "}
         {v.attempts_remaining} attempt{v.attempts_remaining === 1 ? "" : "s"} left
       </p>
-      <button className="btn primary" type="submit" disabled={busy}>
-        Verify and pay {money(session.amount)}
+      <button className="btn primary with-lock" type="submit" disabled={busy}>
+        <LockIcon /> Verify and pay {money(session.amount)}
       </button>
       {resendIn === null ? (
         <p className="muted tiny">No more codes can be sent for this payment.</p>

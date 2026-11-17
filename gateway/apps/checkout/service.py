@@ -131,6 +131,11 @@ def to_dict(payment: Payment) -> dict:
         result = "unavailable"  # a technical stop, not a fraud finding: "try again later"
     elif payment.outcome_reason == OutcomeReason.NOT_PROCESSED:
         result = "not_completed"  # the bank never got it: not a decline, nothing was taken
+    elif payment.outcome_reason in (OutcomeReason.VERIFICATION_FAILED,
+                                    OutcomeReason.VERIFICATION_EXPIRED):
+        # The customer already knows the code was not confirmed; saying so is clearer than
+        # "couldn't complete" and tells them nothing about fraud scores or rules.
+        result = "verification_failed"
     return {
         "session_id": payment.checkout_session_id,
         "status": status.value,
