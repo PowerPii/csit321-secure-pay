@@ -8,6 +8,8 @@ import uuid
 
 from django.db import models
 
+from apps.shop.catalogue import LOW_STOCK, SHIPPING_SKU
+
 
 class Product(models.Model):
     """A catalogue item of Volt & Co., the fictional store the demo shop plays."""
@@ -31,6 +33,14 @@ class Product(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.sku})"
+
+    @property
+    def sold_out(self) -> bool:
+        return self.stock == 0
+
+    @property
+    def low_stock(self) -> bool:
+        return 0 < self.stock <= LOW_STOCK
 
     def detail_lines(self) -> list[str]:
         return [line.strip() for line in self.details.splitlines() if line.strip()]
@@ -63,6 +73,29 @@ class Order(models.Model):
     @property
     def latest_attempt(self):
         return self.attempts.order_by("-id").first()
+
+    def status(self) -> tuple[str, str]:
+        """(label, tone) for "My orders". Uses prefetched attempts when there are some."""
+        attempts = list(self.attempts.all())
+        latest = max(attempts, key=lambda a: a.pk) if attempts else None
+        status = latest.status if latest else ""
+        if status == "cancelled":
+            return "Cancelled", "bad"
+        if self.paid_at:
+            return "Paid", "ok"
+        if status in PaymentAttempt.WAITING:
+            return "Confirming payment", "wait"
+        if status in PaymentAttempt.FAILED:
+            return "Payment not completed", "bad"
+        return "Awaiting payment", ""
+
+    def item_summary(self) -> str:
+        """"Volt Book 14 and 2 more" for the order list (delivery is not an item)."""
+        items = [line for line in self.lines.all() if line.sku != SHIPPING_SKU]
+        if not items:
+            return ""
+        more = len(items) - 1
+        return items[0].name + (f" and {more} more" if more else "")
 
     def line_items(self) -> list[dict]:
         """Shown on SecurePay's checkout page; they add up to total_cents."""

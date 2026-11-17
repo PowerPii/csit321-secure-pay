@@ -2,7 +2,7 @@
 {% block title %}{{ product.name }} · Volt &amp; Co.{% endblock %}
 {% block body %}
 <main class="wrap">
-  <p class="crumbs"><a href="{% url 'shop-home' %}">Home</a> / <a href="{% url 'shop-home' %}?category={{ product.category }}">{{ product.get_category_display }}</a></p>
+  <p class="crumbs"><a href="{% url 'shop-home' %}">Home</a> / <a href="{% url 'shop-category' product.category %}">{{ product.get_category_display }}</a></p>
   <div class="pdp">
     {% product_art product "large" %}
     <div>
@@ -11,19 +11,29 @@
       <p class="price">{{ product.price_cents|money }}</p>
       <p class="muted small">Price includes GST. {% if product.price_cents >= free_shipping_from_cents %}Free delivery.{% else %}Free delivery on orders over {{ free_shipping_from_cents|money }}.{% endif %}</p>
       <p>{{ product.description }}</p>
-      <p class="stock">In stock, ships next working day</p>
+      {% if product.sold_out %}
+      <p class="stock out">Sold out. More stock is on the way.</p>
+      <button class="btn primary block" type="button" disabled>Sold out</button>
+      {% else %}
+      <p class="stock">{% if product.low_stock %}Only {{ product.stock }} left in stock{% else %}In stock{% endif %}, ships next working day</p>
       <form method="post" action="{% url 'shop-cart-add' %}">{% csrf_token %}
         <input type="hidden" name="sku" value="{{ product.sku }}">
         <button class="btn primary block" type="submit">Add to cart</button>
       </form>
+      {% endif %}
+      <ul class="assure">
+        <li>Free returns within 30 days</li>
+        <li>2-year Volt warranty</li>
+        <li>Pay securely with SecurePay</li>
+      </ul>
       {% if product.detail_lines %}
-      <h2 style="margin-top:28px">What you get</h2>
+      <h2 class="section">What you get</h2>
       <ul>{% for line in product.detail_lines %}<li>{{ line }}</li>{% endfor %}</ul>
       {% endif %}
     </div>
   </div>
   {% if related %}
-  <h2 style="margin-top:44px">More in {{ product.get_category_display }}</h2>
+  <h2 class="section">More in {{ product.get_category_display }}</h2>
   <div class="grid">
     {% for p in related %}
     <article class="product">

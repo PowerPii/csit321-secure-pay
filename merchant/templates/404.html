@@ -1,0 +1,11 @@
+{% extends "shop/base.html" %}
+{% block title %}Page not found · Volt &amp; Co.{% endblock %}
+{% block body %}
+<main class="narrow">
+  <div class="empty">
+    <h1>We can't find that page</h1>
+    <p class="muted">The link may be old, or the product has left the shelf. Try searching, or head back to the shop.</p>
+    <a class="btn primary" href="{% url 'shop-home' %}">Back to the shop</a>
+  </div>
+</main>
+{% endblock %}

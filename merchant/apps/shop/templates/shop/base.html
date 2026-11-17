@@ -79,7 +79,41 @@
     footer .cols { max-width:1180px; margin:0 auto; padding:28px 48px; display:grid; grid-template-columns:2fr 1fr 1fr; gap:24px; font-size:13.5px; }
     footer .cols a { display:block; color:var(--muted); text-decoration:none; margin:4px 0; } footer .cols a:hover { color:var(--ink); }
     footer .legal { max-width:1180px; margin:0 auto; padding:0 48px 24px; font-size:12px; color:var(--muted); }
+    .sr { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+    .search input { font:inherit; font-size:14px; width:170px; padding:7px 14px; border:1px solid var(--line); border-radius:999px; background:var(--panel); }
+    .flash { max-width:1180px; margin:16px auto 0; padding:0 48px; }
+    .section { margin:36px 0 14px; }
+    .tiles { display:grid; grid-template-columns:repeat(3,1fr); gap:18px; }
+    .tile { display:grid; grid-template-columns:120px 1fr; align-items:center; gap:16px; border:1px solid var(--line); border-radius:14px; padding:10px; text-decoration:none; color:var(--ink); }
+    .tile:hover { box-shadow:0 6px 24px rgba(29,36,51,.08); } .tile .art { border-radius:10px; } .tile strong { display:block; font-size:16px; }
+    .listhead { display:flex; justify-content:space-between; align-items:flex-end; gap:16px; flex-wrap:wrap; } .listhead p { margin:-8px 0 16px; }
+    .sort { display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-bottom:16px; }
+    .sortlink { font-size:13px; color:var(--muted); text-decoration:none; padding:4px 10px; border-radius:999px; } .sortlink.on { background:var(--panel); color:var(--ink); font-weight:600; }
+    .empty { background:var(--panel); border-radius:14px; padding:24px; text-align:center; }
+    .lowstock { color:var(--warn); font-size:12px; font-weight:600; }
+    .tag.out { background:#6b7280; } .product.soldout .art { opacity:.55; }
+    .btn[disabled] { opacity:.5; cursor:not-allowed; }
+    .stock.out { color:var(--error); }
+    .assure { list-style:none; padding:0 !important; margin:16px 0 0; font-size:13px; color:var(--muted) !important; display:flex; gap:14px; flex-wrap:wrap; }
+    .assure li::before { content:"✓ "; color:var(--accent-ink); font-weight:700; }
+    .qty { display:flex; align-items:center; gap:8px; margin-top:6px; } .qty form { display:inline; }
+    .qty button:not(.linkbtn) { width:30px; height:30px; border-radius:50%; border:1px solid var(--line); background:#fff; font:inherit; font-weight:700; cursor:pointer; }
+    .qty button[disabled] { opacity:.4; cursor:not-allowed; } .qty > span { min-width:18px; text-align:center; font-weight:600; } .qty .linkbtn { margin-left:8px; }
+    .keep { margin-top:16px; }
+    .thanks { display:flex; gap:14px; align-items:center; margin-bottom:8px; } .thanks h1 { margin:0 0 6px; }
+    .track { list-style:none; padding:0; margin:22px 0 4px; display:grid; grid-template-columns:repeat(3,1fr); gap:8px; counter-reset:step; }
+    .track li { border-top:4px solid var(--line); padding-top:8px; font-size:13px; display:flex; flex-direction:column; }
+    .track li span { color:var(--muted); } .track li.done { border-color:var(--accent); } .track li.now { border-color:#f59e0b; } .track li.next { border-color:#99e2d9; }
+    .deliver h2 { font-size:14px; margin:0 0 4px; } .deliver p { margin:0; }
+    .center { text-align:center; margin-top:16px; }
+    .orderrow { display:flex; justify-content:space-between; gap:12px; align-items:center; border:1px solid var(--line); border-radius:14px; padding:14px 16px; margin:10px 0; text-decoration:none; color:var(--ink); }
+    .orderrow:hover { box-shadow:0 6px 24px rgba(29,36,51,.08); }
+    .orderrow .what, .orderrow .right { display:flex; flex-direction:column; gap:4px; } .orderrow .right { align-items:flex-end; white-space:nowrap; }
+    footer .uen { display:block; margin-top:6px; }
     @media (max-width: 860px) {
+      header.top { flex-wrap:wrap; row-gap:10px; gap:14px; } .logo { margin-right:auto; white-space:nowrap; }
+      nav.main-nav { display:contents; } nav.main-nav a { white-space:nowrap; font-size:14px; }
+      .search { order:5; flex-basis:100%; } .search input { width:100%; } .flash { padding:0 16px; } .tiles { grid-template-columns:1fr; } .tile { grid-template-columns:96px 1fr; }
       header.top { padding:12px 16px; } nav.main-nav .hide-sm { display:none; } .wrap { padding:20px 16px 40px; }
       .hero { grid-template-columns:1fr; padding:24px; } .hero h1 { font-size:28px; } .perks { grid-template-columns:1fr; }
       .layout, .pdp { grid-template-columns:1fr; gap:20px; } .side { position:static; }
@@ -98,20 +132,25 @@
     </a>
     <nav class="main-nav">
       {% block nav %}
-      <a class="hide-sm" href="{% url 'shop-home' %}?category=audio">Audio</a>
-      <a class="hide-sm" href="{% url 'shop-home' %}?category=computing">Computing</a>
-      <a class="hide-sm" href="{% url 'shop-home' %}?category=accessories">Accessories</a>
+      <a class="hide-sm" href="{% url 'shop-category' 'audio' %}">Audio</a>
+      <a class="hide-sm" href="{% url 'shop-category' 'computing' %}">Computing</a>
+      <a class="hide-sm" href="{% url 'shop-category' 'accessories' %}">Accessories</a>
+      <form class="search" role="search" method="get" action="{% url 'shop-search' %}">
+        <label class="sr" for="q">Search products</label>
+        <input id="q" type="search" name="q" maxlength="60" placeholder="Search" value="{% block search_value %}{% endblock %}">
+      </form>
       <a href="{% url 'shop-orders' %}">My orders</a>
       <a class="cartlink" href="{% url 'shop-cart' %}">Cart ({{ cart_count|default:0 }})</a>
       {% endblock %}
     </nav>
   </header>
+  {% if messages %}<div class="flash">{% for message in messages %}<p class="alert" role="alert">{{ message }}</p>{% endfor %}</div>{% endif %}
   {% block body %}{% endblock %}
   <footer class="foot">
     <div class="cols">
       <div><strong>Volt &amp; Co.</strong><p class="muted small">Everyday tech for work, study and play, delivered across Singapore. Payments by SecurePay.</p></div>
       <div><strong>Help</strong><a href="{% url 'shop-info' 'delivery' %}">Delivery</a><a href="{% url 'shop-info' 'returns' %}">Returns and refunds</a><a href="{% url 'shop-orders' %}">My orders</a></div>
-      <div><strong>Company</strong><a href="{% url 'shop-info' 'about' %}">About us</a></div>
+      <div><strong>Company</strong><a href="{% url 'shop-info' 'about' %}">About us</a><span class="muted small uen">UEN 202699999Z (fictional)</span></div>
     </div>
     <p class="legal">Volt &amp; Co. Pte. Ltd. is a fictional company made for the SecurePay final-year project (CSIT321). Its products, prices and UEN are invented. Nothing is sold or shipped and no real money is taken.</p>
   </footer>

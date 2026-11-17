@@ -30,9 +30,11 @@ def test_products_are_seeded_and_listed(client):
 
 
 def test_category_filter_and_product_page(client):
-    r = client.get("/?category=audio")
+    r = client.get("/category/audio")
     assert b"Volt Quiet Over-ear Headphones" in r.content and b"Wireless mouse" not in r.content
-    assert b"Wireless mouse" in client.get("/?category=nope").content  # unknown: show all
+    assert client.get("/?category=audio")["Location"] == "/category/audio"  # old links
+    assert b"Wireless mouse" in client.get("/?category=nope").content  # unknown: home
+    assert client.get("/category/nope").status_code == 404
     r = client.get("/products/HEAD-01")
     assert r.status_code == 200 and b"S$ 249.00" in r.content and b"40 hours" in r.content
     assert client.get("/products/NOPE").status_code == 404
@@ -193,3 +195,139 @@ def test_orders_are_private_to_the_browser_that_placed_them(client, gateway):
     assert stranger.get(f"/orders/{order.number}/return?payment_id=x").status_code == 404
     assert stranger.post(f"/orders/{order.number}/pay").status_code == 404
     assert b"Order #" in client.get("/orders").content
+
+
+# Sprint 13: the store looks and behaves like a real one.
+
+def test_categories_sort_by_price(client):
+    page = client.get("/category/computing?sort=price").content.decode()
+    assert page.index("Laptop stand") < page.index("Volt Book 14")
+    page = client.get("/category/computing?sort=price-desc").content.decode()
+    assert page.index("Volt Book 14") < page.index("Laptop stand")
+    assert client.get("/category/computing?sort=evil").status_code == 200  # ignored
+
+
+def test_search_finds_products_by_name_and_words(client):
+    assert b"Volt Go Speaker" in client.get("/search?q=waterproof").content
+    page = client.get("/search?q=CHARGER").content
+    assert b"Volt 65W GaN Charger" in page and b"Wireless mouse" not in page
+    assert b"Nothing matches" in client.get("/search?q=zzzz").content
+    assert b"Type what you are looking for" in client.get("/search").content
+    assert client.get("/search?q=" + "x" * 500).status_code == 200
+
+
+def test_home_has_category_tiles(client):
+    page = client.get("/").content
+    for slug in (b"/category/audio", b"/category/computing", b"/category/accessories"):
+        assert slug in page
+
+
+def test_cart_quantity_can_change(client):
+    add(client, "MOUSE-01")
+    client.post("/cart/update", {"sku": "MOUSE-01", "quantity": "3"})
+    assert b"Cart (3)" in client.get("/").content
+    client.post("/cart/update", {"sku": "MOUSE-01", "quantity": "99"})
+    assert b"Cart (10)" in client.get("/").content  # at most 10 of a thing
+    client.post("/cart/update", {"sku": "MOUSE-01", "quantity": "abc"})
+    assert b"Cart (10)" in client.get("/").content
+    client.post("/cart/update", {"sku": "HUB-01", "quantity": "2"})  # not in the cart
+    client.post("/cart/update", {"sku": "MOUSE-01", "quantity": "0"})
+    assert b"Cart (0)" in client.get("/").content
+
+
+def test_stock_is_shown_and_limits_the_cart(client):
+    Product.objects.filter(sku="HEAD-01").update(stock=2)
+    Product.objects.filter(sku="SPK-01").update(stock=0)
+    assert b"Only 2 left" in client.get("/products/HEAD-01").content
+    assert b"Sold out" in client.get("/products/SPK-01").content
+    assert b"Sold out" in client.get("/category/audio").content
+    r = client.post("/cart/add", {"sku": "SPK-01"})
+    assert r["Location"] == "/products/SPK-01"
+    assert b"is sold out" in client.get(r["Location"]).content
+    add(client, "HEAD-01", "HEAD-01", "HEAD-01")
+    page = client.get("/cart").content
+    assert b"Cart (2)" in page and b"all in your cart" in page
+    client.post("/cart/update", {"sku": "HEAD-01", "quantity": "5"})
+    assert b"Cart (2)" in client.get("/").content
+
+
+def test_checkout_stops_when_stock_ran_out_meanwhile(client, gateway):
+    add(client, "MOUSE-01")
+    Product.objects.filter(sku="MOUSE-01").update(stock=0)
+    r = client.post("/checkout", {"email": "alex@example.com", "full_name": "Alex Tan",
+                                  "delivery_address": "Blk 123 Clementi Ave 3"})
+    assert r["Location"] == "/cart" and not Order.objects.exists() and gateway.calls == []
+    assert b"Not enough stock" in client.get("/cart").content
+
+
+def test_paid_orders_take_stock_once(client, gateway):
+    before = {p.sku: p.stock for p in Product.objects.filter(sku__in=["MOUSE-01", "HUB-01"])}
+    place_order(client)
+    order = Order.objects.get()
+    assert Product.objects.get(sku="MOUSE-01").stock == before["MOUSE-01"]  # not paid yet
+    for _ in range(2):  # the return and the order page both confirm the payment
+        client.get(f"/orders/{order.number}/return?payment_id={order.latest_attempt.payment_id}")
+        client.get(f"/orders/{order.number}")
+    assert Product.objects.get(sku="MOUSE-01").stock == before["MOUSE-01"] - 1
+    assert Product.objects.get(sku="HUB-01").stock == before["HUB-01"] - 1
+
+
+def test_stock_never_goes_below_zero(client, gateway):
+    place_order(client)
+    Product.objects.filter(sku="MOUSE-01").update(stock=0)
+    order = Order.objects.get()
+    client.get(f"/orders/{order.number}")
+    assert Product.objects.get(sku="MOUSE-01").stock == 0
+
+
+def test_restock_command():
+    from django.core.management import call_command
+    from django.core.management.base import CommandError
+
+    call_command("restock", "--to", "3")
+    assert set(Product.objects.values_list("stock", flat=True)) == {3}
+    call_command("restock", "--sku", "LAPTOP-14", "--to", "0")
+    assert Product.objects.get(sku="LAPTOP-14").stock == 0
+    with pytest.raises(CommandError):
+        call_command("restock", "--sku", "NOPE")
+    with pytest.raises(CommandError):
+        call_command("restock", "--to", "-1")
+
+
+def test_confirmation_page_shows_delivery_and_progress(client, gateway):
+    place_order(client)
+    order = Order.objects.get()
+    page = client.get(f"/orders/{order.number}").content.decode()
+    assert "Thanks, Alex Tan!" in page and "Delivering to" in page
+    assert "Blk 123 Clementi Ave 3" in page and "alex@example.com" in page
+    assert "Arrives " in page and "Includes GST" in page
+
+
+def test_my_orders_lists_status_and_items(client, gateway):
+    gateway.next_status = "declined"
+    place_order(client)
+    page = client.get("/orders").content.decode()
+    assert "Wireless mouse and 1 more" in page and "Awaiting payment" in page
+    client.get(f"/orders/{Order.objects.get().number}")  # learns about the decline
+    assert "Payment not completed" in client.get("/orders").content.decode()
+
+
+@pytest.mark.parametrize("paid_at, arrives", [
+    ("2026-12-07T09:00:00+08:00", "2026-12-08"),  # Monday morning: arrives Tuesday
+    ("2026-12-07T15:00:00+08:00", "2026-12-09"),  # Monday after 2 pm: ships Tuesday
+    ("2026-12-12T10:00:00+08:00", "2026-12-14"),  # Saturday: no Sunday delivery
+    ("2026-12-05T01:00:00+00:00", "2026-12-07"),  # Sat 9 am SGT, given in UTC
+])
+def test_estimated_delivery(paid_at, arrives):
+    import datetime
+
+    from apps.shop.catalogue import estimated_delivery
+
+    when = datetime.datetime.fromisoformat(paid_at)
+    assert estimated_delivery(when) == datetime.date.fromisoformat(arrives)
+
+
+def test_missing_pages_use_the_store_look(client, settings):
+    settings.DEBUG = False
+    r = client.get("/no-such-page")
+    assert r.status_code == 404 and b"find that page" in r.content and b"Volt" in r.content

@@ -3,10 +3,16 @@
 {% block body %}
 <main class="narrow">
   <h1>My orders</h1>
+  {% if orders %}<p class="muted small">Orders placed from this browser. Your SecurePay receipt has the payment reference for each one.</p>{% endif %}
   {% for order in orders %}
-  <div class="row box"> <a href="{% url 'shop-order' order.number %}">Order #{{ order.number }}</a><span>{{ order.total_cents|money }} · {% if order.paid_at %}Paid{% else %}Not paid{% endif %}</span></div>
+  {% with status=order.status %}
+  <a class="orderrow" href="{% url 'shop-order' order.number %}">
+    <span class="what"><strong>Order #{{ order.number }}</strong><span class="muted small">{{ order.created_at|date:"j M Y" }} · {{ order.item_summary }}</span></span>
+    <span class="right"><strong>{{ order.total_cents|money }}</strong><span class="badge {{ status.1 }}">{{ status.0 }}</span></span>
+  </a>
+  {% endwith %}
   {% empty %}
-  <p class="muted">No orders yet. <a href="{% url 'shop-home' %}">Start shopping</a></p>
+  <div class="empty"><p class="muted">No orders yet.</p><a class="btn primary" href="{% url 'shop-home' %}">Start shopping</a></div>
   {% endfor %}
 </main>
 {% endblock %}

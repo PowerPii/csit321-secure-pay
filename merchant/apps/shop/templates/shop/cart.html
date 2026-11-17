@@ -11,13 +11,18 @@
         <a href="{% url 'shop-product' line.product.sku %}" tabindex="-1">{% product_art line.product "thumb" %}</a>
         <div>
           <a class="name" href="{% url 'shop-product' line.product.sku %}">{{ line.product.name }}</a>
-          <div class="muted small">{{ line.product.price_cents|money }} × {{ line.quantity }}</div>
-          <form class="inline" method="post" action="{% url 'shop-cart-remove' %}">{% csrf_token %}<input type="hidden" name="sku" value="{{ line.product.sku }}"><button class="linkbtn" type="submit" aria-label="Remove {{ line.product.name }}">Remove</button></form>
+          <div class="muted small">{{ line.product.price_cents|money }} each{% if line.product.low_stock %} · <span class="lowstock">Only {{ line.product.stock }} left</span>{% endif %}</div>
+          <div class="qty" role="group" aria-label="Quantity of {{ line.product.name }}">
+            <form method="post" action="{% url 'shop-cart-update' %}">{% csrf_token %}<input type="hidden" name="sku" value="{{ line.product.sku }}"><input type="hidden" name="quantity" value="{{ line.quantity|add:'-1' }}"><button type="submit" aria-label="One fewer">−</button></form>
+            <span aria-live="polite">{{ line.quantity }}</span>
+            <form method="post" action="{% url 'shop-cart-update' %}">{% csrf_token %}<input type="hidden" name="sku" value="{{ line.product.sku }}"><input type="hidden" name="quantity" value="{{ line.quantity|add:'1' }}"><button type="submit" aria-label="One more"{% if line.quantity >= line.max_quantity %} disabled{% endif %}>+</button></form>
+            <form class="inline" method="post" action="{% url 'shop-cart-remove' %}">{% csrf_token %}<input type="hidden" name="sku" value="{{ line.product.sku }}"><button class="linkbtn" type="submit" aria-label="Remove {{ line.product.name }}">Remove</button></form>
+          </div>
         </div>
         <strong>{{ line.total_cents|money }}</strong>
       </div>
       {% endfor %}
-      <p class="small" style="margin-top:16px"><a href="{% url 'shop-home' %}">← Keep shopping</a></p>
+      <p class="small keep"><a href="{% url 'shop-home' %}">← Keep shopping</a></p>
     </section>
     <aside class="side">
       <h2>Summary</h2>

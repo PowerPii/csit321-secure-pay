@@ -6,6 +6,7 @@ SecurePay exactly as before.
 from django import forms
 from django.contrib import messages
 from django.db import transaction
+from django.db.models import Q
 from django.http import Http404, HttpResponseRedirect
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
@@ -37,7 +38,8 @@ def _cart_lines(request):
     cart = _cart(request)
     products = {p.sku: p for p in Product.objects.filter(sku__in=cart)}
     lines = [(products[sku], qty) for sku, qty in cart.items() if sku in products]
-    lines = [{"product": p, "quantity": q, "total_cents": p.price_cents * q} for p, q in lines]
+    lines = [{"product": p, "quantity": q, "total_cents": p.price_cents * q,
+              "max_quantity": min(MAX_QUANTITY, p.stock)} for p, q in lines]
     return lines, sum(line["total_cents"] for line in lines)
 
 
@@ -62,20 +64,63 @@ def _owned_order(request, number: int) -> Order:
     return order
 
 
+SORTS = {"": ("position", "id"), "price": ("price_cents", "id"),
+         "price-desc": ("-price_cents", "id")}
+SORT_LABELS = [("", "Featured"), ("price", "Price, low to high"),
+               ("price-desc", "Price, high to low")]
+MAX_SEARCH = 60
+
+
+def _listing(request, products, **context):
+    sort = request.GET.get("sort", "")
+    if sort not in SORTS:
+        sort = ""
+    return render(request, "shop/listing.html", {
+        "products": products.order_by(*SORTS[sort]), "sort": sort, "sort_options": SORT_LABELS,
+        "categories": Product.CATEGORIES, "cart_count": _cart_count(request), **context})
+
+
 @require_GET
 def home(request):
-    categories = dict(Product.CATEGORIES)
     category = request.GET.get("category", "")
-    products = Product.objects.all()
-    if category in categories:
-        products = products.filter(category=category)
-    else:
-        category = ""
+    if category in dict(Product.CATEGORIES):  # old links: /?category=audio
+        return redirect("shop-category", slug=category)
+    tiles = [{"key": key, "label": label,
+              "product": Product.objects.filter(category=key).order_by("-price_cents").first(),
+              "count": Product.objects.filter(category=key).count()}
+             for key, label in Product.CATEGORIES]
     return render(request, "shop/home.html", {
-        "products": products, "categories": Product.CATEGORIES, "category": category,
-        "category_name": categories.get(category, "All products"),
+        "products": Product.objects.all(), "tiles": tiles,
         "hero": Product.objects.filter(sku="LAPTOP-14").first(),
         "cart_count": _cart_count(request)})
+
+
+@require_GET
+def category(request, slug: str):
+    names = dict(Product.CATEGORIES)
+    if slug not in names:
+        raise Http404
+    return _listing(request, Product.objects.filter(category=slug), category=slug,
+                    heading=names[slug], blurb=CATEGORY_BLURBS.get(slug, ""))
+
+
+@require_GET
+def search(request):
+    query = request.GET.get("q", "").strip()[:MAX_SEARCH]
+    products = Product.objects.none()
+    if query:
+        products = Product.objects.filter(
+            Q(name__icontains=query) | Q(blurb__icontains=query)
+            | Q(description__icontains=query) | Q(details__icontains=query))
+    return _listing(request, products, query=query,
+                    heading=f"Results for “{query}”" if query else "Search")
+
+
+CATEGORY_BLURBS = {
+    "audio": "Headphones, earbuds and speakers for the commute, the gym and the beach.",
+    "computing": "Laptops, screens and the desk kit that makes long study sessions easier.",
+    "accessories": "Chargers, cables and the small things that keep everything running.",
+}
 
 
 @require_GET
@@ -99,10 +144,37 @@ def cart_view(request):
 @require_POST
 def cart_add(request):
     sku = request.POST.get("sku", "")
-    if Product.objects.filter(sku=sku).exists():
-        cart = _cart(request)
-        cart[sku] = min(cart.get(sku, 0) + 1, MAX_QUANTITY)
-        request.session[SESSION_CART] = cart
+    product = Product.objects.filter(sku=sku).first()
+    if product is None:
+        return redirect("shop-cart")
+    cart = _cart(request)
+    wanted = min(cart.get(sku, 0) + 1, MAX_QUANTITY)
+    if product.sold_out:
+        messages.error(request, f"Sorry, {product.name} is sold out.")
+        return redirect("shop-product", sku=sku)
+    if wanted > product.stock:
+        messages.error(request, f"Only {product.stock} {product.name} left, and they are "
+                                "all in your cart.")
+    cart[sku] = min(wanted, product.stock)
+    request.session[SESSION_CART] = cart
+    return redirect("shop-cart")
+
+
+@require_POST
+def cart_update(request):
+    """Change a line's quantity from the cart page; 0 removes it."""
+    sku = request.POST.get("sku", "")
+    cart = _cart(request)
+    product = Product.objects.filter(sku=sku).first()
+    try:
+        quantity = int(request.POST.get("quantity", ""))
+    except ValueError:
+        quantity = cart.get(sku, 0)
+    if product is None or quantity <= 0:
+        cart.pop(sku, None)
+    elif sku in cart:
+        cart[sku] = min(quantity, MAX_QUANTITY, max(product.stock, 1))
+    request.session[SESSION_CART] = cart
     return redirect("shop-cart")
 
 
@@ -136,6 +208,11 @@ def checkout(request):
     lines, subtotal = _cart_lines(request)
     if not lines:
         return redirect("shop-home")
+    short = [line["product"] for line in lines if line["quantity"] > line["product"].stock]
+    if short:
+        names = ", ".join(p.name for p in short)
+        messages.error(request, f"Not enough stock left for {names}. Please change your cart.")
+        return redirect("shop-cart")
     totals = _totals(subtotal)
     total = totals["total_cents"]
     form = DeliveryForm(request.POST or None)
@@ -229,12 +306,14 @@ def order_detail(request, number: int):
         state = "unpaid"  # created: the customer left the checkout page
     return render(request, "shop/order.html", {
         "order": order, "attempt": attempt, "state": state, "lines": order.lines.all(),
+        "arrives": catalogue.estimated_delivery(order.paid_at) if order.paid_at else None,
         "cart_count": _cart_count(request)})
 
 
 @require_GET
 def order_list(request):
     numbers = request.session.get(SESSION_ORDERS, [])
-    orders = Order.objects.filter(pk__in=[n - 1000 for n in numbers])
+    orders = (Order.objects.filter(pk__in=[n - 1000 for n in numbers])
+              .prefetch_related("lines", "attempts"))
     return render(request, "shop/orders.html", {"orders": orders,
                                                 "cart_count": _cart_count(request)})
