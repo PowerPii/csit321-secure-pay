@@ -18,7 +18,7 @@ from apps.payments import reconciliation
 from apps.payments.models import Operation, Payment
 from apps.refunds.models import Refund
 
-KEY = "order-10042-attempt-1"
+ORDER_ATTEMPT = "order-10042-attempt-1"
 
 
 @pytest.mark.django_db(databases=["default", "vault"])
@@ -26,7 +26,7 @@ def test_nfr_int_03_one_request_sent_100_times_is_charged_once(shop, fake_sim):
     """100 identical requests with one Idempotency-Key, through a processing timeout."""
     from conftest import valid_body
 
-    created = [shop.create_payment(valid_body(), key=KEY) for _ in range(100)]
+    created = [shop.create_payment(valid_body(), key=ORDER_ATTEMPT) for _ in range(100)]
     assert {r.status_code for r in created} == {201}
     assert len({r.json()["id"] for r in created}) == 1
     assert created[-1]["Idempotent-Replayed"] == "true"
