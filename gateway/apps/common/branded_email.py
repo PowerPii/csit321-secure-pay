@@ -13,9 +13,16 @@ Formatting rules, all from the text itself:
 - a subject like "123456 is your SecurePay verification code" shows the code in a large box.
 The body is HTML-escaped first, so nothing in it (a shop name, an item name) can inject
 markup.
+
+The header shows the SecurePay mark (frontend/brand, sprint 12 branding kit) as a small PNG
+sent inside the email itself (multipart/related, cid:), so it shows without loading anything
+from the internet, also in Mailpit.
 """
 import re
+from email.mime.image import MIMEImage
+from functools import cache
 from html import escape
+from pathlib import Path
 
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives, get_connection
@@ -27,6 +34,9 @@ _FIELD = re.compile(r"^([A-Z][\w ()/'-]{0,30}):\s{2,}(.+)$")
 _URL = re.compile(r"^https?://\S+$")
 _ITEM = re.compile(r"^\s{2,}\S.*\S\s{2,}\S+$")
 _CODE_SUBJECT = re.compile(r"^(\d{4,8}) is your ")
+
+LOGO_CID = "securepay-mark"
+LOGO_PATH = Path(__file__).resolve().parent / "brand" / "securepay-mark-56.png"
 
 FOOTER = ("SecurePay is a payment gateway built for the CSIT321 final-year project. Payments "
           "are simulated: no real money moves. We never ask for your card details or a code "
@@ -86,7 +96,19 @@ def _paragraph(lines: list[str]) -> str:
     return "".join(out)
 
 
-def html_for(subject: str, text: str) -> str:
+@cache
+def _logo_bytes() -> bytes:
+    return LOGO_PATH.read_bytes()
+
+
+def _logo(with_image: bool) -> str:
+    if with_image:
+        return (f'<img src="cid:{LOGO_CID}" width="28" height="28" alt="" '
+                f'style="display:inline-block;vertical-align:middle;border:0;margin:-3px 8px 0 0">')
+    return f'<span style="color:{SAFFRON}">&#9670;</span> '
+
+
+def html_for(subject: str, text: str, logo: bool = False) -> str:
     blocks: list[list[str]] = [[]]
     for line in text.splitlines():
         if line.strip():
@@ -110,7 +132,7 @@ def html_for(subject: str, text: str) -> str:
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px">
 <tr><td style="background:{NAVY};border-radius:14px 14px 0 0;padding:18px 24px">
 <span style="color:#ffffff;font-size:19px;font-weight:700;letter-spacing:-0.2px">
-<span style="color:{SAFFRON}">&#9670;</span> SecurePay</span>
+{_logo(logo)}SecurePay</span>
 <span style="float:right;background:{SAFFRON};color:{INK};font-size:11px;font-weight:700;
 letter-spacing:.5px;border-radius:999px;padding:3px 10px;margin-top:2px">TEST MODE</span>
 </td></tr>
@@ -147,5 +169,14 @@ def with_html(message):
         subject=message.subject, body=message.body, from_email=message.from_email,
         to=message.to, cc=message.cc, bcc=message.bcc, attachments=message.attachments,
         headers=message.extra_headers, reply_to=message.reply_to)
-    branded.attach_alternative(html_for(message.subject, message.body), "text/html")
+    # The mark goes inside the email only when nothing else is attached: multipart/related is
+    # for parts the HTML uses, and a real attachment needs multipart/mixed.
+    logo = not message.attachments
+    branded.attach_alternative(html_for(message.subject, message.body, logo=logo), "text/html")
+    if logo:
+        branded.mixed_subtype = "related"
+        image = MIMEImage(_logo_bytes(), "png")
+        image.add_header("Content-ID", f"<{LOGO_CID}>")
+        image.add_header("Content-Disposition", "inline", filename="securepay.png")
+        branded.attach(image)
     return branded

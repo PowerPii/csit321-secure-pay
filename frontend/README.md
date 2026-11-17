@@ -7,6 +7,7 @@ Three separate Vite + React + TypeScript builds, so the payment page stays small
 | `checkout/` | Hosted checkout bundle. No UI library, no third-party scripts, strict CSP with nonces and SRI on built assets. | 5173 |
 | `dashboard/` | Merchant operator, administrator and analyst SPA (MUI, React Router, TanStack Query). | 5174 |
 | `website/` | Public marketing site, deployed on its own to Vercel (see `website/README.md`). | 5175 |
+| `brand/` | Branding kit: the SecurePay mark (every favicon), logos, PNGs for slides, colour tokens (see `brand/README.md`). | |
 
 API types are generated from `contracts/openapi/gateway.yaml` into `contracts/generated/`, not written by hand.
 

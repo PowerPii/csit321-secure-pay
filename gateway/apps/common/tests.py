@@ -99,3 +99,73 @@ def test_verification_code_is_shown_large():
                     "Your SecurePay verification code is 123456\n")
     assert "letter-spacing:8px" in html and ">123456</span>" in html
     assert "letter-spacing:8px" not in html_for("Receipt", "Hello\n")
+
+
+def test_branded_email_carries_the_securepay_mark_inline(settings):
+    """Sprint 12 branding kit: the mark is a related part shown by cid, not a download."""
+    from email import message_from_bytes
+
+    from django.core import mail
+    from django.core.mail import EmailMessage, get_connection
+
+    from apps.common.branded_email import LOGO_CID
+
+    settings.EMAIL_INNER_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+    mail.outbox = []
+    connection = get_connection("apps.common.branded_email.BrandedEmailBackend")
+    EmailMessage("Receipt", "Hello\n", "a@example.com", ["b@example.com"],
+                 connection=connection).send()
+    [sent] = mail.outbox
+    parsed = message_from_bytes(sent.message().as_bytes())
+    assert parsed.get_content_type() == "multipart/related"
+    [image] = [p for p in parsed.walk() if p.get_content_type() == "image/png"]
+    assert image["Content-ID"] == f"<{LOGO_CID}>"
+    assert image.get_payload(decode=True).startswith(b"\x89PNG")
+    [html] = [p for p in parsed.walk() if p.get_content_type() == "text/html"]
+    assert f'src="cid:{LOGO_CID}"' in html.get_payload(decode=True).decode()
+
+    # With a real attachment the email stays multipart/mixed and uses the text mark.
+    mail.outbox = []
+    with_file = EmailMessage("Report", "Hello\n", "a@example.com", ["b@example.com"],
+                             connection=connection)
+    with_file.attach("report.csv", "a,b\n", "text/csv")
+    with_file.send()
+    [sent] = mail.outbox
+    assert message_from_bytes(sent.message().as_bytes()).get_content_type() == "multipart/mixed"
+    assert "cid:" not in sent.alternatives[0][0]
+
+
+def test_brand_kit_is_the_same_everywhere():
+    """Sprint 12 branding kit: one mark and one colour set (frontend/brand) on every surface."""
+    import json
+    import re
+    from pathlib import Path
+
+    import pytest
+
+    from apps.common import branded_email
+
+    root = Path(__file__).resolve().parents[3]
+    brand = root / "frontend" / "brand"
+    if not brand.is_dir():
+        pytest.skip("frontend/brand is not in this checkout (e.g. inside the gateway image)")
+    mark = (brand / "securepay-mark.svg").read_text().strip()
+    for app in ("checkout", "dashboard", "website"):
+        favicon = (root / "frontend" / app / "public" / "favicon.svg").read_text().strip()
+        assert favicon == mark, f"frontend/{app}/public/favicon.svg differs from the brand mark"
+    brand_tsx = (root / "frontend" / "checkout" / "src" / "Brand.tsx").read_text()
+    for shape in re.findall(r' d="([^"]+)"', mark):
+        assert shape in brand_tsx, "Brand.tsx draws a different mark"
+
+    tokens = json.loads((brand / "tokens.json").read_text())
+    assert (branded_email.NAVY, branded_email.INK, branded_email.SAFFRON, branded_email.MUTED,
+            branded_email.LINE, branded_email.PAPER) == (
+        tokens["navy"], tokens["ink"], tokens["saffron"], tokens["muted"], tokens["line"],
+        tokens["paper"])
+    website = (root / "frontend" / "website" / "src" / "theme.ts").read_text()
+    dashboard = (root / "frontend" / "dashboard" / "src" / "theme.ts").read_text()
+    checkout = (root / "frontend" / "checkout" / "src" / "styles.css").read_text()
+    for name in ("navy", "ink", "saffron", "paper", "line", "muted", "allow", "verify", "block"):
+        assert tokens[name] in website, f"website theme lacks {name} {tokens[name]}"
+    for name in ("navy", "ink", "saffron"):
+        assert tokens[name] in dashboard and tokens[name] in checkout, name
