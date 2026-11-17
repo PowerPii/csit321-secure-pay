@@ -73,7 +73,10 @@ jobs:
           if-no-files-found: ignore
       - if: matrix.app == 'website'
         run: npm run build
-      - run: npm audit --audit-level=high
+      # Audit what ships to the browser. Build tools (vite and its file matchers) never reach
+      # the site; an advisory there with no fixed version blocked every merge and deploy
+      # (picomatch GHSA-fc5q-39xc-vjpf, 17 Nov 2026). Decided by Fifa, 17 Nov 2026.
+      - run: npm audit --audit-level=high --omit=dev
 
   # The non-functional test report (URS Section 4.4): maps every requirement to the tests
   # above and to the manual checks (docs/test-report/). Red if any requirement fails or the
