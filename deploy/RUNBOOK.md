@@ -341,24 +341,44 @@ brings it, give the merchant its new name (the payment page, receipts and dashbo
 $P exec gateway python manage.py demo_check --merchant mer_... --rename "Volt & Co."
 ```
 
-On the morning of a demo and again an hour before:
+On the morning of a demo and again an hour before, run one command:
 
-1. **Health:** `$P exec gateway python manage.py demo_check --merchant mer_...`. Every line
-   should be PASS; fix any FAIL (the line says what to look at) and close open security
-   alerts so the Security page starts clean.
-2. **Fresh cards:** `$P exec simulator python manage.py new_demo_card --count 3` prints
-   numbers in the simulator's demo range (SIMULATOR-CONTRACT.md section 5). They approve and
-   have no screening history, unlike `4242 4242 4242 4242` after weeks of rehearsals.
-3. **Fresh customer emails:** use a new `@example.com` address per run, such as
-   `mei.0402@example.com`, so the email history is empty too.
-4. **Card testing (S3) from another network:** screening also counts attempts per IP for an
-   hour, so run the "fraudster" step from a phone hotspot, not the presenter's laptop.
-5. **No merges** to `main` in the 48 hours before the demo: auto-deploy would restart the
+```bash
+bash deploy/demo.sh reset
+```
+
+It does steps 1 to 4 below by itself and prints today's cards and emails; copy them onto the
+cheat sheet. Exit code 1 means a health check FAILed. It deletes no payments, screening
+records or audit events (they stay as evidence); fresh cards and emails are what make every
+run behave the same.
+
+1. **Stock:** paid orders take items off the shelf and a product at 0 shows "Sold out", so
+   it puts everything back (`$P exec merchant python manage.py restock`, 25 of each). To show
+   the low-stock label on purpose afterwards: `restock --sku HEAD-01 --to 3`.
+2. **Mailpit:** it empties the demo inbox so the demo emails are easy to find.
+3. **Fresh cards and emails:** it prints one new card per scene from the simulator's demo
+   ranges (`$P exec simulator python manage.py new_demo_card --set`; SIMULATOR-CONTRACT.md
+   section 5): approve cards for S1 to S3, a lost-response card for S4 and a spare decline.
+   They have no screening history, unlike `4242 4242 4242 4242` or `4000 0000 0000 0119`
+   after weeks of rehearsals. It also prints new `@example.com` addresses (`mei.<stamp>@...`),
+   so the email history is empty too. The team keeps the fixed cards for testing.
+4. **Health:** `demo_check` (it finds the merchant named Volt & Co.; `bash deploy/demo.sh
+   reset --merchant mer_...` picks another). Every line should be PASS; fix any FAIL (the
+   line says what to look at) and close open security alerts so the Security page starts
+   clean.
+5. **Card testing (S3) from another network:** screening also counts attempts per IP for an
+   hour, so leave an hour between the last rehearsal and the demo, and run the "fraudster"
+   step from a phone hotspot, not the presenter's laptop.
+6. **No merges** to `main` in the 48 hours before the demo: auto-deploy would restart the
    stack.
-6. **Mailpit:** delete old messages in the inbox so the demo emails are easy to find.
-7. **Stock:** paid orders take items off the shelf and a product at 0 shows "Sold out", so
-   put everything back: `$P exec merchant python manage.py restock` (25 of each). To show
-   the low-stock label on purpose: `restock --sku HEAD-01 --to 3`.
+
+**Fresh stack (fallback laptop or a brand-new server):** after the stack is up (README quick
+start steps 1 to 3, or RUNBOOK steps 1 to 6), `bash deploy/demo.sh seed` does step 7 in one
+go: it creates the Volt & Co. merchant with its webhook URL, the three staff logins
+(`ops@demoshop.sg`, `analyst@securepay.sg`, `admin@securepay.sg`, temporary passwords printed
+once) and the risk lists, puts the API key and signing secret into the shop's secrets and
+restarts the shop. On a stack that already has them it changes nothing, so it is safe to run
+again. It does not invent past payments: the dashboard shows only what really went through.
 
 ## 12. When something is wrong
 

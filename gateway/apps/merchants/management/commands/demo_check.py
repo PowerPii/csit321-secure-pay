@@ -2,6 +2,8 @@
 
     python manage.py demo_check --merchant mer_...                       # checks only
     python manage.py demo_check --merchant mer_... --rename "Volt & Co."  # also rename
+    python manage.py demo_check                                          # the merchant
+                                                                         # named Volt & Co.
 
 Run it on the server the morning of a demo and again an hour before. Each line says PASS,
 WARN or FAIL; the command exits 1 if anything FAILs. It changes nothing except the optional
@@ -21,6 +23,7 @@ from django.utils import timezone
 from apps.audit.models import AuditEvent
 from apps.audit.models import record as audit
 from apps.events.models import OutboundEmail, OutboxEvent
+from apps.merchants.demo import DEMO_MERCHANT_NAME, find_demo_merchant
 from apps.merchants.models import Merchant
 from apps.payments.models import Payment
 from apps.payments.states import PaymentStatus
@@ -32,13 +35,17 @@ class Command(BaseCommand):
     help = "Check (and optionally rename) the demo merchant and the gateway before a demo."
 
     def add_arguments(self, parser):
-        parser.add_argument("--merchant", required=True, help="The demo merchant's mer_ ID.")
+        parser.add_argument("--merchant", default="",
+                            help=f"The demo merchant's mer_ ID (default: the one named "
+                                 f"{DEMO_MERCHANT_NAME!r}).")
         parser.add_argument("--rename", default="", help='New display name, e.g. "Volt & Co."')
 
     def handle(self, *args, merchant, rename, **options):
-        shop = Merchant.objects.filter(public_id=merchant).first()
+        shop = find_demo_merchant(merchant)
         if shop is None:
-            raise CommandError(f"No merchant {merchant}.")
+            raise CommandError(f"No merchant {merchant}." if merchant else
+                               f"No merchant named {DEMO_MERCHANT_NAME!r}: pass --merchant "
+                               "mer_... (and --rename) or run seed_demo.")
         rename = rename.strip()
         if rename and rename != shop.name:
             if len(rename) > 120:

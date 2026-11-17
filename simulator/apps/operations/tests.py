@@ -248,3 +248,36 @@ def test_new_demo_card_command_prints_fresh_numbers():
     lines = out.getvalue().split("\n")[:3]
     assert len({*lines}) == 3
     assert all(behaviour_for(line) is Behaviour.APPROVE for line in lines)
+
+
+def test_demo_ranges_behave_like_their_fixed_cards():
+    from apps.operations.test_cards import DEMO_KINDS, luhn_ok, new_demo_card
+
+    expected = {"approve": Behaviour.APPROVE, "approve-mastercard": Behaviour.APPROVE,
+                "decline": Behaviour.DECLINE_FUNDS, "lost-response": Behaviour.TIMEOUT}
+    for kind, behaviour in expected.items():
+        number = new_demo_card(DEMO_KINDS[kind])
+        assert luhn_ok(number) and behaviour_for(number) is behaviour
+        bad = number[:-1] + str((int(number[-1]) + 1) % 10)
+        assert behaviour_for(bad) is Behaviour.DECLINE_GENERIC
+    # The fixed cards still win over the ranges.
+    assert behaviour_for("4000000000000119") is Behaviour.TIMEOUT
+    assert behaviour_for("4000000000009995") is Behaviour.DECLINE_FUNDS
+
+
+def test_new_demo_card_set_prints_one_fresh_card_per_scene():
+    from io import StringIO
+
+    from django.core.management import call_command
+
+    from apps.operations.management.commands.new_demo_card import DEMO_SET
+
+    out = StringIO()
+    call_command("new_demo_card", scene_set=True, stdout=out)
+    lines = out.getvalue().strip().split("\n")
+    cards = [line[:19] for line in lines[:len(DEMO_SET)]]
+    assert len(set(cards)) == len(DEMO_SET)
+    assert behaviour_for(cards[0]) is Behaviour.APPROVE
+    assert behaviour_for(cards[3]) is Behaviour.TIMEOUT
+    assert behaviour_for(cards[4]) is Behaviour.DECLINE_FUNDS
+    assert "S4" in lines[3]

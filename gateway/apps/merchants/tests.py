@@ -107,6 +107,79 @@ def test_demo_check_fails_without_webhook(make_merchant, settings):
     assert "FAIL  Webhook URL missing" in out.getvalue()
 
 
+def test_demo_check_finds_the_merchant_by_name(make_merchant, settings):
+    from io import StringIO
+
+    import pytest
+    from django.core.management import call_command
+    from django.core.management.base import CommandError
+
+    settings.RISK_MODEL_VERSION = ""
+    with pytest.raises(CommandError, match="No merchant named"):
+        call_command("demo_check", stdout=StringIO())
+    make_merchant(name="Volt & Co.", webhook_url="https://shop.example/webhooks/securepay",
+                  webhook_url_approved=True)
+    out = StringIO()
+    call_command("demo_check", stdout=out)
+    assert "PASS  Merchant 'Volt & Co.' is active" in out.getvalue()
+    make_merchant(name="Volt & Co.")
+    with pytest.raises(CommandError, match="More than one"):
+        call_command("demo_check", stdout=StringIO())
+
+
+# --- seed_demo (demo sprint 15) ----------------------------------------------------------------
+
+def test_seed_demo_sets_up_a_fresh_stack_once(db):
+    import re
+    from io import StringIO
+
+    from django.contrib.auth import authenticate
+    from django.core.management import call_command
+
+    from apps.accounts.models import Role, StaffAccount
+    from apps.audit.models import AuditEvent
+    from apps.risk.models import RiskListEntry
+
+    out = StringIO()
+    call_command("seed_demo", webhook_url="https://shop.localhost/webhooks/securepay",
+                 stdout=out)
+    text = out.getvalue()
+    shop = Merchant.objects.get(name="Volt & Co.")
+    assert shop.status == Merchant.Status.ACTIVE and shop.webhook_url_approved
+    key = re.search(r"API key:\s+(\S+)", text).group(1)
+    assert ApiKey.objects.get(merchant=shop).digest == digest_api_key(key)
+    assert re.search(r"Signing secret:\s+(\S+)", text).group(1) == shop.signing_secret
+    assert f"Demo merchant ID: {shop.public_id}" in text
+
+    staff = {a.user.email: a for a in StaffAccount.objects.select_related("user")}
+    assert staff["ops@demoshop.sg"].role == Role.MERCHANT_OPERATOR
+    assert staff["ops@demoshop.sg"].merchant == shop
+    assert staff["admin@securepay.sg"].merchant is None
+    password = re.search(r"Temporary password for analyst@securepay.sg: (\S+)", text).group(1)
+    assert authenticate(username="analyst@securepay.sg", password=password) is not None
+    assert RiskListEntry.objects.count() == 3
+    assert AuditEvent.objects.filter(action="staff.created").count() == 3
+
+    again = StringIO()
+    call_command("seed_demo", stdout=again)
+    assert Merchant.objects.count() == 1 and ApiKey.objects.count() == 1
+    assert StaffAccount.objects.count() == 3
+    assert "API key:" not in again.getvalue() and "Temporary password" not in again.getvalue()
+    assert "already exists" in again.getvalue()
+
+
+def test_seed_demo_needs_a_webhook_url_for_a_new_merchant(db):
+    from io import StringIO
+
+    import pytest
+    from django.core.management import call_command
+    from django.core.management.base import CommandError
+
+    with pytest.raises(CommandError, match="--webhook-url"):
+        call_command("seed_demo", stdout=StringIO())
+    assert not Merchant.objects.exists()
+
+
 # --- change_domain (sprint 12: server and domain move) --------------------------------------
 
 def test_change_domain_moves_matching_webhook_urls_with_an_audit_event(make_merchant):

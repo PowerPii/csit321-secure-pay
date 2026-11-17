@@ -97,4 +97,5 @@ jobs:
           -v "$PWD/deploy/Caddyfile.prod:/etc/caddy/Caddyfile:ro"
           caddy:2 caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
       - run: docker build -f deploy/caddy/Dockerfile -t securepay-caddy .
-      - run: bash -n deploy/make-secrets.sh deploy/server-setup.sh deploy/smoke-check.sh deploy/backup/backup.sh deploy/auto-deploy.sh deploy/setup-auto-deploy.sh
+      # bash -n checks only its first file, so check each script on its own.
+      - run: for f in deploy/make-secrets.sh deploy/server-setup.sh deploy/smoke-check.sh deploy/backup/backup.sh deploy/auto-deploy.sh deploy/setup-auto-deploy.sh deploy/demo.sh deploy/move-server.sh deploy/public-ip.sh; do bash -n "$f" || exit 1; done
