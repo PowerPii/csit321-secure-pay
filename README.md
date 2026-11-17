@@ -57,6 +57,8 @@ docker compose -f deploy/compose.yaml exec gateway python manage.py create_staff
   --role administrator --name "Mei Tan"
 ```
 
+Steps 4 and 5 in one go, for the Volt & Co. demo: `bash deploy/demo.sh seed` (merchant, the three staff logins with temporary passwords, the shop's key and secret). Before each demo run `bash deploy/demo.sh reset` (restock, empty inbox, fresh demo cards and emails, health check; `deploy/RUNBOOK.md` section 11a).
+
 Staff dashboard: https://gateway.localhost/dashboard/. Sign-in is a password and a 6-digit authenticator code; five failures (wrong password or wrong code) lock the account for 15 minutes and email the account holder (Mailpit). Sessions end after 15 idle minutes. Merchant operators see their own merchant's payments and capture, cancel and refund them; fraud analysts work the review queue across all merchants; administrators see every merchant read-only, approve merchants (the API key and signing secret are shown once), read the audit log and re-check escalated operations.
 
 Then shop at https://shop.localhost and pay with a test card from `contracts/SIMULATOR-CONTRACT.md` section 5 (4242 4242 4242 4242 approves, 4000 0000 0000 0002 declines, 4000 0000 0000 0119 loses the answer).

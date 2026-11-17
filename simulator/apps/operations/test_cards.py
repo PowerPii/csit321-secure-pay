@@ -31,23 +31,35 @@ def digits_only(pan: str) -> str:
 
 
 # Demo card ranges (demo-day polish): any Luhn-valid 16-digit number with one of these
-# prefixes approves. Fraud screening counts a card's history over 30 days across the whole
-# gateway, so rehearsals with 4242... slowly make it look risky; a fresh number from
+# prefixes behaves like the matching fixed card above. Fraud screening counts a card's
+# history over 30 days across the whole gateway, so rehearsals with 4242... or the S4 card
+# 4000 0000 0000 0119 slowly make it look risky; a fresh number from
 # `manage.py new_demo_card` has no history and behaves the same on every demo run.
+DEMO_RANGES: dict[str, Behaviour] = {
+    "42424200": Behaviour.APPROVE,  # Visa
+    "55555500": Behaviour.APPROVE,  # Mastercard
+    "40000099": Behaviour.DECLINE_FUNDS,  # like 4000 0000 0000 9995
+    "40000119": Behaviour.TIMEOUT,  # like 4000 0000 0000 0119 (lost response, S4)
+}
 DEMO_APPROVE_PREFIXES = ("42424200", "55555500")
+# Names for `new_demo_card --kind`.
+DEMO_KINDS = {"approve": "42424200", "approve-mastercard": "55555500",
+              "decline": "40000099", "lost-response": "40000119"}
 
 
 def behaviour_for(pan: str) -> Behaviour:
     digits = digits_only(pan)
     if digits in TEST_CARDS:
         return TEST_CARDS[digits]
-    if len(digits) == 16 and digits.startswith(DEMO_APPROVE_PREFIXES) and luhn_ok(digits):
-        return Behaviour.APPROVE
+    if len(digits) == 16 and luhn_ok(digits):
+        behaviour = DEMO_RANGES.get(digits[:8])
+        if behaviour is not None:
+            return behaviour
     return Behaviour.DECLINE_GENERIC
 
 
 def new_demo_card(prefix: str = DEMO_APPROVE_PREFIXES[0]) -> str:
-    """A random Luhn-valid number in a demo approve range."""
+    """A random Luhn-valid number in a demo range."""
     import secrets
 
     body = prefix + "".join(str(secrets.randbelow(10)) for _ in range(15 - len(prefix)))
