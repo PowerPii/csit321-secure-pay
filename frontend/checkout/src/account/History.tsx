@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Row } from "../ui";
 import { getPayments, getPayment, type HistoryRow, type PaymentDetail } from "../accountApi";
-import { brandName, formatDate, money } from "../format";
+import { brandName, formatDate, hasReceipt, money } from "../format";
 import { asError } from "./forms";
 
 export function History({ onEnded }: { onEnded: () => void }) {
@@ -105,6 +105,11 @@ function Detail({ payment }: { payment: PaymentDetail }) {
         ))}
         {!payment.refunded_amount && <li className="hollow"><span>Refunds: none</span><span className="muted small">—</span></li>}
       </ol>
+      {hasReceipt(payment.status) && (
+        <a className="btn secondary" href={`/customer/payments/${encodeURIComponent(payment.reference)}/receipt.pdf`} download>
+          Download receipt (PDF)
+        </a>
+      )}
     </aside>
   );
 }

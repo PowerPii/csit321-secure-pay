@@ -52,14 +52,21 @@ def history(customer: CustomerAccount, limit: int = 100) -> dict:
     return {"data": items, "has_more": len(rows) > limit}
 
 
-def payment_detail(customer: CustomerAccount, reference) -> dict:
+def own_payment(customer: CustomerAccount, reference) -> Payment:
     """One payment of this customer; anyone else's is 'not found', even with its reference."""
-    from apps.guest.service import normalise_reference, to_view
+    from apps.guest.service import normalise_reference
 
     ref = normalise_reference(reference) if isinstance(reference, str) else None
     payment = visible_history(customer).filter(reference=ref).first() if ref else None
     if payment is None:
         raise not_found()
+    return payment
+
+
+def payment_detail(customer: CustomerAccount, reference) -> dict:
+    from apps.guest.service import to_view
+
+    payment = own_payment(customer, reference)
     view = to_view(payment)
     view["status_label"] = _label(payment, view.get("refunded_amount") or 0)
     view["order_reference"] = payment.order_reference

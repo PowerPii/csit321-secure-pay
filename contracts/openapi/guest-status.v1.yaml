@@ -114,6 +114,30 @@ paths:
           content:
             application/json:
               schema: { $ref: '../schemas/error.schema.json' }
+  /guest/status/receipt.pdf:
+    get:
+      operationId: getGuestReceiptPdf
+      summary: Download the unlocked payment's receipt as a PDF (demo sprint 17)
+      description: |
+        The same facts as the emailed receipt (FR-CHK-15), plus completed refunds. Card shown
+        as brand and last four digits only. Sent as an attachment named
+        `securepay-receipt-<reference>.pdf`.
+      responses:
+        '200':
+          description: The receipt.
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+        '401':
+          description: No valid cookie, as for `/guest/status/payment`.
+          content:
+            application/json:
+              schema: { $ref: '../schemas/error.schema.json' }
+        '409':
+          description: '`no_receipt`: the payment was not charged (declined, blocked, cancelled, expired or still in progress).'
+          content:
+            application/json:
+              schema: { $ref: '../schemas/error.schema.json' }
   /guest/status/sign-out:
     post:
       operationId: endGuestStatusSession

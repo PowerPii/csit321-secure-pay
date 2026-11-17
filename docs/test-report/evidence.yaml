@@ -1,0 +1,189 @@
+# How each non-functional requirement in URS Section 4.4 is verified.
+#
+#   ci:     tests that run in GitHub Actions on every push (service: file::test name).
+#           Acceptance tests in gateway/acceptance/ check the URS criterion at its own numbers;
+#           the others are older unit tests that cover part of it.
+#   stack:  tests/integration, run by hand against the Compose stack (tests/integration/README.md).
+#   manual: checks that need the live server, a browser or people. Procedures are in
+#           MANUAL-TESTS.md under the same ID; results go in manual-results.yaml.
+#
+# A requirement passes when every ci test passed and every manual check has a passing result.
+# `python tests/report/build_report.py --check` fails if a test named here no longer exists.
+
+NFR-CON-01:
+  ci:
+    - gateway: acceptance/test_nfr_confidentiality.py::test_nfr_con_01_twenty_of_another_merchants_records_are_not_found
+    - gateway: apps/payments/test_api.py::test_another_merchants_payment_is_404_like_a_missing_one
+    - gateway: apps/internal/tests.py::test_operator_sees_only_their_merchant
+    - gateway: apps/security/tests.py::test_api_key_probing_another_merchants_payments_is_logged_and_alerted
+
+NFR-CON-02:
+  ci:
+    - gateway: acceptance/test_nfr_card_data.py::test_nfr_con_02_and_enc_02_no_card_number_anywhere_after_a_full_run
+    - gateway: apps/checkout/tests.py::test_no_card_data_outside_the_vault
+    - gateway: apps/payments/test_api.py::test_card_numbers_are_refused_and_never_stored
+    - gateway: apps/checkout/test_screening.py::test_no_card_number_email_or_code_in_screening_or_verification_rows
+    - gateway: apps/internal/tests.py::test_refund_rows_hold_no_card_data
+  manual: [M-CON-02]
+
+NFR-CON-03:
+  ci:
+    - gateway: acceptance/test_nfr_confidentiality.py::test_nfr_con_03_twenty_sign_ins_without_the_right_code_are_refused
+    - gateway: acceptance/test_nfr_confidentiality.py::test_nfr_con_03_new_staff_account_cannot_proceed_without_mfa
+    - gateway: apps/accounts/tests.py::test_me_needs_both_steps
+    - gateway: apps/accounts/tests.py::test_first_sign_in_sets_up_the_authenticator
+
+NFR-CON-04:
+  ci:
+    - gateway: acceptance/test_nfr_confidentiality.py::test_nfr_con_04_passwords_are_salted_argon2id_and_at_least_12_characters
+    - gateway: apps/customers/tests.py::test_register_refuses_weak_passwords
+  manual: [M-CON-04]
+
+NFR-CON-05:
+  ci:
+    - gateway: acceptance/test_nfr_confidentiality.py::test_nfr_con_05_every_endpoint_is_in_the_permission_matrix
+    - gateway: acceptance/test_nfr_confidentiality.py::test_nfr_con_05_six_principals_against_every_endpoint_match_the_matrix
+    - gateway: apps/internal/tests.py::test_signed_out_and_wrong_role_are_refused
+
+NFR-CON-06:
+  ci:
+    - gateway: apps/customers/tests.py::test_session_ends_after_15_idle_minutes
+    - gateway: apps/customers/tests.py::test_me_tells_the_page_when_to_warn
+    - checkout: src/Account.test.tsx::warns before signing out an idle customer and stays on request
+  manual: [M-CON-06]
+
+NFR-INT-01:
+  ci:
+    - merchant: apps/webhooks/test_acceptance.py::test_nfr_int_01_tampered_webhooks_rejected_and_valid_ones_accepted
+    - merchant: apps/webhooks/test_acceptance.py::test_nfr_int_01_tampered_status_replies_rejected_and_valid_ones_accepted
+    - merchant: apps/webhooks/test_receive.py::test_bad_signature_is_rejected_and_nothing_changes
+    - gateway: apps/events/tests.py::test_tampered_body_or_wrong_secret_fails
+    - gateway: apps/events/tests.py::test_replay_outside_tolerance_fails
+
+NFR-INT-02:
+  ci:
+    - gateway: apps/security/test_integrity.py::test_ten_entries_edited_deleted_or_reordered_are_all_detected
+    - gateway: apps/security/test_integrity.py::test_removing_a_seal_or_adding_an_entry_below_the_head_breaks_the_chain
+    - gateway: apps/audit/tests.py::test_database_refuses_update_and_delete
+
+NFR-INT-03:
+  ci:
+    - gateway: acceptance/test_nfr_integrity.py::test_nfr_int_03_one_request_sent_100_times_is_charged_once
+    - gateway: apps/payments/test_idempotency.py::test_concurrent_duplicates_create_one_payment
+    - gateway: apps/checkout/tests.py::test_submitting_twice_calls_the_simulator_once
+  stack:
+    - integration: test_demo_stories.py::test_s5_duplicate_request_with_the_same_idempotency_key
+
+NFR-INT-04:
+  ci:
+    - gateway: acceptance/test_nfr_integrity.py::test_nfr_int_04_fifty_simultaneous_refunds_never_exceed_the_refundable_amount
+    - gateway: apps/refunds/tests.py::test_two_refunds_at_once_cannot_exceed_the_payment
+    - gateway: apps/refunds/tests.py::test_no_answer_keeps_the_amount_reserved_until_reconciliation
+  stack:
+    - integration: test_demo_stories.py::test_s6_two_refunds_at_once_cannot_exceed_the_payment
+
+NFR-AVA-01:
+  ci:
+    - gateway: apps/payments/test_reconciliation.py::test_stale_pending_operation_is_recovered_after_a_crash
+    - gateway: apps/events/test_delivery.py::test_crashed_worker_lease_runs_out
+  manual: [M-AVA-01]
+
+NFR-AVA-02:
+  ci:
+    - gateway: acceptance/test_nfr_availability.py::test_nfr_ava_02_150_requests_in_a_minute_from_one_key
+    - gateway: apps/merchants/tests.py::test_rate_limit_is_per_key
+    - gateway: apps/security/test_manage.py::test_admin_rate_limit_per_key_rejects_with_retry_time_and_alerts
+
+NFR-AVA-03:
+  ci:
+    - gateway: acceptance/test_nfr_availability.py::test_nfr_ava_03_twenty_unanswered_payments_end_or_escalate_within_an_hour
+    - gateway: apps/payments/test_reconciliation.py::test_schedule_then_escalation_after_six_checks
+  stack:
+    - integration: test_demo_stories.py::test_s4_lost_response_is_reconciled_with_the_same_operation
+    - integration: test_fault_controls.py::test_lost_request_is_retired_and_declined
+
+NFR-AVA-04:
+  ci:
+    - gateway: acceptance/test_nfr_availability.py::test_nfr_ava_04_fifty_payments_blocked_while_screening_is_down
+    - gateway: apps/checkout/test_screening.py::test_outage_blocks_as_not_screened_and_never_reaches_the_simulator
+    - gateway: apps/checkout/test_screening.py::test_slow_database_query_is_cut_off_by_the_budget
+    - gateway: apps/risk/tests.py::test_slow_screening_is_unavailable
+
+NFR-ENC-01:
+  manual: [M-ENC-01]
+
+NFR-ENC-02:
+  ci:
+    - gateway: acceptance/test_nfr_card_data.py::test_nfr_con_02_and_enc_02_no_card_number_anywhere_after_a_full_run
+    - gateway: apps/vault/test_service.py::test_tokenise_keeps_only_ciphertext_and_summary
+    - gateway: apps/vault/test_service.py::test_take_returns_the_card_once_and_deletes_it
+    - gateway: apps/vault/test_service.py::test_expired_token_cannot_be_taken_and_is_purged
+    - gateway: apps/checkout/tests.py::test_card_entry_keeps_only_a_summary_on_the_payment
+  manual: [M-ENC-02]
+
+NFR-ENC-03:
+  ci:
+    - gateway: apps/security/test_integrity.py::test_rotation_keeps_every_existing_value_readable
+    - gateway: apps/security/test_integrity.py::test_card_tokenised_before_a_rotation_is_still_taken
+    - gateway: apps/security/test_integrity.py::test_data_keys_are_stored_wrapped_never_in_the_clear
+    - gateway: apps/security/test_integrity.py::test_key_report_flags_an_active_key_older_than_90_days
+  manual: [M-ENC-03]
+
+NFR-PRI-01:
+  ci:
+    - gateway: apps/security/test_integrity.py::test_clean_up_anonymises_records_older_than_12_months
+    - gateway: apps/security/test_integrity.py::test_emails_and_phone_numbers_are_masked_in_logs_and_audit_details
+  manual: [M-PRI-01]
+
+NFR-PRI-02:
+  ci:
+    - gateway: apps/security/test_integrity.py::test_self_checks_report_each_practice
+    - gateway: apps/security/test_integrity.py::test_card_kept_after_submission_and_an_old_key_fail_their_checks
+    - gateway: apps/security/test_integrity.py::test_staff_without_mfa_who_signed_in_fails_the_check
+  manual: [M-PRI-02]
+
+NFR-PER-01:
+  manual: [M-PER-01]
+
+NFR-PER-02:
+  ci:
+    - gateway: apps/risk/test_features.py::test_benchmark_command_reports_and_leaves_nothing_behind
+    - gateway: apps/risk/test_features.py::test_load_test_command_reports_and_cleans_up
+    - gateway: apps/risk/tests.py::test_slow_screening_is_unavailable
+  manual: [M-PER-02]
+
+NFR-PER-03:
+  ci:
+    - gateway: apps/internal/test_fraud.py::test_alert_appears_on_the_dashboard_within_10_seconds
+    - gateway: apps/security/tests.py::test_staff_lockout_at_sign_in_raises_an_alert
+  manual: [M-PER-03]
+
+NFR-USE-01:
+  manual: [M-USE-01]
+
+NFR-USE-02:
+  manual: [M-USE-02]
+
+NFR-USE-03:
+  stack:
+    - integration: test_demo_stories.py::test_s1_happy_path_through_the_shop
+  manual: [M-USE-03]
+
+NFR-USE-04:
+  manual: [M-USE-04]
+
+NFR-AUD-01:
+  ci:
+    - gateway: apps/security/test_integrity.py::test_payment_detail_shows_one_timeline_under_one_correlation_id
+    - gateway: apps/security/test_integrity.py::test_audit_entries_carry_the_payment_correlation_id
+    - gateway: apps/internal/tests.py::test_detail_has_decision_record_timeline_and_webhooks
+  manual: [M-AUD-01]
+
+NFR-MNT-01:
+  manual: [M-MNT-01]
+
+NFR-MNT-02:
+  ci:
+    - gateway: acceptance/test_nfr_maintainability.py::test_nfr_mnt_02_only_the_vault_touches_card_data
+    - gateway: acceptance/test_nfr_maintainability.py::test_nfr_mnt_02_the_boundary_check_catches_a_violation
+  manual: [M-MNT-02]

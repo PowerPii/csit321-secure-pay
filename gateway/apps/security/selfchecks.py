@@ -49,14 +49,13 @@ def https_enforced():
 
 def no_card_data_after_submission():
     from apps.payments.models import Payment
-    from apps.vault.models import StoredCard
+    from apps.vault import service as vault
 
     now = timezone.now()
     tokens = list(Payment.objects.filter(submitted_at__gte=now - timedelta(days=7))
                   .exclude(card_token="").values_list("card_token", flat=True))  # nosec B106
-    kept = StoredCard.objects.using("vault").filter(token__in=tokens).count()
-    stale = StoredCard.objects.using("vault").filter(
-        expires_at__lte=now - timedelta(minutes=10)).count()
+    kept = vault.count_kept(tokens)
+    stale = vault.count_expired(now - timedelta(minutes=10))
     if kept or stale:
         return FAILED, (f"{kept} submitted card(s) and {stale} expired card(s) are still in "
                         "the vault.")
@@ -116,13 +115,10 @@ def staff_mfa():
 
 def encrypted_at_rest():
     from apps.vault import service as vault
-    from apps.vault.models import StoredCard
 
-    sample = b"self-check"
-    if vault._decrypt(vault._encrypt(sample, "tok_selfcheck"), "tok_selfcheck") != sample:
+    if not vault.encryption_round_trip_ok():
         return FAILED, "Encrypting and decrypting a test value with the vault key failed."
-    plain = (StoredCard.objects.using("vault").exclude(ciphertext__startswith="k1.")
-             .exclude(ciphertext__startswith="v1.").count())
+    plain = vault.count_not_encrypted()
     if plain:
         return FAILED, f"{plain} vault row(s) are not in an encrypted format."
     return PASSED, "Card data in the vault is encrypted with AES-256-GCM; a test value round-trips."

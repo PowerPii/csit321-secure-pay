@@ -15,6 +15,8 @@ urlpatterns = [
     path("payments", views.PaymentsView.as_view(), name="customer-payments"),
     path("payments/<str:reference>", views.PaymentDetailView.as_view(),
          name="customer-payment"),
+    path("payments/<str:reference>/receipt.pdf", views.PaymentReceiptView.as_view(),
+         name="customer-payment-receipt"),
     path("password-reset/request", views.ResetRequestView.as_view(),
          name="customer-reset-request"),
     path("password-reset/check", views.ResetCheckView.as_view(), name="customer-reset-check"),

@@ -1,0 +1,284 @@
+{
+  "source": "User Requirement Specification, Section 4.4 (Tables 4.4.1.1 to 4.4.9.1), final version for M1 (20 Nov 2026)",
+  "groups": [
+    {
+      "prefix": "CON",
+      "name": "Confidentiality",
+      "table": "4.4.1.1"
+    },
+    {
+      "prefix": "INT",
+      "name": "Integrity",
+      "table": "4.4.2.1"
+    },
+    {
+      "prefix": "AVA",
+      "name": "Availability",
+      "table": "4.4.3.1"
+    },
+    {
+      "prefix": "ENC",
+      "name": "Data Protection",
+      "table": "4.4.4.1"
+    },
+    {
+      "prefix": "PRI",
+      "name": "Privacy and Compliance",
+      "table": "4.4.5.1"
+    },
+    {
+      "prefix": "PER",
+      "name": "Performance",
+      "table": "4.4.6.1"
+    },
+    {
+      "prefix": "USE",
+      "name": "Usability",
+      "table": "4.4.7.1"
+    },
+    {
+      "prefix": "AUD",
+      "name": "Auditability",
+      "table": "4.4.8.1"
+    },
+    {
+      "prefix": "MNT",
+      "name": "Maintainability",
+      "table": "4.4.9.1"
+    }
+  ],
+  "requirements": [
+    {
+      "id": "NFR-CON-01",
+      "requirement": "Every dashboard and API request is checked against the owner of the record it asks for.",
+      "verification": "Attack suite (EN-03)",
+      "acceptance": "Merchant A requests 20 of Merchant B's records through the dashboard and the API by changing record identifiers: all 20 return \"not found\" and no data is disclosed.",
+      "priority": "Must",
+      "source": "US-06, US-21, US-27"
+    },
+    {
+      "id": "NFR-CON-02",
+      "requirement": "Card numbers appear only as card brand and last four digits on screens, API responses, webhooks, logs and exports.",
+      "verification": "Automated scan",
+      "acceptance": "After a full test run (payments, refunds, webhooks, exports), a scan of logs, exports, API responses and webhooks finds 0 full card numbers.",
+      "priority": "Must",
+      "source": "US-22, US-30"
+    },
+    {
+      "id": "NFR-CON-03",
+      "requirement": "All staff accounts (merchant operator, administrator, fraud analyst) use MFA.",
+      "verification": "Sign-in tests",
+      "acceptance": "For each staff role, 20 sign-ins with the correct password but a missing or wrong code are all refused; a new staff account cannot proceed without setting up MFA.",
+      "priority": "Must",
+      "source": "US-18"
+    },
+    {
+      "id": "NFR-CON-04",
+      "requirement": "Passwords are stored as salted Argon2id hashes and are at least 12 characters.",
+      "verification": "Database inspection",
+      "acceptance": "Inspection of the user table shows every password stored as an Argon2id hash with a unique salt; registering with an 11-character password is rejected.",
+      "priority": "Must",
+      "source": "US-05, US-08, US-18, US-19"
+    },
+    {
+      "id": "NFR-CON-05",
+      "requirement": "Each principal reaches only the pages and API calls it is permitted.",
+      "verification": "Access matrix test",
+      "acceptance": "Six principals (customer, guest, merchant operator, merchant API key, administrator, fraud analyst) each call every page and API endpoint in the permission matrix (Figure 3.3.1 and Table 3.3.1): 100% of results match the matrix (allowed = success; denied = HTTP 403, or \"not found\" for another owner's record).",
+      "priority": "Must",
+      "source": "US-21, US-34"
+    },
+    {
+      "id": "NFR-CON-06",
+      "requirement": "Idle signed-in sessions end automatically.",
+      "verification": "Timed UI test",
+      "acceptance": "With no activity, a warning appears at 13 minutes and the session ends at 15 minutes; a later request using the old session is refused.",
+      "priority": "Should",
+      "source": "US-09"
+    },
+    {
+      "id": "NFR-INT-01",
+      "requirement": "Webhooks and status replies are signed with HMAC-SHA256 and include a timestamp.",
+      "verification": "Attack suite (EN-03)",
+      "acceptance": "50 webhooks and status replies, each with a changed body, a wrong signature or a timestamp older than 5 minutes, are all rejected by the demonstration store; 50 valid messages are all accepted.",
+      "priority": "Must",
+      "source": "US-26, US-27"
+    },
+    {
+      "id": "NFR-INT-02",
+      "requirement": "The application offers no way to edit or delete audit entries, and entries are chained by hash so that changes made directly in the database are detected, unless the chain itself is rebuilt; a malicious database administrator is outside the threat model (Section 3.2).",
+      "verification": "Tamper test",
+      "acceptance": "10 audit entries edited, deleted or reordered directly in the database are all detected by the integrity check on its next run.",
+      "priority": "Should",
+      "source": "US-40, US-41"
+    },
+    {
+      "id": "NFR-INT-03",
+      "requirement": "A payment is never charged twice.",
+      "verification": "Attack suite (EN-03)",
+      "acceptance": "The same payment request sent 100 times with one Idempotency-Key, including during a simulated processing timeout, results in exactly 1 charge at the processing simulator.",
+      "priority": "Must",
+      "source": "US-11, US-28, US-31"
+    },
+    {
+      "id": "NFR-INT-04",
+      "requirement": "Completed plus reserved refunds never exceed the refundable amount of a payment.",
+      "verification": "Concurrency test",
+      "acceptance": "50 simultaneous partial refunds whose total exceeds the refundable amount, with the processing simulator set to leave some unresolved: at every instant completed plus reserved refunds stay within the refundable amount, and each unresolved refund keeps its reservation.",
+      "priority": "Must",
+      "source": "US-23, US-55"
+    },
+    {
+      "id": "NFR-AVA-01",
+      "requirement": "Payments survive a gateway crash without loss or duplication.",
+      "verification": "Kill-process test",
+      "acceptance": "Under steady test traffic, the gateway container is killed 5 times: each time it accepts new payments again within 30 seconds, every in-flight operation is reconciled (UC-28), and a comparison of gateway and simulator records finds 0 payments missing on either side and 0 processed twice.",
+      "priority": "Must",
+      "source": "US-31"
+    },
+    {
+      "id": "NFR-AVA-02",
+      "requirement": "One client's excess requests are rate-limited without affecting other clients.",
+      "verification": "Attack suite (EN-03)",
+      "acceptance": "150 requests sent in one minute with one API key: every request above 100 receives HTTP 429 with a retry time, and requests from other keys are unaffected.",
+      "priority": "Should",
+      "source": "US-43"
+    },
+    {
+      "id": "NFR-AVA-03",
+      "requirement": "Unresolved payments are resolved or escalated within a bounded time.",
+      "verification": "Timeout test",
+      "acceptance": "The processing simulator is set not to respond to 20 payments: each reaches a final status or is escalated within 1 hour, and none is submitted twice.",
+      "priority": "Must",
+      "source": "US-28, US-42"
+    },
+    {
+      "id": "NFR-AVA-04",
+      "requirement": "Payments are blocked predictably when fraud screening is unavailable.",
+      "verification": "Outage test",
+      "acceptance": "With screening stopped, and separately delayed beyond 500 ms, 50 test payments all end as blocked with the reason \"screening unavailable\", are marked \"not screened\", and none reaches the processing simulator.",
+      "priority": "Must",
+      "source": "US-38, US-56"
+    },
+    {
+      "id": "NFR-ENC-01",
+      "requirement": "All external traffic uses TLS 1.2 or higher.",
+      "verification": "TLS scan",
+      "acceptance": "A TLS scan (for example testssl.sh) shows only TLS 1.2 or 1.3 and no weak ciphers; plain HTTP requests are redirected or refused.",
+      "priority": "Must",
+      "source": "US-13"
+    },
+    {
+      "id": "NFR-ENC-02",
+      "requirement": "Card numbers are encrypted with AES-256-GCM while held and deleted after submission; security codes are never kept after submission.",
+      "verification": "Database inspection",
+      "acceptance": "After a test run, database inspection finds 0 plaintext card numbers, 0 security codes and 0 encrypted card numbers for submitted or ended attempts.",
+      "priority": "Must",
+      "source": "US-12, US-30"
+    },
+    {
+      "id": "NFR-ENC-03",
+      "requirement": "Encryption keys are stored apart from the data they protect and rotated at least every 90 days.",
+      "verification": "Key report",
+      "acceptance": "A key rotation during testing completes with 0 failed decryptions of existing data, and the key report shows no active key older than 90 days.",
+      "priority": "Should",
+      "source": "US-45"
+    },
+    {
+      "id": "NFR-PRI-01",
+      "requirement": "Personal data is used only for payment processing and fraud screening, masked in logs, and deleted or anonymised after a retention period of 12 months (a project assumption; Section 4.7.1).",
+      "verification": "Log review",
+      "acceptance": "A seeded record older than 12 months is deleted or anonymised by the next daily clean-up run; a log review finds 0 unmasked email addresses or phone numbers.",
+      "priority": "Should",
+      "source": "US-14"
+    },
+    {
+      "id": "NFR-PRI-02",
+      "requirement": "Card data handling follows the PCI DSS practices listed in Section 4.7.3, without claiming certification.",
+      "verification": "Checklist inspection",
+      "acceptance": "A team member who did not build the vault inspects the running system against the card data checklist (HTTPS enforced, no card number or security code after submission, masking, key age, staff MFA): every item passes, and the result agrees with the self-check in UC-46.",
+      "priority": "Should",
+      "source": "US-46"
+    },
+    {
+      "id": "NFR-PER-01",
+      "requirement": "Checkout responds quickly, excluding the processing simulator's delay.",
+      "verification": "Load test",
+      "acceptance": "Load test at 20 payment requests per second for 5 minutes on the demonstration server: 95% of checkout responses within 2 seconds, excluding the processing simulator's delay.",
+      "priority": "Should",
+      "source": "US-03, Objective 6"
+    },
+    {
+      "id": "NFR-PER-02",
+      "requirement": "Fraud screening adds little delay to a payment.",
+      "verification": "Benchmark",
+      "acceptance": "Over 1,000 test payments, the 95th percentile of screening time, including historical-feature retrieval, is at most 200 ms, and every request that exceeds 500 ms is blocked as \"screening unavailable\".",
+      "priority": "Must",
+      "source": "US-56, US-38"
+    },
+    {
+      "id": "NFR-PER-03",
+      "requirement": "Security alerts, and fraud alerts if they are built, reach staff quickly.",
+      "verification": "Timed test",
+      "acceptance": "For 20 triggered events, every alert appears on the dashboard within 10 seconds.",
+      "priority": "Should",
+      "source": "US-39, US-50"
+    },
+    {
+      "id": "NFR-USE-01",
+      "requirement": "Checkout works on phones and uses plain language.",
+      "verification": "UI review",
+      "acceptance": "Checkout can be completed at 360 px width with no horizontal scrolling; a review of every customer-facing message against a checklist (states the outcome, states the next step, shows no card data, shows no technical detail) finds none failing.",
+      "priority": "Must",
+      "source": "US-03"
+    },
+    {
+      "id": "NFR-USE-02",
+      "requirement": "Customer-facing pages meet basic accessibility checks.",
+      "verification": "Automated scan and keyboard test",
+      "acceptance": "An automated accessibility scan (for example axe) of the checkout, verification, result and guest status pages reports 0 critical issues; each page can be completed by keyboard alone, and every form field has a label.",
+      "priority": "Should",
+      "source": "US-03"
+    },
+    {
+      "id": "NFR-USE-03",
+      "requirement": "Checkout and dashboard work in current browsers.",
+      "verification": "Cross-browser run",
+      "acceptance": "The demonstration script passes in the current versions of Chrome and Firefox on desktop and in one mobile browser.",
+      "priority": "Should",
+      "source": "US-03, US-20"
+    },
+    {
+      "id": "NFR-USE-04",
+      "requirement": "People understand each payment result without help.",
+      "verification": "Stakeholder walkthrough (task 11.5)",
+      "acceptance": "In the walkthroughs, at least 4 of 5 participants state correctly, for each of the authorised, declined, blocked and being-checked results, whether they have been charged and what to do next.",
+      "priority": "Should",
+      "source": "US-03, US-29"
+    },
+    {
+      "id": "NFR-AUD-01",
+      "requirement": "Every payment can be traced from request to final status.",
+      "verification": "Trace test",
+      "acceptance": "For 20 sampled payments covering every outcome, the timeline (FR-TXN-16) links the screening decision, each processing operation, each refund, each notification attempt and the related audit entries by one correlation identifier, with none missing.",
+      "priority": "Should",
+      "source": "US-41, Objective 5"
+    },
+    {
+      "id": "NFR-MNT-01",
+      "requirement": "Every change is tested automatically before it is merged.",
+      "verification": "Pipeline inspection",
+      "acceptance": "The GitHub Actions pipeline runs the unit and integration tests on every pull request, and the main branch accepts no merge with a failing run.",
+      "priority": "Should",
+      "source": "EN-03"
+    },
+    {
+      "id": "NFR-MNT-02",
+      "requirement": "Card data is reachable only through the vault module.",
+      "verification": "Automated boundary test",
+      "acceptance": "A test fails the build if any module other than the vault imports vault internals or queries vault tables, and the main database role is refused when it reads the encrypted card table.",
+      "priority": "Should",
+      "source": "US-12, Section 4.5.1"
+    }
+  ]
+}

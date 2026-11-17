@@ -9,7 +9,7 @@ from rest_framework.response import Response
 
 from apps.common.clientip import client_ip
 from apps.common.views import PublicJSONView
-from apps.guest import service
+from apps.guest import receipts, service
 
 
 class GuestView(PublicJSONView):
@@ -38,6 +38,13 @@ class VerifyView(GuestView):
 class PaymentView(GuestView):
     def get(self, request):
         return Response(service.to_view(service.session_payment(self.token(request))))
+
+
+class ReceiptView(GuestView):
+    """GET -> the payment's receipt as a PDF (same session as the status view)."""
+
+    def get(self, request):
+        return receipts.pdf_response(service.session_payment(self.token(request)))
 
 
 class SignOutView(GuestView):

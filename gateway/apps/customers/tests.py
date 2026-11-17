@@ -307,6 +307,19 @@ def test_payment_made_while_signed_in_is_in_the_history(customer, shop, fake_sim
     assert detail["timeline"][0]["label"] == "Payment started"
 
 
+def test_signed_in_customer_downloads_a_pdf_receipt(customer, shop, fake_sim):
+    browser, _ = sign_in()
+    payment = pay(shop, browser)
+    r = browser.get(f"/customer/payments/{payment.reference}/receipt.pdf")
+    assert r.status_code == 200 and r["Content-Type"] == "application/pdf"
+    assert payment.reference in r.content.decode("latin-1")
+    # Signed out, or another customer: no receipt, and no hint that the payment exists.
+    assert APIClient().get(f"/customer/payments/{payment.reference}/receipt.pdf") \
+        .status_code == 401
+    other, _ = register(email="sam@example.com")
+    assert other.get(f"/customer/payments/{payment.reference}/receipt.pdf").status_code == 404
+
+
 def test_guest_payments_and_other_customers_payments_are_never_shown(customer, shop, fake_sim):
     guest_payment = pay(shop, APIClient())
     assert guest_payment.customer_id is None

@@ -183,3 +183,29 @@ def purge_expired() -> int:
     """Delete cards whose checkout ended without a submission. Run by the worker."""
     deleted, _ = StoredCard.objects.using(DB).filter(expires_at__lte=timezone.now()).delete()
     return deleted
+
+
+# --- read-only figures for the security self-checks (UC-46) -----------------------------
+# Other modules never query the vault's table themselves (NFR-MNT-02); they ask here.
+
+def count_kept(tokens) -> int:
+    """How many of these card tokens still have card data in the vault."""
+    tokens = [t for t in tokens if t]
+    return StoredCard.objects.using(DB).filter(token__in=tokens).count() if tokens else 0
+
+
+def count_expired(before: datetime) -> int:
+    """Cards whose checkout ended before `before` and that are still waiting to be deleted."""
+    return StoredCard.objects.using(DB).filter(expires_at__lte=before).count()
+
+
+def count_not_encrypted() -> int:
+    """Rows whose stored value is in neither encrypted format (k1. data key, v1. legacy)."""
+    return (StoredCard.objects.using(DB).exclude(ciphertext__startswith="k1.")
+            .exclude(ciphertext__startswith="v1.").count())
+
+
+def encryption_round_trip_ok() -> bool:
+    """Encrypt and decrypt a test value with the current key; nothing is stored."""
+    sample = b"self-check"
+    return _decrypt(_encrypt(sample, "tok_selfcheck"), "tok_selfcheck") == sample

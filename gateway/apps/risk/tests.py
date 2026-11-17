@@ -154,3 +154,17 @@ def test_rules_are_ordered_deterministically():
     rules = Rules()
     hits = [ListHit("email", "block", "b"), ListHit("card", "block", "a")]
     assert rules.evaluate(attempt(), {}, hits)[1] == ["blocklisted_card", "blocklisted_email"]
+
+
+def test_seed_relabels_the_old_blocklist_entry_without_the_card_number(db):
+    """NFR-CON-02: an older seed showed the whole test card number in the label."""
+    from django.core.management import call_command
+
+    from apps.risk.models import RiskListEntry
+
+    call_command("seed_risk_lists", verbosity=0)
+    old = "Demo: test card 4000 0000 0000 0101 reported stolen"
+    RiskListEntry.objects.filter(kind="card").update(label=old, display=old[:60])
+    call_command("seed_risk_lists", verbosity=0)
+    entry = RiskListEntry.objects.get(kind="card")
+    assert entry.label == entry.display == "Demo: test card ending 0101 reported stolen"

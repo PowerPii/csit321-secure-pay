@@ -35,7 +35,14 @@ jobs:
       - run: ruff check .
       - run: python manage.py check
       - run: python manage.py makemigrations --check --dry-run
-      - run: pytest
+      # JUnit results feed the non-functional test report (job test-report below).
+      - run: pytest --junitxml=junit-${{ matrix.service }}.xml
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: junit-${{ matrix.service }}
+          path: ${{ matrix.service }}/junit-${{ matrix.service }}.xml
+          if-no-files-found: ignore
       - run: pip-audit
       - run: bandit -q -r apps -x "*/tests.py,*/test_*.py"
 
@@ -54,10 +61,49 @@ jobs:
           node-version: "22"
       - run: npm install
       - run: npx tsc --noEmit
-      - run: npm test -- --passWithNoTests
+      - if: matrix.app == 'website'
+        run: npm test
+      - if: matrix.app != 'website'
+        run: npm test -- --passWithNoTests --reporter=default --reporter=junit --outputFile.junit=junit-${{ matrix.app }}.xml
+      - uses: actions/upload-artifact@v4
+        if: always() && matrix.app != 'website'
+        with:
+          name: junit-${{ matrix.app }}
+          path: frontend/${{ matrix.app }}/junit-${{ matrix.app }}.xml
+          if-no-files-found: ignore
       - if: matrix.app == 'website'
         run: npm run build
       - run: npm audit --audit-level=high
+
+  # The non-functional test report (URS Section 4.4): maps every requirement to the tests
+  # above and to the manual checks (docs/test-report/). Red if any requirement fails or the
+  # mapping names a test that no longer exists. The report is on the run's summary page and
+  # in the test-report artifact.
+  test-report:
+    if: always()
+    needs: [python, frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pyyaml
+      - run: python tests/report/build_report.py --check
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: junit-*
+          path: reports
+          merge-multiple: true
+      - run: python tests/report/build_report.py --junit reports --out TEST-REPORT.md --strict
+      - if: always()
+        run: test -f TEST-REPORT.md && cat TEST-REPORT.md >> "$GITHUB_STEP_SUMMARY" || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-report
+          path: TEST-REPORT.md
+          if-no-files-found: ignore
 
   contracts:
     runs-on: ubuntu-latest

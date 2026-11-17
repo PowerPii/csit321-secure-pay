@@ -35,3 +35,6 @@ gateway/apps/risk/model_artifacts/*
 *.egg-info/
 build/
 *.tsbuildinfo
+
+# Test results (CI uploads them; the report is built from them)
+junit-*.xml

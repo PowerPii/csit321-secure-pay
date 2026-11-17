@@ -91,6 +91,8 @@ describe("guest status page (C9)", () => {
     const calls = mockFetch({ "/payment": () => json(payment), "/sign-out": () => new Response(null, { status: 204 }) });
     render(<GuestStatus search="" />);
     expect(await screen.findByText("S$ 45.90 to Demo Shop")).toBeTruthy();
+    const receipt = screen.getByRole("link", { name: "Download receipt (PDF)" });
+    expect(receipt.getAttribute("href")).toBe("/guest/status/receipt.pdf");
     fireEvent.click(screen.getByRole("button", { name: "Done" }));
     expect(await screen.findByText(/left the payment view/)).toBeTruthy();
     await waitFor(() => expect(calls.some((c) => c.url.endsWith("/sign-out"))).toBe(true));
@@ -100,6 +102,7 @@ describe("guest status page (C9)", () => {
     mockFetch({ "/payment": () => json({ ...payment, status: "unresolved", status_label: "Being checked - do not pay again" }) });
     render(<GuestStatus search="" />);
     expect(await screen.findByText(/Please don't pay again/)).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "Download receipt (PDF)" })).toBeNull();
   });
 
   it("checks the form before calling the API", async () => {

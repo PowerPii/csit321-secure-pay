@@ -17,6 +17,7 @@ The MVP endpoints are implemented. See `docs/MVP-SCOPE.md` for completed sprints
 | `research/` | Offline | Notebooks, shared feature definitions, training and evaluation; produces model artifacts |
 | `contracts/` | Shared | OpenAPI files, event JSON Schemas, generated TS types |
 | `tests/integration/` | All | Cross-service end-to-end, recovery, concurrency and security tests |
+| `tests/report/`, `tests/load/` | All | Non-functional test report builder; checkout load test (NFR-PER-01) |
 | `deploy/` | VM | Docker Compose, Caddyfile, Postgres init, secrets templates, backups |
 | `docs/` | All | MVP scope, architecture, diagrams |
 | `.github/workflows/ci.yml` | CI | Lint, checks, tests on real Postgres, dependency audits, gitleaks |
@@ -100,6 +101,8 @@ curl -s -X DELETE https://simulator.localhost/sim/faults -H "Authorization: Bear
 ```
 
 Automated cross-service tests for S1-S6, receipts, guest status and fault controls: `tests/integration/README.md`.
+
+Non-functional test report for M6 (URS Section 4.4, all 29 requirements): every CI run builds it from the test results and the manual checks; see `docs/test-report/README.md`. Acceptance tests at the URS's own numbers are in `gateway/acceptance/`; the checkout load test is `tests/load/checkout_load.py`.
 
 Public server (one VM, sslip.io names, Let's Encrypt): [`deploy/RUNBOOK.md`](deploy/RUNBOOK.md).
 

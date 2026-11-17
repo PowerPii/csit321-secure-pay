@@ -108,6 +108,8 @@ describe("payment history (C11)", () => {
     expect(await screen.findByText("Visa •••• 3456")).toBeTruthy();
     expect(screen.getByText("#1042")).toBeTruthy();
     expect(screen.getByText("Refunds: none")).toBeTruthy();
+    const receipt = screen.getByRole("link", { name: "Download receipt (PDF)" });
+    expect(receipt.getAttribute("href")).toBe(`/customer/payments/${ROW.reference}/receipt.pdf`);
   });
 
   it("shows the empty state", async () => {

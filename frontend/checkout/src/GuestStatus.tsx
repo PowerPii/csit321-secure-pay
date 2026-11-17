@@ -4,7 +4,7 @@
 // fills in the reference. No order contents and no fraud reasons are ever shown here.
 import { useEffect, useState, type FormEvent } from "react";
 import { Field, Row, Shell } from "./ui";
-import { brandName, countdown, formatDate, money } from "./format";
+import { brandName, countdown, formatDate, hasReceipt, money } from "./format";
 import { getGuestPayment, GuestApiError, requestCode, signOut, verifyCode, type GuestPayment } from "./guestApi";
 
 type Step =
@@ -256,6 +256,11 @@ function PaymentView({ payment, onDone }: { payment: GuestPayment; onDone: () =>
       <p className="muted tiny">
         Read-only view of this payment only. For questions about your order, contact {payment.merchant_name}.
       </p>
+      {hasReceipt(payment.status) && (
+        <a className="btn secondary" href="/guest/status/receipt.pdf" download>
+          Download receipt (PDF)
+        </a>
+      )}
       <button className="btn secondary" type="button" onClick={onDone}>Done</button>
     </div>
   );

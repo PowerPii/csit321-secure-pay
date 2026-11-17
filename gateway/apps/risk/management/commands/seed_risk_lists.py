@@ -15,12 +15,18 @@ Kind, Action = RiskListEntry.Kind, RiskListEntry.Action
 
 SEED = [
     (Kind.CARD, lambda: demo_card_fingerprint("blocklisted"), Action.BLOCK,
-     "Demo: test card 4000 0000 0000 0101 reported stolen"),
+     "Demo: test card ending 0101 reported stolen"),
     (Kind.EMAIL, lambda: hashing.email_hash("blocked@example.com"), Action.BLOCK,
      "Demo: blocked@example.com linked to earlier fraud"),
     (Kind.EMAIL, lambda: hashing.email_hash("review@example.com"), Action.VERIFY,
      "Demo: review@example.com needs verification"),
 ]
+
+
+# Labels from earlier seeds that showed a whole card number (NFR-CON-02: only the last four
+# digits are ever shown). Rewritten on the next start.
+RENAMED = {"Demo: test card 4000 0000 0000 0101 reported stolen":
+           "Demo: test card ending 0101 reported stolen"}
 
 
 class Command(BaseCommand):
@@ -32,4 +38,7 @@ class Command(BaseCommand):
                 kind=kind, value_hash=value(),
                 defaults={"action": action, "label": label, "active": True,
                           "display": label[:60]})
+        for old, new in RENAMED.items():
+            RiskListEntry.objects.filter(label=old).update(label=new, display=new[:60])
+            RiskListEntry.objects.filter(display=old[:60]).update(display=new[:60])
         self.stdout.write(f"{len(SEED)} risk list entries in place.")
