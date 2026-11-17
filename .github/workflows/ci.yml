@@ -98,4 +98,22 @@ jobs:
           caddy:2 caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
       - run: docker build -f deploy/caddy/Dockerfile -t securepay-caddy .
       # bash -n checks only its first file, so check each script on its own.
-      - run: for f in deploy/make-secrets.sh deploy/server-setup.sh deploy/smoke-check.sh deploy/backup/backup.sh deploy/auto-deploy.sh deploy/setup-auto-deploy.sh deploy/demo.sh deploy/move-server.sh deploy/public-ip.sh; do bash -n "$f" || exit 1; done
+      - run: for f in deploy/make-secrets.sh deploy/server-setup.sh deploy/smoke-check.sh deploy/backup/backup.sh deploy/auto-deploy.sh deploy/setup-auto-deploy.sh deploy/demo.sh deploy/move-server.sh deploy/public-ip.sh deploy/watchdog.sh deploy/freeze.sh deploy/backup/verify.sh; do bash -n "$f" || exit 1; done
+
+  # Demo merge freeze (deploy/RUNBOOK.md section 10a): while the repository variable
+  # MERGE_FREEZE_UNTIL (e.g. 2027-04-02T18:00+08:00) is in the future, pull requests show
+  # this check red, so nobody merges by accident. The deploy workflow also refuses to run.
+  merge-freeze:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          UNTIL: ${{ vars.MERGE_FREEZE_UNTIL }}
+        run: |
+          if [ -z "$UNTIL" ]; then echo "No merge freeze."; exit 0; fi
+          end="$(date -d "$UNTIL" +%s)" || { echo "::error::MERGE_FREEZE_UNTIL is not a date: $UNTIL"; exit 1; }
+          if [ "$end" -gt "$(date +%s)" ]; then
+            echo "::error::Merge freeze for a demo until $UNTIL. Do not merge; wait, or ask Fifa to clear MERGE_FREEZE_UNTIL."
+            exit 1
+          fi
+          echo "The freeze ended at $UNTIL."

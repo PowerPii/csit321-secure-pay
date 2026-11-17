@@ -23,6 +23,13 @@ main() {
   exec > >(tee -a "$log") 2>&1
   echo "=== deploy $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
+  # Demo freeze (deploy/freeze.sh): nothing changes on the server until it ends.
+  if bash deploy/freeze.sh status >/dev/null 2>&1; then
+    echo "$(bash deploy/freeze.sh status) Not deploying; main is deployed by the first"
+    echo "merge after the freeze, or by hand: bash deploy/freeze.sh off, then this script."
+    exit 1
+  fi
+
   if [ "$(git rev-parse --abbrev-ref HEAD)" != main ]; then
     echo "the server clone is not on main; refusing to deploy"; exit 1
   fi

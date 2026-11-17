@@ -256,15 +256,80 @@ Two things worth checking by hand once:
 crontab -e
 # 02:15 Singapore time every night; keeps 14 days
 15 18 * * * /home/securepay/csit321-secure-pay/deploy/backup/backup.sh >> /home/securepay/backup.log 2>&1
+# Sunday 03:30 Singapore time: prove the newest backup restores (sprint 16)
+30 19 * * 6 /home/securepay/csit321-secure-pay/deploy/backup/verify.sh >> /home/securepay/backup.log 2>&1
 ```
 
-Copy them off the server now and then (from a laptop): `scp -r securepay@203.0.113.5:fyp-backups ./`.
+`verify.sh` restores each dump of the newest backup into a scratch database
+(`restorecheck_gateway` and so on), counts tables and rows, and drops the scratch copies; the
+live databases are not touched. `grep -E "ok|FAIL" ~/backup.log | tail` shows the last result.
+A backup nobody has restored is only a hope; run it by hand after any change to the schema.
+
+Copy them off the server now and then, and always the week of a demo (from a laptop):
+`rsync -a securepay@203.0.113.5:fyp-backups/ ./fyp-backups/` (or `scp -r`).
 A dump is only useful together with the secrets (step 4), which are not in it.
 The `vault_encryption_key` and `field_encryption_key` secrets are master keys: the data keys
 in the database are encrypted with them (rotate the data keys on the dashboard's Integrity and
 keys page, at least every 90 days). Never regenerate those two files on a running server, or
 card data in flight, signing secrets and queued emails can no longer be read. Restore one
 database: `$P exec -T db pg_restore -U postgres --clean -d gateway < gateway.dump`.
+
+**Server snapshot the day before a demo** (the whole disk: code, secrets, model, databases).
+Run `deploy/backup/backup.sh` first so the dumps inside the snapshot are fresh, then:
+
+- Google Cloud: Compute Engine > Disks > the VM's disk > **Create snapshot**, or
+  `gcloud compute snapshots create securepay-$(date +%Y%m%d) --source-disk=securepay --source-disk-zone=<zone>`.
+- DigitalOcean: Droplet > **Snapshots** > Take live snapshot (about US$0.06 per GB a month;
+  delete it after the demo).
+
+Restoring a snapshot makes a new disk or droplet; the IP stays if it is the reserved/static
+one (Google Cloud) or you restore into the same droplet (DigitalOcean "Restore droplet").
+
+## 9a. Monitoring (sprint 16)
+
+Two layers, because a server cannot report that it is down:
+
+**Inside: `deploy/watchdog.sh`, every 5 minutes.** It checks that every container runs, the
+gateway's `/readyz` (both databases answer and the worker's heartbeat is under 2 minutes old),
+the shop's `/healthz`, disk (85 %), memory, the certificate (14 days) and the newest backup
+(36 hours). A service that fails two runs in a row is restarted, at most once per 30 minutes
+each and never during a deploy: that covers the worker loop hanging without exiting, which
+Docker's restart policy cannot see. When the list of problems changes it posts to the team
+chat, and once more when all is clear.
+
+```bash
+crontab -e
+*/5 * * * * /home/securepay/csit321-secure-pay/deploy/watchdog.sh >> /home/securepay/watchdog.log 2>&1
+```
+
+Alerts need one of these in `deploy/.env` (they are secrets: never commit them):
+
+- **Discord:** channel > Edit channel > Integrations > Webhooks > New webhook > Copy URL, then
+  `ALERT_WEBHOOK_URL=https://discord.com/api/webhooks/...`. A Slack incoming webhook URL works
+  the same way.
+- **Telegram:** make a bot with @BotFather (it gives the token), add the bot to the team
+  group, send it a message, read the chat ID from
+  `https://api.telegram.org/bot<token>/getUpdates`, then set `ALERT_TELEGRAM_BOT_TOKEN=` and
+  `ALERT_TELEGRAM_CHAT_ID=` (a group's ID starts with `-`).
+
+`bash deploy/watchdog.sh --test-alert` sends one test message; `bash deploy/watchdog.sh
+--check` only reports (no restart, no alert). `tail ~/watchdog.log` shows the history. Delete
+`~/.securepay-watchdog/*.restarted` to allow an immediate second restart.
+
+**Outside: a free uptime monitor** (Fifa, once; nothing to install). UptimeRobot's free plan
+checks every 5 minutes and emails, or pushes to the same Discord/Slack/Telegram, when a check
+fails twice:
+
+1. Sign up at uptimerobot.com with a team address.
+2. Add two **HTTP(s)** monitors, interval 5 minutes:
+   `https://gateway.<domain>/readyz` (fails with 503 when the worker or a database is down)
+   and `https://shop.<domain>/healthz`.
+3. Alert contacts: the team email, and the Discord/Slack webhook or Telegram if you set one up.
+4. Optional: a public status page with the two monitors, to show at the demo.
+
+After the move to the new domain (section 13), change the two monitor URLs. A GitHub Actions
+schedule could do the same checks, but every 5 minutes it would use more than the private
+repository's free Actions minutes, so it is not used.
 
 ## 10. Updating after a merge
 
@@ -313,6 +378,25 @@ Migrations run when the gateway, simulator and shop start. The integration tests
 of a deploy because they make payments; run them by hand when a change touches the payment flow
 (step 8).
 
+## 10a. Merge freeze before a demo (sprint 16)
+
+Auto-deploy restarts the stack on every merge, so nothing merges to `main` in the 48 hours
+before a demo. Two switches, use both:
+
+1. **GitHub** (stops people merging and stops the deploy workflow): Settings > Secrets and
+   variables > Actions > Variables > New repository variable `MERGE_FREEZE_UNTIL`, value a
+   date and time with its zone, for example `2027-04-02T18:00+08:00`. While it is in the
+   future, every pull request shows a red **merge-freeze** check ("Do not merge") and the
+   deploy workflow fails without touching the server. Delete the variable, or let the time
+   pass, to end it. (Branch protection would enforce it, but the free private plan does not
+   have it.)
+2. **Server** (works even if the variable is forgotten): `bash deploy/freeze.sh on` (48 hours;
+   `on 72`, or `until "2027-04-02 18:00"` in Singapore time). `auto-deploy.sh` refuses to
+   deploy until then. `bash deploy/freeze.sh status` shows it and `off` ends it early.
+
+A merge made during the freeze is deployed by the next merge after it, or by hand
+(`freeze.sh off`, then `auto-deploy.sh`, or Actions > deploy > Run workflow).
+
 ## 11. Demo story S4 with the fault controls
 
 The fault controls are on (`SIM_TEST_CONTROLS=1`, decided 14 Nov 2026) but only reachable
@@ -341,11 +425,17 @@ brings it, give the merchant its new name (the payment page, receipts and dashbo
 $P exec gateway python manage.py demo_check --merchant mer_... --rename "Volt & Co."
 ```
 
-On the morning of a demo and again an hour before, run one command:
+The full demo-day timeline (freeze, snapshot, reset, preflight, fallbacks, rehearsals) is in
+[`docs/DEMO-DAY.md`](../docs/DEMO-DAY.md). On the morning of a demo and again an hour before,
+run one command:
 
 ```bash
 bash deploy/demo.sh reset
 ```
+
+Then, an hour before, `bash deploy/demo.sh preflight`: deploy freeze, watchdog, smoke check,
+one real test payment through the shop with a fresh card, and `demo_check`; it ends with
+**READY** or **NOT READY** and what failed.
 
 It does steps 1 to 4 below by itself and prints today's cards and emails; copy them onto the
 cheat sheet. Exit code 1 means a health check FAILed. It deletes no payments, screening
@@ -370,7 +460,7 @@ run behave the same.
    hour, so leave an hour between the last rehearsal and the demo, and run the "fraudster"
    step from a phone hotspot, not the presenter's laptop.
 6. **No merges** to `main` in the 48 hours before the demo: auto-deploy would restart the
-   stack.
+   stack. Turn on both freeze switches (section 10a).
 
 **Fresh stack (fallback laptop or a brand-new server):** after the stack is up (README quick
 start steps 1 to 3, or RUNBOOK steps 1 to 6), `bash deploy/demo.sh seed` does step 7 in one
@@ -388,6 +478,8 @@ again. It does not invent past payments: the dashboard shows only what really we
 | Every payment Blocked, `screening_unavailable` | `logs gateway`: model folder or `RISK_MODEL_VERSION` wrong (step 5) |
 | A service restarts over and over | `logs <service>`: usually a missing secret file (run `make-secrets.sh` again) |
 | Orders stay unpaid | `logs gateway-worker` (webhook delivery) and `logs merchant` |
+| `/readyz` says `"worker"`, no emails | The worker loop is stuck or down: `restart gateway-worker` (the watchdog does this after 10 minutes), then `logs gateway-worker` |
+| Watchdog alert you do not understand | `tail -50 ~/watchdog.log`; `bash deploy/watchdog.sh --check` for the state now |
 | Server slow or out of memory | `free -h`, `docker stats`; a droplet can be resized up without losing its IP; on Google Cloud, stop the VM, change the machine type (e2-standard-2, 8 GB) and start it (the static IP stays) |
 | Pages time out from outside | Google Cloud: the VM's "Allow HTTP/HTTPS traffic" boxes (network tags `http-server`, `https-server`); then `sudo ufw status` |
 | Need the Django admin for a one-off | Use `manage.py shell` through `$P exec` instead; the admin stays off on the public server |
@@ -443,14 +535,16 @@ databases into a fresh volume, starts the stack and runs
 the old one (a move with the same name, for example after DNS changes).
 
 **5. Check:** `bash deploy/smoke-check.sh <new-domain>` from a laptop (all ok once Caddy has
-its certificates; `logs caddy` shows them), then `demo_check` (section 11a), then one payment
-in the shop with a fresh demo card: the order turns paid, the receipt arrives in
-`https://mail.<new-domain>`.
+its certificates; `logs caddy` shows them), then `bash deploy/demo.sh preflight` on the new
+server (watchdog, smoke check, one real payment with a fresh demo card, `demo_check`), and
+look for the receipt in `https://mail.<new-domain>`.
 
 **6. Repoint automatic deploys:** on the new server `bash deploy/setup-auto-deploy.sh`, then
 on GitHub replace `DEPLOY_SSH_KEY`, `DEPLOY_HOST` and `DEPLOY_KNOWN_HOSTS` with the printed
-values. Until then a merge to `main` deploys to the old server. Add the backup crontab line
-(step 9).
+values. Until then a merge to `main` deploys to the old server. Add the crontab lines for
+the backup and its weekly restore test (step 9) and the watchdog (section 9a); the alert
+settings came across in `deploy/.env`, so `bash deploy/watchdog.sh --test-alert` should reach
+the team chat. Change the two uptime monitor URLs to the new domain.
 
 **7. Tidy up:** update the "Current server" line at the top of this file and the website's
 `VITE_GATEWAY_URL` (Vercel project settings; `frontend/website/src/content/site.ts` holds the

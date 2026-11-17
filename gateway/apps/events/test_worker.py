@@ -27,3 +27,17 @@ def test_a_failing_job_does_not_stop_the_others(monkeypatch, caplog):
 
 def test_real_jobs_run_on_an_empty_database():
     run_worker.run_pass()
+
+
+def test_a_pass_records_the_heartbeat(monkeypatch):
+    from apps.events.models import WorkerHeartbeat
+
+    monkeypatch.setattr(run_worker, "JOBS", [])
+    monkeypatch.setattr(run_worker, "close_old_connections", lambda: None)
+    monkeypatch.setattr(run_worker, "_last_beat", 0.0)
+    run_worker.run_pass()
+    first = WorkerHeartbeat.objects.get(name="worker").seen_at
+    run_worker.beat()  # within 15 s: no extra write
+    assert WorkerHeartbeat.objects.get(name="worker").seen_at == first
+    run_worker.beat(force=True)
+    assert WorkerHeartbeat.objects.get(name="worker").seen_at > first

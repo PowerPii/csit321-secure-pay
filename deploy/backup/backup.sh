@@ -1,7 +1,7 @@
 #!/bin/bash
 # Dump all three databases to a dated folder outside the app directory, and keep the last
 # KEEP_DAYS days. Works for the local stack and the public server:
-#   deploy/backup/backup.sh                           # compose.prod.yaml if deploy/.env exists
+#   deploy/backup/backup.sh                           # compose.prod.yaml if deploy/.env sets DOMAIN
 #   COMPOSE_FILE=deploy/compose.yaml deploy/backup/backup.sh
 # Nightly on the server (RUNBOOK.md step 9):
 #   15 18 * * * /home/securepay/csit321-secure-pay/deploy/backup/backup.sh >> /home/securepay/backup.log 2>&1
@@ -10,7 +10,8 @@
 set -euo pipefail
 deploy="$(cd "$(dirname "$0")/.." && pwd)"
 if [ -z "${COMPOSE_FILE:-}" ]; then
-  if [ -e "$deploy/.env" ] && [ -e "$deploy/compose.prod.yaml" ]; then
+  # The server's deploy/.env sets DOMAIN; a laptop's may hold only RISK_MODEL_VERSION.
+  if grep -qE '^DOMAIN=.+' "$deploy/.env" 2>/dev/null; then
     COMPOSE_FILE="$deploy/compose.prod.yaml"
   else
     COMPOSE_FILE="$deploy/compose.yaml"

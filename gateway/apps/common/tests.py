@@ -190,3 +190,28 @@ def test_email_headline_preview_total_and_button_label():
     assert button_label("https://x.example/dashboard/register/verify#token=a") == \
         "Confirm your email"
     assert button_label("https://x.example/somewhere") == "Open the page"
+
+
+# --- /healthz and /readyz (uptime monitor) -------------------------------------------------
+
+@pytest.mark.django_db(databases=["default", "vault"])
+def test_readyz_needs_a_live_worker(client):
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from apps.events.models import WorkerHeartbeat
+
+    assert client.get("/healthz").json() == {"status": "ok"}
+    response = client.get("/readyz")
+    assert response.status_code == 503
+    assert response.json() == {"status": "degraded", "problems": ["worker"]}
+    assert response["Cache-Control"] == "no-store"
+
+    beat = WorkerHeartbeat.objects.create(name="worker", seen_at=timezone.now())
+    response = client.get("/readyz")
+    assert response.status_code == 200 and response.json() == {"status": "ok"}
+
+    beat.seen_at -= timedelta(minutes=3)
+    beat.save()
+    assert client.get("/readyz").status_code == 503

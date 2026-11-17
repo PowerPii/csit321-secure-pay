@@ -73,7 +73,17 @@ def test_rate_limit_is_per_key(shop, other_shop, settings):
 
 # --- demo_check (demo-day polish) -----------------------------------------------------------
 
-def test_demo_check_renames_with_an_audit_event_and_reports(make_merchant, settings):
+@pytest.fixture
+def worker_alive(db):
+    from django.utils import timezone
+
+    from apps.events.models import WorkerHeartbeat
+
+    return WorkerHeartbeat.objects.create(name="worker", seen_at=timezone.now())
+
+
+def test_demo_check_renames_with_an_audit_event_and_reports(make_merchant, settings,
+                                                             worker_alive):
     from io import StringIO
 
     from django.core.management import call_command
@@ -107,7 +117,7 @@ def test_demo_check_fails_without_webhook(make_merchant, settings):
     assert "FAIL  Webhook URL missing" in out.getvalue()
 
 
-def test_demo_check_finds_the_merchant_by_name(make_merchant, settings):
+def test_demo_check_finds_the_merchant_by_name(make_merchant, settings, worker_alive):
     from io import StringIO
 
     import pytest
@@ -235,3 +245,23 @@ def test_change_domain_rejects_urls_instead_of_domains(db):
 
     with pytest.raises(CommandError):
         call_command("change_domain", old="https://shop.example.sg", new="example.me")
+
+
+def test_demo_check_fails_when_the_worker_has_stopped(make_merchant, settings, worker_alive):
+    from datetime import timedelta
+    from io import StringIO
+
+    from django.core.management import call_command
+
+    settings.RISK_MODEL_VERSION = ""
+    shop = make_merchant(webhook_url="https://shop.example/webhooks/securepay",
+                         webhook_url_approved=True).merchant
+    out = StringIO()
+    call_command("demo_check", merchant=shop.public_id, stdout=out)
+    assert "PASS  The worker is running" in out.getvalue()
+    worker_alive.seen_at -= timedelta(minutes=5)
+    worker_alive.save()
+    out = StringIO()
+    with pytest.raises(SystemExit):
+        call_command("demo_check", merchant=shop.public_id, stdout=out)
+    assert "FAIL  The worker was last seen" in out.getvalue()

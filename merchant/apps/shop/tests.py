@@ -331,3 +331,10 @@ def test_missing_pages_use_the_store_look(client, settings):
     settings.DEBUG = False
     r = client.get("/no-such-page")
     assert r.status_code == 404 and b"find that page" in r.content and b"Volt" in r.content
+
+
+@pytest.mark.django_db
+def test_healthz_checks_the_database(client):
+    response = client.get("/healthz")
+    assert response.status_code == 200 and response.json() == {"status": "ok"}
+    assert "no-cache" in response["Cache-Control"]

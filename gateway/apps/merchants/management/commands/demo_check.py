@@ -22,7 +22,8 @@ from django.utils import timezone
 
 from apps.audit.models import AuditEvent
 from apps.audit.models import record as audit
-from apps.events.models import OutboundEmail, OutboxEvent
+from apps.common.views import WORKER_STALE_AFTER_SECONDS
+from apps.events.models import OutboundEmail, OutboxEvent, WorkerHeartbeat
 from apps.merchants.demo import DEMO_MERCHANT_NAME, find_demo_merchant
 from apps.merchants.models import Merchant
 from apps.payments.models import Payment
@@ -89,6 +90,15 @@ class Command(BaseCommand):
                             "screening blocks every payment"))
         else:
             yield ("WARN", "No fraud model configured: screening uses the stub")
+
+        beat = WorkerHeartbeat.objects.filter(name="worker").first()
+        if beat is None:
+            yield ("FAIL", "The worker has never run: webhooks, emails and reconciliation stop")
+        elif beat.seen_at < now - timedelta(seconds=WORKER_STALE_AFTER_SECONDS):
+            yield ("FAIL", (f"The worker was last seen {beat.seen_at:%H:%M:%S} UTC: restart "
+                            "gateway-worker"))
+        else:
+            yield ("PASS", "The worker is running")
 
         stuck = Payment.objects.filter(status=PaymentStatus.UNRESOLVED,
                                        updated_at__lt=now - timedelta(hours=1)).count()
