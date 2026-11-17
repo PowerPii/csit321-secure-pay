@@ -150,7 +150,7 @@ def test_three_wrong_codes_block_the_attempt(browser, make_payment, fake_sim, ma
         assert browser.get(url(payment)).json()["verification"]["attempts_remaining"] == left
     r = browser.post(url(payment, "/verify"), {"code": wrong}, format="json")
     assert r.status_code == 200
-    assert (r.json()["status"], r.json()["result"]) == ("blocked", "not_completed")
+    assert (r.json()["status"], r.json()["result"]) == ("blocked", "verification_failed")
     assert fake_sim.requests == []
     assert not StoredCard.objects.using("vault").exists()
     api = shop.get(f"/v1/payments/{payment.public_id}").json()
@@ -230,7 +230,7 @@ def test_session_ending_during_verification_blocks(browser, make_payment, fake_s
     Payment.objects.filter(pk=payment.pk).update(
         checkout_expires_at=timezone.now() - timedelta(seconds=1))
     data = browser.get(url(payment)).json()
-    assert (data["status"], data["result"]) == ("blocked", "not_completed")
+    assert (data["status"], data["result"]) == ("blocked", "verification_failed")
     payment.refresh_from_db()
     assert payment.outcome_reason == "verification_expired"
     assert not StoredCard.objects.using("vault").exists()

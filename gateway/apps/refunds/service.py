@@ -18,6 +18,7 @@ from apps.audit.models import record as audit
 from apps.common.errors import ApiError, invalid, not_found
 from apps.events.models import EventType
 from apps.events.outbox import record_refund_event
+from apps.guest.receipts import queue_refund_receipt
 from apps.payments import processor
 from apps.payments.models import Operation, Payment
 from apps.payments.processor import Answer, AnswerKind
@@ -170,6 +171,7 @@ def apply_refund_answer(operation_id: int, answer: Answer, request_id: str = "")
                 refund.status = Refund.Status.COMPLETED
                 refund.completed_at = now
                 event, action = EventType.REFUND_COMPLETED, "refund.completed"
+                queue_refund_receipt(refund)
             elif status == "declined":
                 # The gateway checked the same totals first, so the two records disagree.
                 operation.status = Operation.Status.FAILED

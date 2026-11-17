@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { countdown, formatCardNumber, formatExpiry, luhnOk, money, parseExpiry, sessionIdFromPath } from "./format";
+import { cardBrand, countdown, initials, formatCardNumber, formatExpiry, luhnOk, money, parseExpiry, sessionIdFromPath } from "./format";
 
 describe("sessionIdFromPath", () => {
   it("reads the session id from the hosted checkout URL", () => {
@@ -37,5 +37,22 @@ describe("card input helpers", () => {
     const now = Date.parse("2026-11-13T05:00:00Z");
     expect(countdown("2026-11-13T05:58:41Z", now)).toBe("58:41");
     expect(countdown("2026-11-13T04:00:00Z", now)).toBe("00:00");
+  });
+});
+
+describe("store and card helpers (demo sprint 14)", () => {
+  it("finds the card brand like the vault does", () => {
+    expect(cardBrand("4242")).toBe("visa");
+    expect(cardBrand("5555")).toBe("mastercard");
+    expect(cardBrand("2223")).toBe("mastercard");
+    expect(cardBrand("22")).toBeNull();
+    expect(cardBrand("3782")).toBe("amex");
+    expect(cardBrand("6011")).toBeNull();
+  });
+  it("makes a two-letter monogram", () => {
+    expect(initials("Volt & Co.")).toBe("VC");
+    expect(initials("Demo Shop")).toBe("DS");
+    expect(initials("Gadgets")).toBe("GA");
+    expect(initials("")).toBe("?");
   });
 });

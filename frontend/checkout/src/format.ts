@@ -52,6 +52,22 @@ export function countdown(expiresAt: string, now: number): string {
   return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 }
 
+/** Card brand from the first digits, the same rule as the gateway's vault (brand_for). */
+export function cardBrand(digits: string): "visa" | "mastercard" | "amex" | null {
+  if (digits.startsWith("4")) return "visa";
+  const two = Number(digits.slice(0, 2));
+  const four = Number(digits.slice(0, 4));
+  if ((two >= 51 && two <= 55) || (digits.length >= 4 && four >= 2221 && four <= 2720)) return "mastercard";
+  if (two === 34 || two === 37) return "amex";
+  return null;
+}
+
+/** "Volt & Co." -> "VC": the shop's monogram on the payment page. */
+export function initials(name: string): string {
+  const [first = "?", second] = name.match(/[A-Za-z0-9]+/g) ?? [];
+  return (second ? first.charAt(0) + second.charAt(0) : first.slice(0, 2)).toUpperCase();
+}
+
 export function brandName(brand: string): string {
   return { visa: "Visa", mastercard: "Mastercard", amex: "Amex" }[brand] ?? "Card";
 }

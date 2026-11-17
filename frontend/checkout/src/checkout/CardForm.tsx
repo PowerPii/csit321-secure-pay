@@ -1,9 +1,10 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { getMe, type Customer } from "../accountApi";
 import { addCard, ApiError, getSession, submit } from "../api";
-import { countdown, digitsOnly, formatCardNumber, formatExpiry, luhnOk, money, parseExpiry } from "../format";
+import { brandName, cardBrand, countdown, digitsOnly, formatCardNumber, formatExpiry, luhnOk, money, parseExpiry } from "../format";
 import { ConsentBox } from "../Privacy";
 import { Field } from "../ui";
+import { LockIcon } from "./icons";
 import { useSessionExpiry, type SessionFormProps } from "./session";
 
 export function CardForm({
@@ -22,6 +23,7 @@ export function CardForm({
   const now = useSessionExpiry({ sessionId, session, onUpdate });
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [consent, setConsent] = useState(false);
+  const brand = cardBrand(digitsOnly(number));
 
   useEffect(() => {
     // Signed in to a SecurePay account on this browser (C10): the payment joins its history
@@ -108,8 +110,17 @@ export function CardForm({
         )
       )}
       <Field label="Card number" error={errors.number} id="number">
-        <input id="number" inputMode="numeric" autoComplete="cc-number" placeholder="1234 5678 9012 3456"
-          value={number} onChange={(e) => setNumber(formatCardNumber(e.target.value))} />
+        <div className="card-input">
+          <input id="number" inputMode="numeric" autoComplete="cc-number" placeholder="1234 5678 9012 3456"
+            aria-describedby="card-brands"
+            value={number} onChange={(e) => setNumber(formatCardNumber(e.target.value))} />
+          {brand && <span className={`card-chip ${brand}`} data-testid="card-brand">{brandName(brand)}</span>}
+        </div>
+        <span id="card-brands" className="card-brands muted tiny">
+          <span className="card-chip visa">Visa</span>
+          <span className="card-chip mastercard">Mastercard</span>
+          Test cards only: no real money moves.
+        </span>
       </Field>
       <div className="pair">
         <Field label="Expiry" error={errors.expiry} id="expiry">
@@ -128,8 +139,8 @@ export function CardForm({
       <ConsentBox checked={consent} onChange={setConsent} error={errors.privacy_consent}>
         I agree that SecurePay uses my details to process and protect this payment, as the privacy notice says.
       </ConsentBox>
-      <button className="btn primary" type="submit" disabled={busy}>
-        Pay {money(session.amount)}
+      <button className="btn primary with-lock" type="submit" disabled={busy}>
+        <LockIcon /> {busy ? "Processing…" : `Pay ${money(session.amount)}`}
       </button>
       <a className="btn secondary" href={session.return_url}>
         Cancel and return to {session.merchant.name}

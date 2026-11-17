@@ -66,7 +66,7 @@ describe("checkout page", () => {
   it("shows the order the merchant created (C3)", async () => {
     mockFetch({ [SID]: () => json(session()) });
     render(<App path={`/pay/${SID}`} />);
-    expect(await screen.findByText("Paying Demo Shop")).toBeTruthy();
+    expect(await screen.findByText("Demo Shop")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Pay S$ 89.90" })).toBeTruthy();
     expect(screen.getByText("Receipt to a•••@example.com")).toBeTruthy();
     expect(screen.getByText("Wireless mouse × 1")).toBeTruthy();
@@ -205,6 +205,37 @@ describe("checkout page", () => {
     render(<App path={`/pay/${SID}`} />);
     expect(await screen.findByText("We couldn't check this payment right now")).toBeTruthy();
     expect(screen.queryByText(/fraud/i)).toBeNull();
+  });
+
+  it("says the code was not confirmed when verification failed, without naming fraud", async () => {
+    mockFetch({ [SID]: () => json(session({ status: "blocked", result: "verification_failed", reference: "SP-AAAA-BBBB" })) });
+    render(<App path={`/pay/${SID}`} />);
+    expect(await screen.findByText("We couldn't confirm it was you")).toBeTruthy();
+    expect(screen.getByText(/No money was taken/)).toBeTruthy();
+    expect(screen.queryByText(/fraud/i)).toBeNull();
+  });
+
+  it("shows the shop's monogram and the card brand as the number is typed", async () => {
+    mockFetch({ [SID]: () => json(session({ merchant: { name: "Volt & Co." } })) });
+    render(<App path={`/pay/${SID}`} />);
+    expect(await screen.findByText("VC")).toBeTruthy();
+    expect(screen.queryByTestId("card-brand")).toBeNull();
+    fireEvent.change(screen.getByLabelText("Card number"), { target: { value: "5555 5555" } });
+    expect(screen.getByTestId("card-brand").textContent).toBe("Mastercard");
+    fireEvent.change(screen.getByLabelText("Card number"), { target: { value: "4242" } });
+    expect(screen.getByTestId("card-brand").textContent).toBe("Visa");
+  });
+
+  it("folds the order details behind a toggle (phones show it, CSS hides it on desktop)", async () => {
+    mockFetch({ [SID]: () => json(session({ line_items: [
+      { name: "Wireless mouse", quantity: 1, unit_amount: 2990 },
+      { name: "USB-C hub", quantity: 2, unit_amount: 3000 },
+    ] })) });
+    render(<App path={`/pay/${SID}`} />);
+    const toggle = await screen.findByRole("button", { name: "Show order details (3 items)" });
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(toggle);
+    expect(screen.getByRole("button", { name: "Hide order details (3 items)" }).getAttribute("aria-expanded")).toBe("true");
   });
 
   it("handles an unknown link", async () => {

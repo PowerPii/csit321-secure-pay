@@ -169,3 +169,24 @@ def test_brand_kit_is_the_same_everywhere():
         assert tokens[name] in website, f"website theme lacks {name} {tokens[name]}"
     for name in ("navy", "ink", "saffron"):
         assert tokens[name] in dashboard and tokens[name] in checkout, name
+
+
+def test_email_headline_preview_total_and_button_label():
+    """Demo sprint 14: a one-sentence opening is the headline and the inbox preview; the
+    item table's Total row stands out; buttons say what the link does."""
+    from apps.common.branded_email import button_label, html_for
+
+    body = ("Thank you. Your payment to Volt & Co. was approved.\n\n"
+            "Items:\n  Cable x 1  S$19.00\n  Total  S$19.00\n\n"
+            "https://gateway.example/guest/status?ref=SP-ABCD-1234\n")
+    html = html_for("Receipt", body)
+    assert 'font-size:20px' in html and "Thank you. Your payment to Volt &amp; Co." in html
+    assert 'display:none' in html  # preview text
+    assert "font-weight:700;border-top" in html  # Total row
+    assert ">Check payment status</a>" in html
+    # A greeting is not a headline.
+    assert "font-size:20px" not in html_for("Notice", "Hello,\n\nYour account was locked.\n")
+    assert button_label("https://x.example/account/reset#token=abc") == "Choose a new password"
+    assert button_label("https://x.example/dashboard/register/verify#token=a") == \
+        "Confirm your email"
+    assert button_label("https://x.example/somewhere") == "Open the page"

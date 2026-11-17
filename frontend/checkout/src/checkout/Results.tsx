@@ -46,6 +46,9 @@ export function Approved({ session }: { session: Session }) {
         {session.card && <Row label="Card">{brandName(session.card.brand)} •••• {session.card.last4}</Row>}
         <Row label="Status"><span className="badge dark">Authorised</span></Row>
       </dl>
+      {session.customer_email_masked && (
+        <p className="muted small">A receipt is on its way to {session.customer_email_masked}.</p>
+      )}
       <a className="btn primary" href={session.return_url}>Return to {session.merchant.name}</a>
       <p className="muted tiny">Returning you automatically in {left} s</p>
     </div>
@@ -66,6 +69,13 @@ const NOT_COMPLETED: Record<string, { icon: "cross" | "warn" | "clock"; title: s
     text: (m) => `No money was taken. If you need help, please contact ${m}.`,
     button: (m) => `Return to ${m}`,
     badge: "Not completed",
+  },
+  verification_failed: {
+    icon: "warn",
+    title: "We couldn't confirm it was you",
+    text: (m) => `The verification code wasn't entered in time or didn't match, so we stopped the payment to protect your card. No money was taken. You can return to ${m} and try again.`,
+    button: (m) => `Return to ${m}`,
+    badge: "Not completed · not verified",
   },
   pending: {
     icon: "clock",

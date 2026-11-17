@@ -104,6 +104,7 @@ class OutboundEmail(models.Model):
 
     class Kind(models.TextChoices):
         RECEIPT = "receipt"
+        REFUND_RECEIPT = "refund_receipt"  # demo sprint 14: the customer sees money come back
         GUEST_STATUS_CODE = "guest_status_code"
         # Accounts (sprint 10): links that carry a one-time token, and notices to staff.
         PASSWORD_RESET = "password_reset"  # nosec B105

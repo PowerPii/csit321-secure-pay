@@ -76,8 +76,26 @@ dl { margin: 0; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 3s; } }
 
+/* Demo sprint 14: the shop's monogram and name, card brand chips, folding order summary. */
+.store { display: flex; align-items: center; gap: 10px; margin: 0 0 28px; font-weight: 700; font-size: 17px; }
+.store-mark { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 9px; background: var(--ink-2); color: var(--accent); font-size: 14px; font-weight: 800; letter-spacing: .02em; flex: none; }
+.store-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.summary-toggle { display: none; font: inherit; font-size: 13px; font-weight: 600; color: var(--ink); background: none; border: 0; padding: 4px 0; text-decoration: underline; cursor: pointer; }
+.card-input { position: relative; }
+.card-input input { padding-right: 112px; }
+.card-input .card-chip { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); }
+.card-chip { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .02em; border-radius: 5px; padding: 2px 7px; border: 1px solid var(--line); background: #fff; color: var(--ink); }
+.card-chip.visa { color: #1a1f71; border-color: #c9cbe6; }
+.card-chip.mastercard { color: #a33a00; border-color: #f0cdb8; }
+.card-brands { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.btn.with-lock { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.step-pill { align-self: flex-start; font-size: 12px; font-weight: 700; color: var(--ink); background: #fdf1d8; border: 1px solid #f5d999; border-radius: 999px; padding: 2px 10px; margin: 0; }
+
 @media (max-width: 767px) {
   .topbar { padding: 14px 16px; }
+  .store { margin-bottom: 12px; }
+  .summary-toggle { display: inline-block; }
+  .lines:not(.open) { display: none; }
   .layout { grid-template-columns: 1fr; min-height: 0; }
   .panel-left { padding: 20px 16px; gap: 12px; }
   .lines { margin-top: 12px; }
