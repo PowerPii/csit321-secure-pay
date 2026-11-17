@@ -18,7 +18,7 @@ from apps.common.errors import ApiError, invalid, not_found
 from apps.common.timefmt import rfc3339
 from apps.common.views import body_or_empty
 from apps.internal.access import ADMIN, StaffAPIView
-from apps.internal.views.payments import _int
+from apps.internal.query_params import bounded_int
 from apps.security.models import AlertKind, SecurityAlert
 
 RELATED_WINDOW = timedelta(hours=1)
@@ -78,8 +78,8 @@ class SecurityAlertListView(StaffAPIView):
             alerts = alerts.filter(status=show)
         if params.get("kind"):
             alerts = alerts.filter(kind=params["kind"][:32])
-        page = _int(params.get("page"), "page", 1, 1, 100_000)
-        size = _int(params.get("page_size"), "page_size", 25, 1, 100)
+        page = bounded_int(params.get("page"), "page", 1, 1, 100_000)
+        size = bounded_int(params.get("page_size"), "page_size", 25, 1, 100)
         count = alerts.count()
         rows = alerts.order_by("-last_seen_at", "-id")[(page - 1) * size: page * size]
         return Response({"object": "list", "count": count, "page": page, "page_size": size,

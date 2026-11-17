@@ -31,11 +31,11 @@ from apps.accounts import mail, tokens
 from apps.accounts.models import AccountToken
 from apps.audit.models import AuditEvent
 from apps.audit.models import record as audit
-from apps.common.errors import ApiError, invalid, not_found
+from apps.common.errors import ApiError, invalid
+from apps.customers.history import visible_history
 from apps.customers.models import CustomerAccount, CustomerSession
 from apps.events.models import OutboundEmail
 from apps.payments.models import Payment
-from apps.payments.states import PaymentStatus
 
 COOKIE = "sp_customer"
 RESET = AccountToken.Purpose.PASSWORD_RESET
@@ -291,7 +291,7 @@ def personal_data(customer: CustomerAccount) -> dict:
         "details_changed_at": rfc3339(customer.details_changed_at),
         "privacy_notice_version": customer.privacy_notice_version or None,
         "privacy_consent_at": rfc3339(customer.privacy_consent_at),
-        "payments": _history_rows(customer).count(),
+        "payments": visible_history(customer).count(),
         "active_sessions": CustomerSession.objects.filter(
             customer=customer, ended_at__isnull=True).count(),
     }
@@ -433,68 +433,6 @@ def reset_password(data, request=None) -> CustomerAccount:
         account = _reset_account(row)
         _password_changed(account, password, None, request, "customer.password_reset")
     return account
-
-
-# --- payment history (C11) -------------------------------------------------------------
-
-# Payments still on the card form were never submitted by the customer.
-HIDDEN = (PaymentStatus.CREATED, PaymentStatus.EXPIRED)
-STATUS_LABELS = {
-    PaymentStatus.SCREENING: "Processing",
-    PaymentStatus.VERIFICATION_REQUIRED: "Awaiting code",
-    PaymentStatus.PROCESSING: "Processing",
-    PaymentStatus.AUTHORISED: "Authorised",
-    PaymentStatus.CAPTURED: "Captured",
-    PaymentStatus.DECLINED: "Declined",
-    PaymentStatus.BLOCKED: "Declined",  # no screening detail for customers
-    PaymentStatus.UNRESOLVED: "Being checked",
-    PaymentStatus.CANCELLED: "Cancelled",
-}
-
-
-def _history_rows(customer: CustomerAccount):
-    return (Payment.objects.select_related("merchant").filter(customer=customer)
-            .exclude(status__in=[s.value for s in HIDDEN]))
-
-
-def _label(payment: Payment, refunded: int) -> str:
-    if refunded and payment.captured_amount:
-        return "Refunded" if refunded >= payment.captured_amount else "Partly refunded"
-    return STATUS_LABELS.get(PaymentStatus(payment.status), "Processing")
-
-
-def history(customer: CustomerAccount, limit: int = 100) -> dict:
-    from apps.common.timefmt import rfc3339
-    from apps.refunds.models import refund_totals
-
-    rows = list(_history_rows(customer).order_by("-created_at")[: limit + 1])
-    items = []
-    for payment in rows[:limit]:
-        refunded = refund_totals(payment)[0] if payment.captured_amount else 0
-        items.append({
-            "reference": payment.reference,
-            "merchant_name": payment.merchant.name,
-            "amount": payment.amount,
-            "currency": payment.currency,
-            "status": payment.status,
-            "status_label": _label(payment, refunded),
-            "created_at": rfc3339(payment.created_at),
-        })
-    return {"data": items, "has_more": len(rows) > limit}
-
-
-def payment_detail(customer: CustomerAccount, reference) -> dict:
-    """One payment of this customer; anyone else's is 'not found', even with its reference."""
-    from apps.guest.service import normalise_reference, to_view
-
-    ref = normalise_reference(reference) if isinstance(reference, str) else None
-    payment = _history_rows(customer).filter(reference=ref).first() if ref else None
-    if payment is None:
-        raise not_found()
-    view = to_view(payment)
-    view["status_label"] = _label(payment, view.get("refunded_amount") or 0)
-    view["order_reference"] = payment.order_reference
-    return view
 
 
 def link_payment(payment: Payment, token: str | None) -> None:

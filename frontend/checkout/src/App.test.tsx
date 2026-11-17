@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import type { Session } from "./api";
@@ -35,6 +35,34 @@ afterEach(() => {
 });
 
 describe("checkout page", () => {
+  it.each(["open", "verification_required"] as const)("refreshes an expired %s session and stops its timer", async (result) => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const expiry = new Date(Date.now() + 1000).toISOString();
+      let checks = 0;
+      mockFetch({ [SID]: () => {
+        checks += 1;
+        return json(checks > 1 ? session({ result: "expired", status: "expired" }) : session({
+          result, expires_at: expiry,
+          verification: result === "verification_required" ? {
+            sent_to: "a•••@example.com", code_expires_at: expiry,
+            attempts_remaining: 3, resend_available_at: null,
+          } : null,
+        }));
+      } });
+      const view = render(<App path={`/pay/${SID}`} />);
+      await screen.findByRole("button", { name: result === "open" ? "Pay S$ 89.90" : "Verify and pay S$ 89.90" });
+      await act(() => vi.advanceTimersByTimeAsync(1000));
+      expect(screen.getByText("This checkout has ended")).toBeTruthy();
+      expect(checks).toBe(2);
+      await act(() => vi.advanceTimersByTimeAsync(2000));
+      expect(checks).toBe(2);
+      view.unmount();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("shows the order the merchant created (C3)", async () => {
     mockFetch({ [SID]: () => json(session()) });
     render(<App path={`/pay/${SID}`} />);

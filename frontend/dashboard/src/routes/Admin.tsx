@@ -2,13 +2,14 @@
 // self-registered merchants (FR-MER-01: approvable once their email is verified), and the
 // read-only audit log (FR-ADM-10, FR-ADM-11).
 import {
-  Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Paper, Stack, Table, TableBody, TableCell,
-  TableContainer, TableHead, TableRow, TextField, Typography,
+  Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Paper, Stack, Table, TableBody,
+  TableCell, TableContainer, TableHead, TableRow, TextField, Typography,
 } from "@mui/material";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api, post, query, type AuditRow, type Merchant, type Page } from "../api/client";
+import { Pagination } from "../components/Pagination";
 import { Badge, ErrorAlert, PageHeader } from "../components/ui";
 import { longDate, money, parseMoney, titleCase } from "../format";
 import { StatusDialog, type StatusAction } from "./Manage";
@@ -227,7 +228,6 @@ export function AuditLog() {
     setParams(next);
   };
   const page = Number(filters.page || 1);
-  const pages = list.data ? Math.max(1, Math.ceil(list.data.count / list.data.page_size)) : 1;
   const text = (key: string, label: string, placeholder: string) => (
     <TextField label={label} placeholder={placeholder} defaultValue={filters[key]} key={`${key}-${filters[key]}`}
       onKeyDown={(e) => { if (e.key === "Enter") set(key, (e.target as HTMLInputElement).value.trim()); }}
@@ -267,10 +267,7 @@ export function AuditLog() {
       </TableContainer>
       <Stack direction="row" alignItems="center" justifyContent="space-between" mt={2}>
         <Typography variant="body2" color="text.secondary">{list.data ? `${list.data.count} entries` : "Loading…"}</Typography>
-        <Stack direction="row" gap={1}>
-          <Button variant="outlined" disabled={page <= 1} onClick={() => set("page", String(page - 1))}>Previous</Button>
-          <Button variant="outlined" disabled={page >= pages} onClick={() => set("page", String(page + 1))}>Next</Button>
-        </Stack>
+        <Pagination page={page} data={list.data} onChange={(next) => set("page", String(next))} mt={0} />
       </Stack>
     </>
   );

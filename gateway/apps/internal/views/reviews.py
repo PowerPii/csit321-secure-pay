@@ -20,8 +20,8 @@ from apps.common.timefmt import rfc3339
 from apps.common.views import body_or_empty
 from apps.internal.access import ANALYST_OR_ADMIN, StaffAPIView
 from apps.internal.models import ReviewCase
+from apps.internal.query_params import bounded_int, local_zone, parse_date
 from apps.internal.serializers import mask_email, screening_to_dict, verification_state
-from apps.internal.views.payments import _date, _int, local_zone
 from apps.risk.models import ScreeningEvent, ScreeningOutcome
 
 FLAGGED = (ScreeningOutcome.BLOCK, ScreeningOutcome.VERIFY)
@@ -144,16 +144,16 @@ class ReviewListView(StaffAPIView):
         zone = local_zone()
         if params.get("from"):
             cases = cases.filter(occurred_at__gte=datetime.combine(
-                _date(params["from"], "from"), time.min, zone))
+                parse_date(params["from"], "from"), time.min, zone))
         if params.get("to"):
             cases = cases.filter(occurred_at__lt=datetime.combine(
-                _date(params["to"], "to") + timedelta(days=1), time.min, zone))
+                parse_date(params["to"], "to") + timedelta(days=1), time.min, zone))
 
         sort = params.get("sort") or "score_desc"
         if sort not in SORTS:
             raise invalid("invalid_field", f"Unknown sort '{sort}'.", param="sort")
-        page = _int(params.get("page"), "page", 1, 1, 100_000)
-        size = _int(params.get("page_size"), "page_size", 25, 1, 100)
+        page = bounded_int(params.get("page"), "page", 1, 1, 100_000)
+        size = bounded_int(params.get("page_size"), "page_size", 25, 1, 100)
         count = cases.count()
         rows = cases.order_by(*SORTS[sort])[(page - 1) * size: page * size]
         return Response({"object": "list", "count": count, "page": page, "page_size": size,

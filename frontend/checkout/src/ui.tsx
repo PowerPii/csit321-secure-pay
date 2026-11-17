@@ -1,3 +1,4 @@
+import { Brand } from "./Brand";
 import type { ReactNode } from "react";
 
 export function Field({ label, error, id, children }: { label: string; error?: string; id: string; children: ReactNode }) {
@@ -19,3 +20,15 @@ export function Row({ label, children }: { label: string; children: ReactNode })
   );
 }
 
+
+export function Shell({ status, children }: { status: string; children: ReactNode }) {
+  return (
+    <>
+      <header className="topbar">
+        <Brand />
+        <span className="topbar-status">{status}</span>
+      </header>
+      <main className="layout">{children}</main>
+    </>
+  );
+}

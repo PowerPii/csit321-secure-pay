@@ -17,7 +17,7 @@ from apps.common.errors import ApiError, invalid, not_found
 from apps.common.timefmt import rfc3339
 from apps.common.views import body_or_empty
 from apps.internal.access import ADMIN, StaffAPIView
-from apps.internal.views.payments import _int
+from apps.internal.query_params import bounded_int
 from apps.security import keyring, maintenance
 from apps.security.models import DataKey, MaintenanceRun
 
@@ -79,7 +79,7 @@ class IntegrityRunListView(StaffAPIView):
             if kind not in MaintenanceRun.Kind.values:
                 raise invalid("invalid_kind", "Choose integrity, self_check or retention.", "kind")
             runs = runs.filter(kind=kind)
-        page = _int(request.query_params.get("page"), "page", 1, 1, 10_000)
+        page = bounded_int(request.query_params.get("page"), "page", 1, 1, 10_000)
         count = runs.count()
         rows = runs[(page - 1) * PAGE_SIZE: page * PAGE_SIZE]
         return Response({"object": "list", "count": count, "page": page,

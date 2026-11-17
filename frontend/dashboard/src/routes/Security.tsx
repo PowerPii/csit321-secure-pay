@@ -2,13 +2,14 @@
 // and the audit log table. Repeats of the same event are grouped into one alert with a count;
 // an administrator opens an alert, reviews the related audit entries and resolves it with a note.
 import {
-  Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Paper, Stack, Table, TableBody, TableCell,
-  TableContainer, TableHead, TableRow, TextField, Typography,
+  Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Paper, Stack, Table,
+  TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography,
 } from "@mui/material";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api, post, query, type SecurityAlert, type SecurityAlertList } from "../api/client";
+import { Pagination } from "../components/Pagination";
 import { Badge, ErrorAlert, PageHeader, Row } from "../components/ui";
 import { longDate, shortDate, titleCase } from "../format";
 
@@ -105,7 +106,6 @@ export function SecurityAlerts() {
   });
   const set = (next: Record<string, string>) => setParams(new URLSearchParams({ status, ...next }));
   const data = list.data;
-  const pages = data ? Math.max(1, Math.ceil(data.count / data.page_size)) : 1;
   return (
     <>
       <PageHeader title="Security alerts"
@@ -152,10 +152,7 @@ export function SecurityAlerts() {
           </TableBody>
         </Table>
       </TableContainer>
-      <Stack direction="row" justifyContent="flex-end" gap={1} mt={2}>
-        <Button variant="outlined" disabled={page <= 1} onClick={() => set({ page: String(page - 1) })}>Previous</Button>
-        <Button variant="outlined" disabled={page >= pages} onClick={() => set({ page: String(page + 1) })}>Next</Button>
-      </Stack>
+      <Pagination page={page} data={data} onChange={(next) => set({ page: String(next) })} />
       <AlertDialog id={openId} onClose={() => setOpenId(null)} />
     </>
   );

@@ -8,9 +8,9 @@ from django.core.management import call_command
 from django.utils import timezone
 
 from apps.audit.models import AuditEvent
+from apps.internal.query_params import local_zone
 from apps.internal.tests import pay, post
 from apps.internal.views.fraud import report_csv
-from apps.internal.views.payments import local_zone
 from apps.payments.models import Payment
 from apps.risk.alerts import raise_fraud_alert
 from apps.risk.models import FraudAlert, ScreeningEvent

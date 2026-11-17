@@ -24,7 +24,7 @@ from apps.common.errors import invalid, not_found
 from apps.common.timefmt import rfc3339
 from apps.internal.access import ANALYST_OR_ADMIN, StaffAPIView
 from apps.internal.models import ReviewCase
-from apps.internal.views.payments import _date, _int, local_zone
+from apps.internal.query_params import bounded_int, local_zone, parse_date
 from apps.internal.views.reviews import FLAGGED, _decision_filter, case_row
 from apps.merchants.models import Merchant
 from apps.risk.models import FraudAlert, FraudAlertRead, ScreeningEvent, ScreeningOutcome
@@ -59,8 +59,8 @@ class AlertListView(StaffAPIView):
         unread_count = alerts.exclude(pk__in=read_ids).count()
         if show == "unread":
             alerts = alerts.exclude(pk__in=read_ids)
-        page = _int(params.get("page"), "page", 1, 1, 100_000)
-        size = _int(params.get("page_size"), "page_size", 25, 1, 100)
+        page = bounded_int(params.get("page"), "page", 1, 1, 100_000)
+        size = bounded_int(params.get("page_size"), "page_size", 25, 1, 100)
         count = alerts.count()
         rows = alerts.order_by("-created_at", "-id")[(page - 1) * size: page * size]
         return Response({"object": "list", "count": count, "page": page, "page_size": size,
@@ -121,8 +121,8 @@ class Period:
     def __init__(self, params):
         zone = local_zone()
         today = timezone.now().astimezone(zone).date()
-        self.to = _date(params["to"], "to") if params.get("to") else today
-        self.start = (_date(params["from"], "from") if params.get("from")
+        self.to = parse_date(params["to"], "to") if params.get("to") else today
+        self.start = (parse_date(params["from"], "from") if params.get("from")
                       else self.to - timedelta(days=DEFAULT_DAYS - 1))
         if self.start > self.to:
             raise invalid("invalid_period",

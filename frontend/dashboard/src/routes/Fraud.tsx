@@ -2,12 +2,13 @@
 // requirements without their own wireframe: they reuse the D6 list and tile layouts.
 // Analysts and administrators only.
 import {
-  Box, Button, Chip, MenuItem, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  TextField, Typography,
+  Box, Button, Chip, MenuItem, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead,
+  TableRow, TextField, Typography,
 } from "@mui/material";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { api, post, query, type AlertList, type AlertRow, type FraudReport } from "../api/client";
+import { Pagination } from "../components/Pagination";
 import { Badge, ErrorAlert, PageHeader, ScoreBar, Section, Tile } from "../components/ui";
 import { CASE_DECISION_LABELS, FINDING_LABELS, money, reasonLabel, shortDate } from "../format";
 
@@ -37,7 +38,6 @@ export function FraudAlerts() {
   };
   const set = (next: Record<string, string>) => setParams(new URLSearchParams({ show, ...next }));
   const data = list.data;
-  const pages = data ? Math.max(1, Math.ceil(data.count / data.page_size)) : 1;
 
   return (
     <>
@@ -101,10 +101,7 @@ export function FraudAlerts() {
           </TableBody>
         </Table>
       </TableContainer>
-      <Stack direction="row" justifyContent="flex-end" gap={1} mt={2}>
-        <Button variant="outlined" disabled={page <= 1} onClick={() => set({ page: String(page - 1) })}>Previous</Button>
-        <Button variant="outlined" disabled={page >= pages} onClick={() => set({ page: String(page + 1) })}>Next</Button>
-      </Stack>
+      <Pagination page={page} data={data} onChange={(next) => set({ page: String(next) })} />
     </>
   );
 }

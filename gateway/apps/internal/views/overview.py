@@ -12,8 +12,8 @@ from django.utils import timezone
 from rest_framework.response import Response
 
 from apps.internal.access import StaffAPIView, visible_payments
+from apps.internal.query_params import local_zone
 from apps.internal.serializers import payment_row
-from apps.internal.views.payments import local_zone
 from apps.payments.states import PaymentStatus as S
 
 DAYS = 14

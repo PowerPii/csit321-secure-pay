@@ -3,8 +3,7 @@
 // read-only view of that one payment for 15 minutes. The receipt link (?ref=SP-...) only
 // fills in the reference. No order contents and no fraud reasons are ever shown here.
 import { useEffect, useState, type FormEvent } from "react";
-import { Shell } from "./App";
-import { Field, Row } from "./ui";
+import { Field, Row, Shell } from "./ui";
 import { brandName, countdown, formatDate, money } from "./format";
 import { getGuestPayment, GuestApiError, requestCode, signOut, verifyCode, type GuestPayment } from "./guestApi";
 

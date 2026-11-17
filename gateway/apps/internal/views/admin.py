@@ -26,7 +26,7 @@ from apps.common.errors import ApiError, invalid, not_found
 from apps.common.timefmt import rfc3339
 from apps.common.views import body_or_empty
 from apps.internal.access import ADMIN, StaffAPIView
-from apps.internal.views.payments import _date, _int, local_zone
+from apps.internal.query_params import bounded_int, local_zone, parse_date
 from apps.merchants.models import ApiKey, Merchant
 
 
@@ -233,12 +233,12 @@ class AuditListView(StaffAPIView):
         zone = local_zone()
         if params.get("from"):
             events = events.filter(occurred_at__gte=datetime.combine(
-                _date(params["from"], "from"), time.min, zone))
+                parse_date(params["from"], "from"), time.min, zone))
         if params.get("to"):
             events = events.filter(occurred_at__lt=datetime.combine(
-                _date(params["to"], "to") + timedelta(days=1), time.min, zone))
-        page = _int(params.get("page"), "page", 1, 1, 100_000)
-        size = _int(params.get("page_size"), "page_size", 50, 1, 200)
+                parse_date(params["to"], "to") + timedelta(days=1), time.min, zone))
+        page = bounded_int(params.get("page"), "page", 1, 1, 100_000)
+        size = bounded_int(params.get("page_size"), "page_size", 50, 1, 200)
         count = events.count()
         rows = events.order_by("-occurred_at", "-id")[(page - 1) * size: page * size]
         return Response({"object": "list", "count": count, "page": page, "page_size": size,

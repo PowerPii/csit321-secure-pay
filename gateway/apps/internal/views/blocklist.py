@@ -26,7 +26,7 @@ from apps.common.errors import ApiError, invalid, not_found
 from apps.common.timefmt import rfc3339
 from apps.common.views import body_or_empty
 from apps.internal.access import ADMIN, ANALYST_OR_ADMIN, StaffAPIView
-from apps.internal.views.payments import _int
+from apps.internal.query_params import bounded_int
 from apps.internal.views.reviews import FLAGGED
 from apps.payments.models import Payment
 from apps.risk import hashing
@@ -132,8 +132,8 @@ class HistorySearchView(StaffAPIView):
         key, shown = search_key(by, params.get("value", "")[:300])
         events = (ScreeningEvent.objects.filter(**{FIELD[by]: key})
                   .select_related("payment__merchant"))
-        page = _int(params.get("page"), "page", 1, 1, 10_000)
-        size = _int(params.get("page_size"), "page_size", 25, 1, 100)
+        page = bounded_int(params.get("page"), "page", 1, 1, 10_000)
+        size = bounded_int(params.get("page_size"), "page_size", 25, 1, 100)
         count = events.count()
         summary = {
             "attempts": count,

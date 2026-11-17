@@ -1,20 +1,21 @@
 // D6 Fraud review queue (highest score first, side panel with the case on wide screens)
 // and D6b Case detail (linked activity, record a finding). Analysts and administrators.
 import {
-  Alert, Box, Breadcrumbs, Button, Chip, Link as MuiLink, MenuItem, Paper, Stack, Table, TableBody, TableCell,
-  TableContainer, TableHead, TableRow, TextField, Typography, useMediaQuery, useTheme,
+  Alert, Box, Breadcrumbs, Button, Chip, MenuItem, Link as MuiLink, Paper, Stack, Table, TableBody,
+  TableCell, TableContainer, TableHead, TableRow, TextField, Typography, useMediaQuery, useTheme,
 } from "@mui/material";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { api, post, query, type CaseDetail as Detail, type CaseList, type LinkCount } from "../api/client";
+import { api, post, query, type CaseList, type CaseDetail as Detail, type LinkCount } from "../api/client";
 import { useStaff } from "../auth";
+import { BlocklistDialog } from "../components/BlocklistDialog";
+import { Pagination } from "../components/Pagination";
 import { Badge, ErrorAlert, PageHeader, Row, ScoreBar } from "../components/ui";
 import {
-  CASE_DECISION_LABELS, cardLabel, FINDING_LABELS, longDate, money, reasonLabel, shortDate, STATUS_LABELS,
+  cardLabel, CASE_DECISION_LABELS, FINDING_LABELS, longDate, money, reasonLabel, shortDate, STATUS_LABELS,
 } from "../format";
 import { FraudDecision } from "./FraudDecision";
-import { BlocklistDialog } from "./FraudTools";
 
 const TABS = [
   { key: "open", label: "Open" },
@@ -48,7 +49,6 @@ export function ReviewQueue() {
   };
   const open = (id: string) => (wide ? set("case", id) : navigate(`/reviews/${id}`));
   const data = list.data;
-  const pages = data ? Math.max(1, Math.ceil(data.count / data.page_size)) : 1;
 
   return (
     <>
@@ -114,10 +114,7 @@ export function ReviewQueue() {
               </TableBody>
             </Table>
           </TableContainer>
-          <Stack direction="row" justifyContent="flex-end" gap={1} mt={2}>
-            <Button variant="outlined" disabled={Number(filters.page) <= 1} onClick={() => set("page", String(Number(filters.page) - 1))}>Previous</Button>
-            <Button variant="outlined" disabled={Number(filters.page) >= pages} onClick={() => set("page", String(Number(filters.page) + 1))}>Next</Button>
-          </Stack>
+          <Pagination page={Number(filters.page)} data={data} onChange={(next) => set("page", String(next))} />
         </Box>
         {selected && wide && (
           <Paper sx={{ p: 2.5, borderRadius: 2, position: "sticky", top: 16 }}>

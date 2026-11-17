@@ -1,13 +1,14 @@
 // D3 Payments: tiles, filters (date, status, risk decision, search), table, paging.
 // Merchant operators see their merchant; analysts and administrators see every merchant.
 import {
-  Box, Button, MenuItem, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  TextField, Typography,
+  Box, MenuItem, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField,
+  Typography,
 } from "@mui/material";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { api, query, type Merchant, type PaymentList } from "../api/client";
 import { useStaff } from "../auth";
+import { Pagination } from "../components/Pagination";
 import { Badge, ErrorAlert, PageHeader, Tile } from "../components/ui";
 import { cardLabel, money, riskLabel, shortDate, STATUS_LABELS, statusLabel, statusTone } from "../format";
 
@@ -45,7 +46,6 @@ export default function PaymentsList() {
 
   const data = list.data;
   const summary = data?.summary;
-  const pages = data ? Math.max(1, Math.ceil(data.count / data.page_size)) : 1;
   const first = data && data.count ? (data.page - 1) * data.page_size + 1 : 0;
   const last = data ? Math.min(data.count, data.page * data.page_size) : 0;
 
@@ -160,10 +160,7 @@ export default function PaymentsList() {
         <Typography variant="body2" color="text.secondary">
           {data ? `Showing ${first}–${last} of ${data.count}` : "Loading…"}
         </Typography>
-        <Stack direction="row" gap={1}>
-          <Button variant="outlined" disabled={page <= 1} onClick={() => set("page", String(page - 1))}>Previous</Button>
-          <Button variant="outlined" disabled={page >= pages} onClick={() => set("page", String(page + 1))}>Next</Button>
-        </Stack>
+        <Pagination page={page} data={data} onChange={(next) => set("page", String(next))} mt={0} />
       </Stack>
     </>
   );
