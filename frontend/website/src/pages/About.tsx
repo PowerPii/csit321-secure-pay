@@ -8,16 +8,16 @@ import { brand, fonts } from "../theme";
 
 const BELIEFS = [
   {
-    title: "Fraud checks belong in the payment",
-    text: "A risk decision made after the bank has said yes is a refund waiting to happen. We screen before we ask the bank.",
+    title: "Screen before the bank is asked",
+    text: "If fraud is found after the bank approves, the merchant has to refund it. So screening runs first, and a blocked payment never reaches the bank.",
   },
   {
-    title: "Failure is a normal path",
-    text: "Timeouts, lost replies and duplicate requests are designed for, tested and shown in the demo, not left as edge cases.",
+    title: "Plan for lost replies",
+    text: "Our bank simulator can be told to drop replies, answer late or forget a request. The gateway has to cope with each case, and the demo shows it.",
   },
   {
-    title: "Claims need evidence",
-    text: "Every requirement has a test, every performance figure names its workload, and the fraud model is judged on held-out, time-ordered data.",
+    title: "Back every number with a test",
+    text: "Each requirement maps to a test. Performance figures state the load they were measured at. The fraud model is scored on later days it never trained on.",
   },
 ];
 
@@ -39,12 +39,12 @@ export default function About() {
     <>
       <PageHero
         overline="About"
-        title="Five students building a gateway the careful way"
-        lead="SecurePay is our final-year project: a working prototype of a payment gateway that puts fraud screening inside every payment, built to the standards a real one would have to meet."
+        title="Five students, one payment gateway"
+        lead="SecurePay is our CSIT321 final-year project: a working payment gateway prototype that screens every payment for fraud before the bank is asked. It handles test cards only."
       />
 
       <Section>
-        <SectionHeading overline="What we believe" title="Three ideas behind SecurePay" />
+        <SectionHeading overline="Design choices" title="Three rules we built to" />
         <Grid container spacing={2.5}>
           {BELIEFS.map((b, i) => (
             <Grid key={b.title} size={{ xs: 12, md: 4 }}>
@@ -146,7 +146,7 @@ export default function About() {
         </Box>
       </Section>
 
-      <CtaBand title="Want to see it working?" lead="We’re happy to run the demo for supervisors, assessors and anyone curious about how payment gateways work." />
+      <CtaBand title="Want to see it working?" lead="We can run the demo for supervisors, assessors or anyone who wants to see how a payment gateway works inside." />
     </>
   );
 }

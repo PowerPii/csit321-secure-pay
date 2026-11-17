@@ -7,7 +7,8 @@ import { CtaBand } from "../components/CtaBand";
 import { PageHero, Section, SectionHeading } from "../components/Section";
 import { StatusChip } from "../components/StatusChip";
 import { usePageTitle } from "../components/usePageTitle";
-import { RULES } from "../content/site";
+import { MEASURED, RULES, SCREENS } from "../content/site";
+import { Screenshot } from "../components/Screenshot";
 import { brand, fonts } from "../theme";
 
 type Feature = {
@@ -18,19 +19,20 @@ type Feature = {
   points: string[];
   facts: { k: string; v: string }[];
   visual?: ReactNode;
+  shot?: { shot: (typeof SCREENS)[keyof typeof SCREENS]; caption: string };
 };
 
 const FEATURES: Feature[] = [
   {
     id: "checkout",
     overline: "Hosted checkout",
-    title: "A payment page you don’t have to build or secure",
-    lead: "Send the customer to a SecurePay link. We show your order, take the card, run screening and send them back to your store with the result.",
+    title: "A hosted payment page",
+    lead: "The store sends the customer to a SecurePay link. The page shows the order, takes the card, runs screening and sends the customer back to the store with the result.",
     points: [
       "Amount, currency and merchant are fixed when you create the payment. Checkout cannot change them.",
       "Optional line items appear on the page as the order summary, and must add up to the amount.",
-      "Clear result pages for approved, declined, blocked and “we’re still checking”.",
-      "Each payment gets a customer-friendly reference such as SP-7KQ4-M2XD, printed on the emailed receipt.",
+      "Separate result pages for approved, declined, blocked and “we’re still checking”.",
+      "Each payment gets a short reference such as SP-RTZG-FKQE, shown on the emailed receipt and the PDF receipt.",
       "Guests can check a payment later with the reference, their email and a one-time code.",
       "Strict Content Security Policy and no third-party scripts on the payment page.",
     ],
@@ -39,14 +41,15 @@ const FEATURES: Feature[] = [
       { k: "Amount range", v: `${RULES.minAmount} – ${RULES.maxAmount}` },
       { k: "Checkout link lifetime", v: RULES.checkoutTtl },
     ],
+    shot: { shot: SCREENS.checkout, caption: "The checkout page for an order from the Volt & Co. demo store." },
   },
   {
     id: "vault",
     overline: "Card vault",
-    title: "Card data that disappears when it is no longer needed",
-    lead: "Card details are tokenised the moment they are entered, held encrypted in a separate vault database, and deleted once the payment is submitted to the bank.",
+    title: "Card numbers are deleted after the payment is submitted",
+    lead: "Card details are swapped for a token as soon as they are entered, encrypted with AES-256-GCM in a separate vault database, and deleted once the payment is sent to the bank.",
     points: [
-      "Your systems only ever handle a token, the card brand and the last four digits.",
+      "The store only ever sees a token, the card brand and the last four digits.",
       "The vault has its own database and encryption key, apart from the payments database.",
       "A keyed fingerprint lets screening recognise a card it has seen before without storing the number.",
       "The API rejects any request that looks like it contains a card number (card_data_not_allowed), and does not log it.",
@@ -61,20 +64,22 @@ const FEATURES: Feature[] = [
     id: "fraud",
     overline: "Fraud screening",
     title: "Rules, then a model, then a policy, on every payment",
-    lead: "Screening happens after the card is tokenised and before the bank is asked. Every decision is recorded with the rules that fired, the model score and the policy version, so an analyst can see exactly why.",
+    lead: "Screening runs after the card is tokenised and before the bank is asked. Each decision is saved with the rules that fired, the model score and the policy version, so an analyst can see why it was made.",
     points: [
       "Deterministic rules for blocklisted cards, bursts of attempts and amount limits.",
-      "A HistGradientBoosting model scores the payment using the current attempt and the card’s recent activity.",
+      `A HistGradientBoosting model, trained on the public IEEE-CIS dataset, scores the payment and the card’s recent activity. It reached ROC-AUC ${MEASURED.modelRocAuc} on held-out data.`,
       "A versioned policy maps the score to allow, verify or block.",
       "Verify sends a 6-digit code by email, valid for 10 minutes. Three wrong codes block the payment.",
       "If screening is unavailable, the payment is blocked rather than waved through.",
-      "Blocked payments land in a review queue with their reasons.",
+      "Blocked and verified payments go to a review queue, where an analyst records a finding.",
     ],
     facts: [
+      { k: "Screening, measured", v: `p95 ${MEASURED.screeningP95}` },
       { k: "Screening target", v: `p95 ≤ ${RULES.screeningP95}` },
       { k: "Timeout", v: `${RULES.screeningTimeout}, then block` },
       { k: "Verification code", v: `${RULES.verificationCodeDigits} digits, ${RULES.verificationCodeTtl}` },
     ],
+    shot: { shot: SCREENS.verify, caption: "A payment the policy marked as verify: the customer is asked for the emailed code." },
     visual: (
       <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
         <StatusChip tone="allow">allow</StatusChip>
@@ -86,8 +91,8 @@ const FEATURES: Feature[] = [
   {
     id: "webhooks",
     overline: "Webhooks",
-    title: "Events you can trust, delivered until you hear them",
-    lead: "Every status change and its webhook event are written in the same database transaction, so an event is never lost and never sent for a change that didn’t happen.",
+    title: "Signed webhooks, retried for 72 hours",
+    lead: "A status change and its webhook event are saved in the same database transaction. If one is saved, so is the other, and no event goes out for a change that was rolled back.",
     points: [
       "Signed with HMAC-SHA256 over the timestamp and raw body: SecurePay-Signature: t=…,v1=….",
       "Delivered only to HTTPS addresses an administrator approved, checked against private networks before every attempt.",
@@ -104,8 +109,8 @@ const FEATURES: Feature[] = [
   {
     id: "reliability",
     overline: "Safe retries",
-    title: "Timeouts happen. Double charges shouldn’t.",
-    lead: "Networks drop replies. SecurePay is designed around that: every bank operation gets an ID before it is sent, and anything left unanswered is reconciled with that same ID.",
+    title: "No double charge when a bank reply is lost",
+    lead: "Each bank operation gets an ID that is saved before the request is sent. If no reply comes back, a worker asks the bank about that same ID later instead of sending the payment again.",
     points: [
       "Idempotency-Key on every POST: the same request returns the stored reply, a different request with the same key is refused.",
       "Payments the bank didn’t answer are marked unresolved, not failed, and a worker checks them with the original operation ID.",
@@ -121,12 +126,13 @@ const FEATURES: Feature[] = [
   {
     id: "dashboard",
     overline: "Staff dashboard",
-    title: "One place to find, explain and act on a payment",
-    lead: "Merchant operators, analysts and administrators sign in to the same dashboard and see only what their role allows.",
+    title: "One dashboard for operators, analysts and administrators",
+    lead: "All three roles sign in to the same dashboard. Each role sees only its own pages, and a merchant operator sees only that merchant's payments.",
     points: [
       "Payments list with filters, and a detail view with the full timeline and the fraud decision.",
       "Capture, cancel and full or partial refunds, with every action written to the audit log.",
-      "A fraud review queue for blocked and verified payments.",
+      "For analysts: a review queue, alerts, reports, history search, a block list and editable fraud rules.",
+      "For administrators: merchant approval, staff accounts, gateway limits and integrity checks.",
       "Password plus TOTP for every staff account, and a 15-minute lockout after 5 failed sign-ins.",
     ],
     facts: [
@@ -134,14 +140,15 @@ const FEATURES: Feature[] = [
       { k: "Lockout", v: "5 tries, 15 min" },
       { k: "Audit", v: "Every state change" },
     ],
+    shot: { shot: SCREENS.fraudReview, caption: "An analyst’s review queue with one case open." },
   },
 ];
 
-const LATER = [
-  { title: "PayNow QR", text: "Singapore's account-to-account QR payments, as a second payment method." },
-  { title: "Customer accounts", text: "Saved payment history, password reset and a personal data view." },
-  { title: "Editable fraud rules", text: "Administrators tune rules and the screening fallback without a deploy." },
-  { title: "Fraud reports", text: "Reports, CSV export and real-time alerts for analysts." },
+const ALSO = [
+  { title: "Customer accounts", text: "Customers can sign up to see their payment history, reset a password and view the personal data held about them." },
+  { title: "Guest status check", text: "Guests look up a payment with its reference, their email and a one-time code, and can download a PDF receipt." },
+  { title: "Fraud rules and reports", text: "Analysts edit rules without a deploy, with each version kept. Reports export to CSV, and new alerts show on the dashboard within seconds." },
+  { title: "Integrity checks", text: "A worker re-checks payment hashes and seals the audit log in a chain, so an edited row shows up." },
 ];
 
 export default function Product() {
@@ -150,8 +157,8 @@ export default function Product() {
     <>
       <PageHero
         overline="Product"
-        title="A complete payment path, with the risk check inside it"
-        lead="Six pieces that work together: hosted checkout, card vault, fraud screening, webhooks, safe retries and a staff dashboard."
+        title="What SecurePay does"
+        lead="Six parts: a hosted checkout, a card vault, fraud screening, webhooks, safe retries and a staff dashboard. Each section lists the actual rules and limits we built."
       >
         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 4 }}>
           {FEATURES.map((f) => (
@@ -190,6 +197,11 @@ export default function Product() {
                     {f.visual && <Box sx={{ mt: 2 }}>{f.visual}</Box>}
                   </CardContent>
                 </Card>
+                {f.shot && (
+                  <Box sx={{ mt: 3 }}>
+                    <Screenshot shot={f.shot.shot} caption={f.shot.caption} />
+                  </Box>
+                )}
               </Box>
             </Grid>
           </Grid>
@@ -197,9 +209,9 @@ export default function Product() {
       ))}
 
       <Section tone="dark">
-        <SectionHeading dark overline="Roadmap" title="Planned after the first release" lead="These are in the project requirements but come after the core payment path is finished." />
+        <SectionHeading dark overline="Also built" title="Beyond the core payment path" lead="These came after the six parts above, and are all running on the demo server." />
         <Grid container spacing={2}>
-          {LATER.map((l) => (
+          {ALSO.map((l) => (
             <Grid key={l.title} size={{ xs: 12, sm: 6, md: 3 }}>
               <Box sx={{ height: "100%", p: 3, borderRadius: 4, border: "1px solid rgba(255,255,255,0.14)", bgcolor: "rgba(255,255,255,0.04)" }}>
                 <Typography variant="h6" sx={{ mb: 1 }}>

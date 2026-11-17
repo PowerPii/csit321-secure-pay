@@ -8,7 +8,7 @@ import { usePageTitle } from "../components/usePageTitle";
 import { CONTACT_EMAIL, REPO_URL } from "../content/site";
 import { brand } from "../theme";
 
-const TOPICS = ["Book a live demo", "Question about the project", "Developer or API question", "Report a security issue", "Something else"];
+const TOPICS = ["Ask for a live demo", "Question about the project", "Developer or API question", "Report a security issue", "Something else"];
 
 const DEMO_COVERS = [
   "A purchase in the demo shop, paid on the hosted checkout",
@@ -36,7 +36,7 @@ export default function Contact() {
 
   return (
     <>
-      <PageHero overline="Contact" title="Let’s talk payments" lead="Ask for a live demo, a walkthrough of the code, or anything about the project." />
+      <PageHero overline="Contact" title="Contact the team" lead="Ask for a live demo, a walkthrough of the code, or anything about the project." />
       <Section>
         <Grid container spacing={{ xs: 5, md: 8 }}>
           <Grid size={{ xs: 12, md: 7 }}>

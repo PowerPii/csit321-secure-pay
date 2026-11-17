@@ -15,6 +15,9 @@ export const API_BASE = `${GATEWAY_URL}/v1`;
 export const DASHBOARD_URL = `${GATEWAY_URL}/dashboard`;
 export const REGISTER_URL = `${DASHBOARD_URL}/register`;
 
+/** The Volt & Co. demo store on the same server. Set VITE_SHOP_URL in Vercel when the server moves. */
+export const SHOP_URL: string = (import.meta.env.VITE_SHOP_URL || "https://shop.35-213-144-96.sslip.io").replace(/\/+$/, "");
+
 /** Optional: set VITE_CONTACT_EMAIL in Vercel to make the contact form open an email. */
 export const CONTACT_EMAIL: string | undefined = import.meta.env.VITE_CONTACT_EMAIL || undefined;
 
@@ -44,6 +47,33 @@ export const RULES = {
   rateLimit: "100 requests per minute",
   staffLockout: "5 failed sign-ins, 15 minutes",
   throughputTarget: "20 payment requests per second",
+};
+
+/**
+ * Measured results, not targets. Sources:
+ * research/evaluation/hgb-fs02-2026-11-13.md (latency run and model scores) and the test suites in the repo.
+ */
+export const MEASURED = {
+  screeningP95: "21.6 ms",
+  screeningP50: "16.9 ms",
+  screeningRuns: "1,200",
+  screeningRate: "20 per second",
+  modelRocAuc: "0.738",
+  automatedTests: "500+",
+};
+
+/** Screenshots of the running system (demo store "Volt & Co.", test mode). Files in public/screens. */
+export const SCREENS = {
+  shop: { src: "/screens/shop.webp", alt: "The Volt & Co. demo store home page", w: 1280, h: 860 },
+  checkout: { src: "/screens/checkout.webp", alt: "SecurePay hosted checkout with the order summary and a test card entered", w: 1280, h: 860 },
+  verify: { src: "/screens/verify-code.webp", alt: "Checkout asking for the 6-digit code sent by email", w: 1280, h: 860 },
+  paymentDetail: {
+    src: "/screens/payment-detail.webp",
+    alt: "Dashboard payment detail with the capture button, summary and fraud decision",
+    w: 1360,
+    h: 500,
+  },
+  fraudReview: { src: "/screens/fraud-review.webp", alt: "Fraud analyst review queue with an open case", w: 1360, h: 1139 },
 };
 
 export const TEST_CARDS = [
