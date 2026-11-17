@@ -352,3 +352,65 @@ def test_view_follows_later_changes(shop, fake_sim):
 ])
 def test_status_labels(status, label):
     assert service.status_label(status) == label
+
+
+# --- PDF receipt (demo sprint 17) ---------------------------------------------------------
+
+def _pdf_text(raw: bytes) -> str:
+    return raw.decode("latin-1")
+
+
+def test_status_view_downloads_the_receipt_as_a_pdf(shop, fake_sim):
+    payment = pay(shop)
+    mail.outbox.clear()
+    browser = APIClient()
+    challenge = ask(payment.reference).json()["challenge_id"]
+    assert verify(challenge, code_from_mail(), browser).status_code == 200
+    r = browser.get("/guest/status/receipt.pdf")
+    assert r.status_code == 200 and r["Content-Type"] == "application/pdf"
+    assert r["Content-Disposition"] == (
+        f'attachment; filename="securepay-receipt-{payment.reference}.pdf"')
+    assert r["Cache-Control"] == "no-store"
+    text = _pdf_text(r.content)
+    assert text.startswith("%PDF-1.4") and text.rstrip().endswith("%%EOF")
+    for fact in (payment.reference, "S$45.90", "Visa ending 4242", shop.merchant.name,
+                 "TEST MODE"):
+        assert fact in text
+    assert "4242424242424242" not in text and payment.order_reference not in text
+
+
+def test_receipt_needs_the_status_session(shop, fake_sim):
+    pay(shop)
+    r = APIClient().get("/guest/status/receipt.pdf")
+    assert r.status_code == 401 and r.json()["error"]["code"] == "status_session_missing"
+
+
+def test_declined_payment_has_no_receipt(shop, fake_sim):
+    payment = pay(shop, "4000000000000002")
+    assert payment.status == "declined"
+    mail.outbox.clear()
+    browser = APIClient()
+    challenge = ask(payment.reference).json()["challenge_id"]
+    assert verify(challenge, code_from_mail(), browser).status_code == 200
+    r = browser.get("/guest/status/receipt.pdf")
+    assert r.status_code == 409 and r.json()["error"]["code"] == "no_receipt"
+
+
+def test_receipt_lists_items_and_completed_refunds(shop, fake_sim):
+    import uuid
+
+    from apps.guest.receipts import receipt_pdf
+
+    payment = pay(shop)
+    Payment.objects.filter(pk=payment.pk).update(line_items=[
+        {"name": "USB-C cable (Volt)", "quantity": 2, "unit_amount": 1900},
+        {"name": "Delivery", "quantity": 1, "unit_amount": 790}])
+    assert shop.post(f"/v1/payments/{payment.public_id}/capture", {}, format="json",
+                     headers={"Idempotency-Key": str(uuid.uuid4())}).status_code == 200
+    r = shop.post(f"/v1/payments/{payment.public_id}/refunds", {"amount": 1500},
+                  format="json", headers={"Idempotency-Key": str(uuid.uuid4())})
+    assert r.status_code == 201
+    payment.refresh_from_db()
+    text = _pdf_text(receipt_pdf(payment))
+    assert "USB-C cable \\(Volt\\)  x 2" in text and "S$38.00" in text  # escaped brackets
+    assert "Refunds" in text and "-S$15.00" in text and "Charged" in text

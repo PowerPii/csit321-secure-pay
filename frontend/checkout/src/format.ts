@@ -82,3 +82,8 @@ export function formatDate(iso: string): string {
     hour12: false,
   });
 }
+
+/** Only a charged payment (approved or captured) has a receipt to download. */
+export function hasReceipt(status: string): boolean {
+  return status === "authorised" || status === "captured";
+}

@@ -1,0 +1,37 @@
+# Results of the manual checks in MANUAL-TESTS.md, newest last under each ID.
+# The report uses the newest entry. Copy the example, fill it in, keep the older entries.
+#
+# M-ENC-01:
+#   - date: 2026-12-05
+#     by: Noppawut
+#     environment: DigitalOcean droplet, securepay.example     # where it ran
+#     result: pass                                             # pass or fail
+#     figures: TLS 1.2 and 1.3 only; 0 HIGH findings; HTTP -> 308 on all 3 names
+#     evidence: docs/test-report/evidence/2026-12-05-testssl.txt   # optional file or link
+#     notes: ""
+#
+# The integration suite (tests/integration, run on the server with
+#   docker compose -f deploy/compose.prod.yaml run --rm integration-tests)
+# is recorded under STACK the same way; its result counts for every "stack" test.
+
+STACK: []
+
+M-CON-02: []
+M-CON-04: []
+M-CON-06: []
+M-AVA-01: []
+M-ENC-01: []
+M-ENC-02: []
+M-ENC-03: []
+M-PRI-01: []
+M-PRI-02: []
+M-PER-01: []
+M-PER-02: []
+M-PER-03: []
+M-USE-01: []
+M-USE-02: []
+M-USE-03: []
+M-USE-04: []
+M-AUD-01: []
+M-MNT-01: []
+M-MNT-02: []

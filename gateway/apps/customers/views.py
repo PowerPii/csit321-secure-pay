@@ -115,6 +115,15 @@ class PaymentDetailView(CustomerView):
         return Response(history.payment_detail(self.session(request).customer, reference))
 
 
+class PaymentReceiptView(CustomerView):
+    """GET -> the receipt PDF for one of this customer's charged payments."""
+
+    def get(self, request, reference):
+        from apps.guest.receipts import pdf_response
+
+        return pdf_response(history.own_payment(self.session(request).customer, reference))
+
+
 class ResetRequestView(_EmailStep):
     """POST {email} -> 202, the same message whether or not the email has an account."""
 
