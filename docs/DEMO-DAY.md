@@ -6,6 +6,12 @@ fallbacks, and the rehearsals. The scene-by-scene script, presenters and card ta
 team's demo cheat sheet; server commands are in [`deploy/RUNBOOK.md`](../deploy/RUNBOOK.md)
 (sections 9 to 11a).
 
+For the **M4 prototype demonstration** (course milestone, by 19 Dec 2026) the team uses a shorter,
+8-minute version: the *Demonstration Rehearsal Script* (Word + PDF in the project's
+`11-m4-submission` folder) has the timed running order for all five presenters, speaker notes,
+exact clicks and demo cards per scene, a fallback per scene, a demo-day checklist and likely
+questions per work package. This file stays the source for the commands and the failure playbook.
+
 Dates: M5 (feature complete) 12 Feb 2027 with rehearsal 1 before it; M6 test report 5 Mar;
 rehearsal 2 in the last week of March; **M8 live demo 2 Apr 2027**.
 
@@ -107,6 +113,9 @@ visible changes.
   plays offline in the venue's player.
 
 ## 6. Rehearsals
+
+**M4 rehearsals (weeks 10 to 11).** Package walk-throughs, then two timed runs of the M4 script;
+see the rehearsal script, Chapter 6, for the plan and its 8-minute log.
 
 **Rehearsal 1 (before M5, 12 Feb 2027).** Full run on the server, in order, with a timer and
 one person (not presenting) taking notes. Do it under demo conditions: `reset` the morning,
