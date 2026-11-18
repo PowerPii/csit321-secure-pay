@@ -80,7 +80,7 @@ def expire_if_due(payment: Payment, request_id: str = "") -> Payment:
     if payment.status not in waiting or timezone.now() < payment.checkout_expires_at:
         return payment
     with transaction.atomic():
-        payment = Payment.objects.select_for_update().select_related("merchant").get(
+        payment = Payment.objects.select_for_update(of=("self",)).select_related("merchant").get(
             pk=payment.pk)
         if payment.status == PaymentStatus.VERIFICATION_REQUIRED:
             return _end_verification_if_due(payment, request_id)
@@ -190,7 +190,7 @@ def attach_card(payment: Payment, body: dict, request_id: str) -> Payment:
         raise invalid(exc.code, exc.message, param=exc.field) from None
 
     with transaction.atomic():
-        locked = Payment.objects.select_for_update().select_related("merchant").get(
+        locked = Payment.objects.select_for_update(of=("self",)).select_related("merchant").get(
             pk=payment.pk)
         if locked.status != PaymentStatus.CREATED:
             vault.discard(summary.token)
@@ -220,7 +220,11 @@ def submit(payment: Payment, request_id: str, ip: str | None = None,
     """
     operation = card = None
     with transaction.atomic():
-        payment = Payment.objects.select_for_update().select_related("merchant").get(
+        # of=("self",): lock the payment row only. Without it Postgres also locked the joined
+        # merchant row, so every checkout of one shop queued behind the one being screened:
+        # about 17 payments/s at most whatever the number of workers (checkout profile after
+        # the Codex release review, 18 Nov 2026). The same applies to every lock in this file.
+        payment = Payment.objects.select_for_update(of=("self",)).select_related("merchant").get(
             pk=payment.pk)
         if payment.status == PaymentStatus.EXPIRED:
             raise _session_closed(payment)
@@ -346,7 +350,7 @@ def verify(payment: Payment, body: dict, request_id: str) -> Payment:
     code = code.strip()
     error = operation = card = None
     with transaction.atomic():
-        payment = Payment.objects.select_for_update().select_related("merchant").get(
+        payment = Payment.objects.select_for_update(of=("self",)).select_related("merchant").get(
             pk=payment.pk)
         payment = _end_verification_if_due(payment, request_id)
         if payment.status != PaymentStatus.VERIFICATION_REQUIRED:
@@ -389,7 +393,7 @@ def verify(payment: Payment, body: dict, request_id: str) -> Payment:
 def resend(payment: Payment, request_id: str) -> Payment:
     """A new code that replaces the old one (FR-CHK-06), with a short cooldown."""
     with transaction.atomic():
-        payment = Payment.objects.select_for_update().select_related("merchant").get(
+        payment = Payment.objects.select_for_update(of=("self",)).select_related("merchant").get(
             pk=payment.pk)
         payment = _end_verification_if_due(payment, request_id)
         if payment.status != PaymentStatus.VERIFICATION_REQUIRED:

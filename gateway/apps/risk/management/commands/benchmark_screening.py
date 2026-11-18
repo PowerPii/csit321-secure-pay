@@ -16,7 +16,7 @@ import time
 from datetime import timedelta
 
 from django.conf import settings
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
 
@@ -82,6 +82,8 @@ class Command(BaseCommand):
             f"  over the {budget} ms budget: {sum(t > budget for t in timings)}\n"
             f"  outcomes: {dict(sorted(outcomes.items()))}\n"
             f"  NFR-PER-02 p95 <= {target} ms: {'PASS' if p95 <= target else 'FAIL'}")
+        if p95 > target:  # a missed target fails the command (exit status 1)
+            raise CommandError("NFR-PER-02 target missed")
 
     def _history(self, merchant, count, rng, cards, emails, ips):
         now = timezone.now()

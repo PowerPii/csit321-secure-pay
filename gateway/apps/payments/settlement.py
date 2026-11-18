@@ -103,7 +103,7 @@ def start(payment_id: str, op_type: str, actor: Actor, *, merchant=None, body=No
     can never send a second capture.
     """
     with transaction.atomic():
-        payments = Payment.objects.select_for_update().select_related("merchant")
+        payments = Payment.objects.select_for_update(of=("self",)).select_related("merchant")
         if merchant is not None:
             payments = payments.filter(merchant=merchant)
         payment = payments.filter(public_id=payment_id).first()
@@ -145,7 +145,7 @@ def apply_settlement_answer(operation_id: int, answer: Answer, request_id: str =
     """Settle a capture or cancel from the simulator's answer (step 3, contract section 7)."""
     with transaction.atomic():
         operation = Operation.objects.select_for_update().get(pk=operation_id)
-        payment = (Payment.objects.select_for_update().select_related("merchant")
+        payment = (Payment.objects.select_for_update(of=("self",)).select_related("merchant")
                    .get(pk=operation.payment_id))
         if operation.status not in Operation.OPEN_STATUSES:
             return payment  # already settled; a late or repeated answer changes nothing

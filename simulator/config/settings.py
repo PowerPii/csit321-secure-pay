@@ -81,6 +81,11 @@ DATABASES = {
         "HOST": env("POSTGRES_HOST", "localhost"),
         "PORT": env("POSTGRES_PORT", "5432"),
         "ATOMIC_REQUESTS": False,
+        # Keep each worker's connection open between requests instead of opening (and
+        # authenticating) a new one per request; checked before reuse (Codex release review,
+        # checkout profile, 18 Nov 2026).
+        "CONN_MAX_AGE": int(env("DB_CONN_MAX_AGE", "60")),
+        "CONN_HEALTH_CHECKS": True,
     }
 }
 

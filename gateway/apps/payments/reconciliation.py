@@ -111,7 +111,8 @@ def check(operation_pk: int, actor: tuple[str, str] = SYSTEM, request_id: str = 
     answer = processor.status_query(operation)
     now = timezone.now()
     with transaction.atomic():
-        operation = (Operation.objects.select_for_update().select_related("payment__merchant")
+        operation = (Operation.objects.select_for_update(of=("self", "payment"))
+                     .select_related("payment__merchant")
                      .get(pk=operation_pk))
         if operation.status != Operation.Status.UNRESOLVED:
             return operation  # settled meanwhile (a late reply or another worker)

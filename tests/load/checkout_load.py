@@ -10,7 +10,9 @@ simulator's demo approve range (4242 4200 ...), which the simulator approves at 
 delay is close to zero and the figure is an upper bound on the gateway's own time.
 
 Pass: 95% of checkout responses within 2 s, the rate held (no attempt started more than
-250 ms late), no 429 (raise the limits first, see M-PER-01) and under 1% errors.
+250 ms late), no 429 (raise the limits first, see M-PER-01), under 1% errors, and under 1% of
+payments ending other than "authorised" (an HTTP 200 that blocks the payment, for example
+screening_unavailable under overload, is not a success). Exit status 1 on a FAIL.
 Needs only httpx (pip install httpx).
 """
 import argparse
@@ -48,9 +50,12 @@ def pct(values, q):
     return ordered[min(len(ordered) - 1, round(q / 100 * (len(ordered) - 1)))]
 
 
-def one_payment(client, gateway, key, card, n):
+def one_payment(client, gateway, key, card, n, forwarded_for=None):
     out = {"n": n, "card_ms": None, "submit_ms": None, "statuses": [], "result": None,
            "error": None}
+    # The checkout calls come from the customer's browser; with --spread-ips each payment
+    # has its own client address, as real customers do (see --spread-ips).
+    browser = {"X-Forwarded-For": forwarded_for} if forwarded_for else {}
     try:
         r = client.post(f"{gateway}/v1/payments", headers={
             "Authorization": f"Bearer {key}", "Idempotency-Key": str(uuid.uuid4())},
@@ -65,7 +70,7 @@ def one_payment(client, gateway, key, card, n):
         session = r.json()["checkout_url"].rstrip("/").rsplit("/", 1)[1]
         base = f"{gateway}/checkout/{session}"
         started = time.perf_counter()
-        r = client.post(f"{base}/card", json={
+        r = client.post(f"{base}/card", headers=browser, json={
             "number": card, "expiry_month": 12, "expiry_year": 2030, "cvc": "123",
             "privacy_consent": True})
         out["card_ms"] = (time.perf_counter() - started) * 1000
@@ -74,11 +79,14 @@ def one_payment(client, gateway, key, card, n):
             out["error"] = f"card {r.status_code}"
             return out
         started = time.perf_counter()
-        r = client.post(f"{base}/submit", json={})
+        r = client.post(f"{base}/submit", headers=browser, json={})
         out["submit_ms"] = (time.perf_counter() - started) * 1000
         out["statuses"].append(r.status_code)
         if r.status_code == 200:
-            out["result"] = r.json().get("status")
+            data = r.json()
+            out["result"] = data.get("status")
+            if out["result"] != "authorised":
+                out["reason"] = data.get("result")  # e.g. "unavailable" = screening timed out
         else:
             out["error"] = f"submit {r.status_code}"
     except httpx.HTTPError as exc:
@@ -95,6 +103,13 @@ def main(argv=None):
     parser.add_argument("--workers", type=int, default=0, help="threads (default 4 x rate)")
     parser.add_argument("--ca-bundle", default=None, help="extra CA file (local stack)")
     parser.add_argument("--out", default=None, help="write all timings as JSON here")
+    parser.add_argument(
+        "--spread-ips", action="store_true",
+        help="give each payment its own browser address (X-Forwarded-For from 198.18.0.0/15). "
+             "Only works against a gateway reached directly with TRUSTED_PROXY_HOPS=1 (a local "
+             "run); through Caddy every payment comes from this machine's one address, so "
+             "fraud screening counts all of them as one customer's attempts, which real "
+             "traffic never does and which slows screening as the run goes on.")
     args = parser.parse_args(argv)
 
     gateway = args.gateway.rstrip("/")
@@ -119,7 +134,8 @@ def main(argv=None):
         if delay > 0:
             time.sleep(delay)
         lags.append((time.perf_counter() - due) * 1000)
-        results.append(one_payment(client(), gateway, key, cards[n], n))
+        ip = f"198.{18 + n // 65536 % 2}.{n // 256 % 256}.{n % 256}" if args.spread_ips else None
+        results.append(one_payment(client(), gateway, key, cards[n], n, ip))
 
     print(f"{total} payments at {args.rate}/s for {args.seconds} s, {workers} threads ...",
           flush=True)
@@ -133,10 +149,15 @@ def main(argv=None):
     outcomes = {}
     for r in results:
         outcomes[r["result"] or "error"] = outcomes.get(r["result"] or "error", 0) + 1
+    not_authorised = total - outcomes.get("authorised", 0)
+    reasons = {}
+    for r in results:
+        if r.get("reason"):
+            reasons[r["reason"]] = reasons.get(r["reason"], 0) + 1
     p95 = pct(times, 95)
     within = sum(1 for t in times if t <= 2000) / len(times) if times else 0
     summary = {
-        "gateway": gateway, "rate": args.rate, "seconds": args.seconds, "payments": total,
+        "gateway": gateway, "spread_ips": args.spread_ips, "rate": args.rate, "seconds": args.seconds, "payments": total,
         "wall_seconds": round(wall, 1),
         "checkout_responses": len(times),
         "p50_ms": round(statistics.median(times), 1) if times else None,
@@ -147,10 +168,12 @@ def main(argv=None):
         "http_429": statuses.count(429),
         "errors": len(errors),
         "outcomes": outcomes,
+        "not_authorised": not_authorised,
+        "reasons": reasons,
     }
     passed = (p95 is not None and p95 <= 2000 and summary["http_429"] == 0
               and summary["max_start_lag_ms"] <= MAX_START_LAG_MS
-              and len(errors) < 0.01 * total)
+              and len(errors) < 0.01 * total and not_authorised < 0.01 * total)
     summary["result"] = "PASS" if passed else "FAIL"
     print(json.dumps(summary, indent=2))
     if args.out:

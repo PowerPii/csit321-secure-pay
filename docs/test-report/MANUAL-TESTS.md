@@ -215,8 +215,17 @@ most of the load, so raise both for the test only, then put them back:
 
 The script pays with fresh demo-range cards (approved at once by the simulator, so its delay
 is close to 0) and times the card entry and submit calls the checkout page makes.
-**Pass:** the script prints `PASS`: the 95th percentile of checkout responses is at most 2 s,
-the rate was held, and no request was refused with 429. Attach `/tmp/per-01.json`.
+**Pass:** the script prints `PASS` (exit status 0): the 95th percentile of checkout responses
+is at most 2 s, the rate was held, no request was refused with 429, and under 1% of payments
+ended other than authorised. Attach `/tmp/per-01.json`.
+
+Through Caddy every payment comes from the one machine running the script, so fraud screening
+counts them all as one customer's attempts from one address (thousands an hour), which real
+traffic never does and which slows screening as the run goes on. Say so in the result. A local
+run straight to gunicorn with `TRUSTED_PROXY_HOPS=1` can add `--spread-ips` to give each payment
+its own address. Reference run, 18 Nov 2026 (cloud container, 4 vCPU, gateway with 3 workers,
+trained model, no Caddy): 6,000 payments at 20/s, p95 110 ms from one address and 89 ms with
+`--spread-ips`, all authorised (before the checkout lock fix: p95 above 2 s, rate not held).
 
 ## M-PER-02: screening benchmark
 

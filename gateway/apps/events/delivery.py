@@ -29,6 +29,10 @@ logger = logging.getLogger(__name__)
 USER_AGENT = "SecurePay-Webhooks/1.0"
 # Tests replace this with an httpx.MockTransport; None means real network calls.
 TRANSPORT: httpx.BaseTransport | None = None
+# Only the start of a merchant's reply is kept (the log shows 300 characters), and one
+# delivery may not hold a worker longer than the timeout, however slowly the reply trickles
+# in (Codex release review, 18 Nov 2026).
+REPLY_READ_BYTES = 8192
 _random = secrets.SystemRandom()
 
 
@@ -132,24 +136,40 @@ def send(event: OutboxEvent, attempt_number: int) -> Result:
         "SecurePay-Event-Type": event.type,
         "SecurePay-Delivery-Attempt": str(attempt_number),
         "User-Agent": USER_AGENT,
+        "Accept-Encoding": "identity",  # the reply is read raw (REPLY_READ_BYTES)
         **extra_headers,
     }
+    limit = settings.GATEWAY_RULES["WEBHOOK_TIMEOUT_SECONDS"]
+    deadline = started + limit
     try:
-        with httpx.Client(timeout=settings.GATEWAY_RULES["WEBHOOK_TIMEOUT_SECONDS"],
-                          verify=settings.WEBHOOK_CA_BUNDLE or True, follow_redirects=False,
-                          transport=TRANSPORT) as client:
-            response = client.post(target, content=body, headers=headers,
-                                   extensions=extensions)
+        with httpx.Client(timeout=limit, verify=settings.WEBHOOK_CA_BUNDLE or True,
+                          follow_redirects=False, transport=TRANSPORT) as client, \
+                client.stream("POST", target, content=body, headers=headers,
+                              extensions=extensions) as response:
+            status = response.status_code
+            raw = bytearray()
+            # Raw bytes, not decoded: a compressed reply cannot grow past the limit. (A
+            # reply already in memory, as in tests, is read as it is.)
+            chunks = ([response.content] if response.is_stream_consumed
+                      else response.iter_raw())
+            for chunk in chunks:
+                raw += chunk
+                if len(raw) >= REPLY_READ_BYTES or time.monotonic() > deadline:
+                    break
+            encoding = response.encoding or "utf-8"
     except httpx.TimeoutException:
         return Result(False, error="timeout", duration_ms=elapsed())
     except httpx.HTTPError as exc:
         return Result(False, error=type(exc).__name__[:64], duration_ms=elapsed())
-    ok = 200 <= response.status_code < 300
+    if time.monotonic() > deadline:
+        # The status line arrived, but the whole exchange took longer than the timeout.
+        return Result(False, http_status=status, error="timeout", duration_ms=elapsed())
+    ok = 200 <= status < 300
     try:
-        reply = excerpt(response.text)
-    except (UnicodeError, LookupError):
+        reply = excerpt(bytes(raw[:REPLY_READ_BYTES]).decode(encoding, errors="replace"))
+    except LookupError:
         reply = ""
-    return Result(ok, http_status=response.status_code, duration_ms=elapsed(), excerpt=reply)
+    return Result(ok, http_status=status, duration_ms=elapsed(), excerpt=reply)
 
 
 def next_attempt_after_failure(event: OutboxEvent, now: datetime) -> datetime | None:

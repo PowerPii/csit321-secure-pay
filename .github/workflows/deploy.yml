@@ -2,20 +2,30 @@ name: deploy
 
 # Updates the public server after CI passes on main (deploy/RUNBOOK.md step 10). Does nothing
 # until the DEPLOY_HOST variable is set (deploy/setup-auto-deploy.sh prints what to add).
-# Can also be started by hand: Actions tab, "deploy", "Run workflow".
+# Can also be started by hand: Actions tab, "deploy", "Run workflow" (optionally with a commit).
+#
+# The server deploys exactly the commit CI tested (workflow_run head_sha), never whatever main
+# is by the time the deploy starts. A hand run must name a commit on main whose push CI run
+# succeeded (Codex release review, 18 Nov 2026).
 on:
   workflow_run:
     workflows: [ci]
     types: [completed]
     branches: [main]
   workflow_dispatch:
+    inputs:
+      commit:
+        description: "Full commit SHA on main to deploy (empty = the newest main). CI must have passed on it."
+        required: false
+        default: ""
 
 # One deploy at a time; a newer merge waits for the running deploy instead of cancelling it.
 concurrency:
   group: deploy-production
   cancel-in-progress: false
 
-permissions: {}
+permissions:
+  actions: read  # look up the CI result of the commit to deploy
 
 jobs:
   deploy:
@@ -36,18 +46,47 @@ jobs:
             echo "::error::Merge freeze until $UNTIL: not deploying. Run this workflow by hand after it ends."
             exit 1
           fi
+      - name: Pick the commit CI approved
+        id: pick
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          EVENT: ${{ github.event_name }}
+          RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+          ASKED: ${{ inputs.commit }}
+        run: |
+          if [ "$EVENT" = workflow_run ]; then
+            sha="$RUN_SHA"
+          elif [ -n "$ASKED" ]; then
+            sha="$ASKED"
+          else
+            sha="$(gh api "repos/$REPO/commits/main" --jq .sha)"
+          fi
+          if ! [[ "$sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Not a full commit SHA: $sha"; exit 1
+          fi
+          # The newest push run of ci on main for this commit must have succeeded.
+          result="$(gh api "repos/$REPO/actions/workflows/ci.yml/runs?head_sha=$sha&branch=main&event=push&per_page=1" \
+            --jq '.workflow_runs[0].conclusion // "none"')"
+          if [ "$result" != success ]; then
+            echo "::error::CI on main has not passed for $sha (result: $result). Not deploying."; exit 1
+          fi
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "Deploying $sha (CI passed)"
       # The key can only run deploy/auto-deploy.sh on the server (a forced command in
-      # authorized_keys), which fast-forwards to main, rebuilds and runs the smoke check.
-      # Nothing from the repository runs here, so there is no checkout.
+      # authorized_keys), which fast-forwards to the named commit, rebuilds, checks every
+      # container was built from it and runs the smoke check. Nothing from the repository runs
+      # here, so there is no checkout.
       - name: Deploy over SSH
         env:
           SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           KNOWN_HOSTS: ${{ vars.DEPLOY_KNOWN_HOSTS }}
           HOST: ${{ vars.DEPLOY_HOST }}
+          SHA: ${{ steps.pick.outputs.sha }}
         run: |
           install -m 700 -d ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
           ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
-            -o BatchMode=yes -o ServerAliveInterval=30 "securepay@$HOST"
+            -o BatchMode=yes -o ServerAliveInterval=30 "securepay@$HOST" "deploy $SHA"

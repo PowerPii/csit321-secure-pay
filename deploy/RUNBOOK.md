@@ -280,7 +280,9 @@ crontab -e
 30 19 * * 6 /home/securepay/csit321-secure-pay/deploy/backup/verify.sh >> /home/securepay/backup.log 2>&1
 ```
 
-`verify.sh` restores each dump of the newest backup into a scratch database
+Backups never hold card data: `backup.sh` dumps the vault tables' definitions but not their
+rows (a payment in progress at 2:15 needs its card entered again after a restore), and
+`verify.sh` fails if a restored backup has a stored card in it. `verify.sh` restores each dump of the newest backup into a scratch database
 (`restorecheck_gateway` and so on), counts tables and rows, and drops the scratch copies; the
 live databases are not touched. `grep -E "ok|FAIL" ~/backup.log | tail` shows the last result.
 A backup nobody has restored is only a hope; run it by hand after any change to the schema.
@@ -354,10 +356,14 @@ repository's free Actions minutes, so it is not used.
 ## 10. Updating after a merge
 
 **Automatic (set up once):** after every merge to `main`, once CI passes, GitHub Actions
-(`.github/workflows/deploy.yml`) signs in to the server and runs `deploy/auto-deploy.sh`. That
-script fast-forwards the clone to `main`, rebuilds and restarts what changed, removes old image
-layers and runs the smoke check (up to 3 minutes while migrations run). The Actions tab shows
-the result, and `~/deploy.log` on the server keeps every run.
+(`.github/workflows/deploy.yml`) signs in to the server and runs `deploy/auto-deploy.sh` for the
+exact commit CI tested. That script fast-forwards the clone to that commit (never to a newer
+`main` that has not passed its own checks, and never back to an older one), rebuilds with every
+image labelled with the commit, checks that every app container runs an image built from it,
+removes old image layers and runs the smoke check (up to 3 minutes while migrations run). The
+commit that is live is in `~/deployed-revision`. The Actions tab shows the result, and
+`~/deploy.log` on the server keeps every run. A run started by hand (Actions > deploy > Run
+workflow) takes an optional commit and refuses one whose CI run on `main` did not pass.
 
 Set-up, on the server as `securepay`:
 
@@ -373,8 +379,8 @@ workflow**. Until `DEPLOY_HOST` is set the workflow skips itself.
 
 What the GitHub key can do: the script adds it to `~/.ssh/authorized_keys` as
 `restrict,command="... auto-deploy.sh"`, so it gets no shell, no file copy and no port
-forwarding. Whatever command is asked for, it only deploys what is already on `main`. If it
-leaks, the worst case is an extra deploy of `main`; replace it with
+forwarding. The only command it accepts is `deploy <full commit>` for a commit already on
+`main`; anything else is refused. If it leaks, the worst case is a deploy of a commit on `main`; replace it with
 `ROTATE=1 bash deploy/setup-auto-deploy.sh` and update the secret.
 
 What it does not change: anyone who can merge to `main` decides what runs on the server, by
@@ -391,8 +397,14 @@ logs --tail 100 <service>`, then fix forward with a new PR, or go back by hand:
 **By hand** (or if Actions is down):
 
 ```bash
-bash ~/csit321-secure-pay/deploy/auto-deploy.sh
+bash ~/csit321-secure-pay/deploy/auto-deploy.sh             # the newest main
+bash ~/csit321-secure-pay/deploy/auto-deploy.sh <commit>    # one commit on main
 ```
+
+A hand run is your own sign-off: run the checks for that commit first (CI, or locally while
+Actions minutes are used up). Images are rebuilt on the server, so a deploy can pick up a newer
+`python:3.12-slim` or a newer package within the version ranges in `pyproject.toml`; the
+revision check proves the code, not every dependency.
 
 Migrations run when the gateway, simulator and shop start. The integration tests are not part
 of a deploy because they make payments; run them by hand when a change touches the payment flow

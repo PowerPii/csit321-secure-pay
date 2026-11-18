@@ -71,7 +71,7 @@ def start(payment_id: str, merchant, body: dict, actor: Actor, request_key: str 
     amount, reason = validate(body)
     rejection = None
     with transaction.atomic():
-        payment = (Payment.objects.select_for_update().select_related("merchant")
+        payment = (Payment.objects.select_for_update(of=("self",)).select_related("merchant")
                    .filter(public_id=payment_id, merchant=merchant).first())
         if payment is None:
             raise not_found()
@@ -135,7 +135,7 @@ def apply_refund_answer(operation_id: int, answer: Answer, request_id: str = "")
     """
     with transaction.atomic():
         operation = Operation.objects.select_for_update().get(pk=operation_id)
-        payment = (Payment.objects.select_for_update().select_related("merchant")
+        payment = (Payment.objects.select_for_update(of=("self",)).select_related("merchant")
                    .get(pk=operation.payment_id))
         refund = Refund.objects.select_for_update().get(operation=operation)
         refund.payment = payment
