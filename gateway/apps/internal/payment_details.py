@@ -164,7 +164,7 @@ def payment_detail(staff: StaffAccount, payment: Payment) -> dict:
         "merchant": {"id": payment.merchant.public_id, "name": payment.merchant.name},
         "customer": mask_email(payment.customer_email),
         "description": payment.description or None,
-        "screening": screening_to_dict(screening),
+        "screening": screening_to_dict(screening, merchant_view=staff.is_operator),
         "screening_decision": payment.screening_decision or None,
         "verification": payment_row(payment)["risk"]["verification"]
         if payment.screening_decision else None,

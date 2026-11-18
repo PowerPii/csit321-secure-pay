@@ -6,6 +6,8 @@ One read-only summary of the screening decision records for the last 24 hours, 7
     outcomes    allowed / sent for a code (step-up) / blocked / not screened, per hour or day
     decided_by  which stage made each call: lists and rules, the model, or nobody (allowed)
     top_rules   the reasons screening recorded most often, split by block and step-up
+    top_factors the model features that most often pushed a flagged payment's score up (among
+                its top three TreeSHAP contributions, apps.risk.explain), with an example
     scores      the model's score for recent payments (dots over time) and a histogram
     thresholds  the active policy's step-up and block lines, with how they were chosen
 
@@ -33,6 +35,7 @@ from apps.risk.scoring import active_model
 
 RANGES = {"24h": ("hour", 24), "7d": ("day", 7), "30d": ("day", 30)}
 TOP_RULES = 8
+TOP_FACTORS_PER_PAYMENT = 3
 MAX_POINTS = 500
 BIN_WIDTH = 0.02
 BINS = 50  # 0.00-0.02, ..., 0.98-1.00
@@ -125,10 +128,18 @@ def build_insights(params) -> dict:
     by_reason: dict[str, Counter] = {}
     bins = [Counter() for _ in range(BINS)]
     scored = 0
-    for outcome, score, reasons in events.values_list("outcome", "score",
-                                                      "reasons").iterator():
+    by_factor: dict[str, Counter] = {}
+    factor_example: dict[str, str] = {}
+    for outcome, score, reasons, why in events.values_list(
+            "outcome", "score", "reasons", "explanation").iterator():
         key = OUTCOME_KEY.get(outcome, "not_screened")
         reasons = reasons or []
+        if key in ("verify", "blocked"):
+            raising = [f for f in (why or {}).get("factors", [])
+                       if f.get("source") == "model" and f.get("direction") == "raises"]
+            for factor in raising[:TOP_FACTORS_PER_PAYMENT]:
+                by_factor.setdefault(factor["feature"], Counter())[key] += 1
+                factor_example.setdefault(factor["feature"], factor.get("text", ""))
         if key == "not_screened":
             decided_by["unavailable"] += 1
         elif key == "allowed":
@@ -168,6 +179,12 @@ def build_insights(params) -> dict:
                        for k in ("rules", "model", "allowed", "unavailable")},
         "top_rules": [{"reason": r, "blocked": c.get("blocked", 0), "verify": c.get("verify", 0),
                        "total": sum(c.values())} for r, c in top],
+        "top_factors": [{"feature": f, "example": factor_example.get(f, ""),
+                         "blocked": c.get("blocked", 0), "verify": c.get("verify", 0),
+                         "total": sum(c.values())}
+                        for f, c in sorted(by_factor.items(),
+                                           key=lambda kv: (-sum(kv[1].values()), kv[0]))
+                        [:TOP_RULES]],
         "scores": {
             "scored": scored,
             "points": [{"at": rfc3339(at), "score": round(score, 4),

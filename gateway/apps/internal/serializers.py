@@ -2,6 +2,7 @@
 from apps.common.timefmt import rfc3339
 from apps.payments.models import OutcomeReason, Payment
 from apps.payments.states import PaymentStatus
+from apps.risk.explain import merchant_summary
 from apps.risk.models import ScreeningEvent
 from apps.risk.pipeline import DEFAULT_POLICY
 
@@ -57,8 +58,20 @@ def thresholds_for(policy_version: str) -> dict | None:
     return None
 
 
-def screening_to_dict(event: ScreeningEvent | None) -> dict | None:
-    """The decision record (FR-FRD-01): score, reasons, features and versions."""
+def explanation_for(event: ScreeningEvent, merchant_view: bool) -> dict | None:
+    """Why it was decided (apps.risk.explain). Merchant operators get broad areas only: no rule,
+    threshold, feature value or model effect, so the screening logic cannot be read off."""
+    why = event.explanation or {}
+    if not why:
+        return None
+    if merchant_view:
+        return {"areas": merchant_summary(why)}
+    return {"headline": why.get("headline", ""), "method": why.get("method"),
+            "base_score": why.get("base_score"), "factors": list(why.get("factors", []))}
+
+
+def screening_to_dict(event: ScreeningEvent | None, merchant_view: bool = False) -> dict | None:
+    """The decision record (FR-FRD-01): score, reasons, features, versions and the explanation."""
     if event is None:
         return None
     return {
@@ -75,4 +88,5 @@ def screening_to_dict(event: ScreeningEvent | None) -> dict | None:
         "elapsed_ms": event.elapsed_ms,
         "error": event.error or None,
         "occurred_at": rfc3339(event.occurred_at),
+        "explanation": explanation_for(event, merchant_view),
     }

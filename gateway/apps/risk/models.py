@@ -45,6 +45,8 @@ class ScreeningEvent(models.Model):
     policy_version = models.CharField(max_length=32, blank=True)
     feature_schema_version = models.CharField(max_length=32, blank=True)
     elapsed_ms = models.FloatField(default=0)
+    # Plain-language reasons: rule hits plus the model's TreeSHAP contributions (apps.risk.explain).
+    explanation = models.JSONField(default=dict, blank=True)
     # Why screening was unavailable (exception class / timeout). Never customer data.
     error = models.CharField(max_length=200, blank=True)
 

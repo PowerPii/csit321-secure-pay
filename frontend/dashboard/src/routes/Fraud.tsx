@@ -86,7 +86,7 @@ export function FraudAlerts() {
                   <Badge label={CASE_DECISION_LABELS[a.case.decision] ?? a.case.decision}
                     tone={a.case.decision === "blocked" ? "dark" : "neutral"} />
                 </TableCell>
-                <TableCell>{a.case.reasons.map(reasonLabel).join(", ")}</TableCell>
+                <TableCell>{a.case.headline ?? a.case.reasons.map(reasonLabel).join(", ")}</TableCell>
               </TableRow>
             ))}
             {data && data.data.length === 0 && (

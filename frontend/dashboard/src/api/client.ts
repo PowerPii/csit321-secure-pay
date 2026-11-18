@@ -101,6 +101,23 @@ export interface PaymentList extends Page<PaymentRow> {
   };
 }
 
+/** One reason behind a decision (apps.risk.explain). Model factors carry their TreeSHAP effect
+ *  in log-odds: positive raised the score, negative lowered it. */
+export interface ExplanationFactor {
+  source: "rule" | "list" | "limit" | "model";
+  code?: string;
+  feature?: string;
+  value?: number;
+  effect?: number;
+  direction: "raises" | "lowers";
+  text: string;
+}
+
+/** Analysts and administrators get the factors; merchant operators get broad areas only. */
+export type Explanation =
+  | { headline: string; method: "tree-shap" | "rules-only"; base_score: number | null; factors: ExplanationFactor[] }
+  | { areas: string[] };
+
 export interface Screening {
   id: string;
   outcome: string;
@@ -115,6 +132,7 @@ export interface Screening {
   elapsed_ms: number;
   error: string | null;
   occurred_at: string;
+  explanation?: Explanation | null;
 }
 
 export interface Operation {
@@ -229,6 +247,7 @@ export interface CaseRow {
   outcome: string;
   decision: string;
   reasons: string[];
+  headline?: string | null;
   occurred_at: string;
   review: Review;
 }

@@ -90,11 +90,24 @@ class ArtifactModel:
             block_threshold=float(policy["block_threshold"]),
         ) if policy else None
 
+        self.explainer = None
+        try:
+            from apps.risk.explain import TreeShapExplainer
+
+            if self.positive_index == 1:  # contributions are towards class 1
+                self.explainer = TreeShapExplainer(estimator, self.feature_order)
+        except Exception:  # explanations are optional; scoring still works
+            logger.exception("Risk model %s: no explanations", self.version)
+
     def score(self, features: dict[str, float]) -> float:
         import numpy as np
 
         row = np.array([[features[name] for name in self.feature_order]], dtype=float)
         return float(self.estimator.predict_proba(row)[0][self.positive_index])
+
+    def explain(self, features: dict[str, float]) -> tuple[float, dict[str, float]] | None:
+        """TreeSHAP contributions in log-odds (apps.risk.explain), or None if unsupported."""
+        return self.explainer.contributions(features) if self.explainer else None
 
 
 def sha256_of(path: Path) -> str:

@@ -162,6 +162,17 @@ and set `RISK_MODEL_VERSION=hgb-fs02-2026-11-13` in `deploy/.env`, then
 runs (score 0, rules decide). A bad copy fails its SHA-256 check and blocks every payment as
 `screening_unavailable`, so it shows at once.
 
+Every decision stores a plain-language "why" (rule hits plus the model's TreeSHAP
+contributions, `apps/risk/explain.py`), shown on the case and payment pages and in Fraud
+insights. Decisions made before that existed have none; fill them in once, after a deploy:
+
+```bash
+docker compose -f deploy/compose.prod.yaml exec gateway python manage.py explain_decisions
+```
+
+It only writes the explanation field, and adds model contributions only to records scored by
+the model installed now.
+
 ## 6. Start
 
 ```bash

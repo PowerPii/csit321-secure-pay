@@ -17,6 +17,7 @@ by FR-FRD-04), raises ScreeningUnavailable. The caller blocks the attempt as
 """
 from __future__ import annotations
 
+import logging
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -25,8 +26,11 @@ from typing import Protocol
 
 from django.conf import settings
 
+from apps.risk import explain
 from apps.risk.features import FEATURE_SCHEMA_VERSION, SqlFeatures
 from apps.risk.scoring import Model, Thresholds, active_model
+
+logger = logging.getLogger(__name__)
 
 RULES_VERSION = "rules-0.1"
 DEFAULT_POLICY = Thresholds(version="policy-0.1", verify_threshold=0.5, block_threshold=0.9)
@@ -64,6 +68,7 @@ class Decision:
     feature_schema_version: str = FEATURE_SCHEMA_VERSION
     elapsed_ms: float = 0.0
     by_rule: bool = False  # a rule (not the model) caused a block or a verification
+    explanation: dict = field(default_factory=dict)  # apps.risk.explain; {} if it failed
 
     @property
     def block_reason(self) -> str:
@@ -215,11 +220,23 @@ class Pipeline:
                 raise ValueError(f"model score {score} outside [0, 1]")
         except Exception as exc:  # any failure stops before a financial effect
             raise ScreeningUnavailable(type(exc).__name__) from exc
+        policy = self.policy or Policy(self.model.policy or DEFAULT_POLICY)
+        outcome, more = policy.decide(rule_outcome, score)
+        # Explaining is part of the decision record but never decides anything: if it fails the
+        # decision stands without it. It runs inside the timed budget (NFR-PER-02).
+        try:
+            why = explain.explain(
+                outcome=outcome.value, reasons=reasons + more, features=feats,
+                amount_cents=attempt.amount_cents, score=score,
+                contributions=explain_model(self.model, feats),
+                rules={r.code: (r.feature, r.op, r.value) for r in self.rules.items},
+                max_amount=settings.GATEWAY_RULES["MAX_AMOUNT_CENTS"])
+        except Exception:
+            logger.exception("Could not explain screening of %s", attempt.attempt_id)
+            why = {}
         elapsed = (time.perf_counter() - start) * 1000
         if elapsed > budget_ms:
             raise ScreeningUnavailable(f"timeout after {elapsed:.0f} ms (budget {budget_ms} ms)")
-        policy = self.policy or Policy(self.model.policy or DEFAULT_POLICY)
-        outcome, more = policy.decide(rule_outcome, score)
         return Decision(
             outcome=outcome,
             score=score,
@@ -230,4 +247,11 @@ class Pipeline:
             policy_version=policy.version,
             elapsed_ms=round(elapsed, 2),
             by_rule=outcome is not Outcome.ALLOW and not more,
+            explanation=why,
         )
+
+
+def explain_model(model: Model, features: dict[str, float]):
+    """The model's TreeSHAP contributions, or None for a model that cannot explain (stub)."""
+    method = getattr(model, "explain", None)
+    return method(features) if method else None

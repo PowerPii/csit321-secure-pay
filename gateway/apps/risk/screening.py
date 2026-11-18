@@ -124,7 +124,7 @@ def screen_payment(payment: Payment, *, ip: str | None = None,
         model_version=decision.model_version or "", rules_version=decision.rules_version,
         policy_version=decision.policy_version,
         feature_schema_version=decision.feature_schema_version,
-        elapsed_ms=decision.elapsed_ms,
+        elapsed_ms=decision.elapsed_ms, explanation=decision.explanation,
     )
     return Screening(ScreeningOutcome(decision.outcome.value), decision, event)
 
