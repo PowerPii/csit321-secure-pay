@@ -36,6 +36,13 @@ M-USE-01:
     figures: 0 px sideways scroll on all 11 customer pages at 320 px and 1280 px (dashboard 0 px at 360 px); 13 customer messages, all 4 checklist items met
     evidence: docs/test-report/ACCESSIBILITY.md
     notes: "Re-run tests/a11y/scan.mjs on the live server after the deploy and add that result here."
+  - date: 2026-11-18
+    by: Claude (tests/a11y/scan.mjs with NO_PAY=1, after PR #46 deployed)
+    environment: live server, Chromium 157 at 320 and 1280 px
+    result: pass
+    figures: no sideways scrolling on 16 customer and shop page views at 320 px and 1280 px; messages unchanged from the local run
+    evidence: /mnt/project-files/fyp/10-accessibility/live-after-2026-11-18.json
+    notes: ""
 M-USE-02:
   - date: 2026-11-18
     by: Claude (accessibility pass, PR for branch claude/project-thread-kob5qb)
@@ -44,6 +51,13 @@ M-USE-02:
     figures: 0 axe violations of any level on 22 customer-page scans and 76 dashboard scans (was 13 of 17 live pages with issues); keyboard-only payment completed at 320 and 1280 px; every field labelled
     evidence: docs/test-report/ACCESSIBILITY.md
     notes: "No session with a screen-reader user yet; re-run tests/a11y/scan.mjs on the live server after the deploy."
+  - date: 2026-11-18
+    by: Claude (tests/a11y/scan.mjs with NO_PAY=1, after PR #46 deployed)
+    environment: live server (gateway.35-213-144-96.sslip.io), Chromium 157, axe-core 4.10.2
+    result: pass
+    figures: 0 axe violations on 17 live scans (shop home, cart, checkout errors, card form, card form errors, guest status, account sign-in, invalid link at 1280 and 320 px; dashboard sign-in); keyboard reaches Pay and an empty submit focuses the first error at both widths
+    evidence: /mnt/project-files/fyp/10-accessibility/live-after-2026-11-18.json
+    notes: "Live dashboard pages behind sign-in covered by the local run above (same build)."
 M-USE-03: []
 M-USE-04: []
 M-AUD-01: []

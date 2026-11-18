@@ -77,6 +77,12 @@ async function pay(page, card, email) {
 const heading = (page, re, timeout = 25000) =>
   page.getByRole("heading", { level: 1, name: re }).waitFor({ timeout }).then(() => true, () => false);
 
+/** Waits for the result page and returns its heading ("Payment successful", "We couldn't ..."). */
+async function resultHeading(page, timeout = 30000) {
+  const h1 = page.getByRole("heading", { level: 1 }).filter({ hasNotText: /^(Pay S\$|Checking your payment)/ });
+  return h1.first().waitFor({ timeout }).then(async () => (await h1.first().textContent()).trim(), () => "no result page");
+}
+
 async function latestCode(email, after) {
   for (let i = 0; i < 20; i++) {
     const r = await fetch(`${MAILPIT}/api/v1/search?query=${encodeURIComponent("to:" + email)}`, { headers: { Authorization: MAIL_AUTH } });
@@ -126,8 +132,9 @@ const SCENE_FNS = {
     for (let attempt = 1; attempt <= 8; attempt++) {
       await order(page, "CABLE-01", `fraud.${STAMP}@example.com`);
       await pay(page, card, `fraud.${STAMP}@example.com`);
-      if (await heading(page, /couldn't complete/, 8000)) return `card blocked on attempt ${attempt}`;
-      if (!(await heading(page, /Payment successful|Check your email/, 15000))) throw new Error(`attempt ${attempt}: no result`);
+      const result = await resultHeading(page);
+      if (/couldn't complete/.test(result)) return `card blocked on attempt ${attempt}`;
+      if (!/Payment successful|Check your email/.test(result)) throw new Error(`attempt ${attempt}: result "${result}"`);
     }
     throw new Error("not blocked after 8 attempts");
   },
