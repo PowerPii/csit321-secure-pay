@@ -6,6 +6,7 @@ export { default as PaymentsList } from "./PaymentsList";
 export { default as PaymentDetail } from "./PaymentDetail";
 export { ReviewQueue, CaseDetail } from "./Reviews";
 export { FraudAlerts, FraudReports } from "./Fraud";
+export { default as FraudInsights } from "./FraudInsights";
 export { Merchants, AuditLog } from "./Admin";
 export { Register, VerifyEmail, ForgotPassword, ResetPassword } from "./Account";
 export { default as ApiKeys } from "./ApiKeys";

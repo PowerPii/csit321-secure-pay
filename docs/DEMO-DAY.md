@@ -19,7 +19,7 @@ rehearsal 2 in the last week of March; **M8 live demo 2 Apr 2027**.
 | 1 week before | Fifa | Copy backups to a laptop (`rsync`, RUNBOOK 9). Fallback laptop drill (section 4) on the laptop that goes to the room. Backup video recorded or re-recorded if anything visible changed (section 5) |
 | 48 h before | Fifa | **Freeze**: GitHub variable `MERGE_FREEZE_UNTIL` and `bash deploy/freeze.sh on` (RUNBOOK 10a). Tell the team in the chat |
 | Day before | Fifa | `deploy/backup/backup.sh`, then a server snapshot (RUNBOOK 9). `bash deploy/demo.sh reset` once to see it all PASS |
-| Morning | Fifa | `bash deploy/demo.sh reset`: copy today's cards and emails onto the cheat sheet |
+| Morning | Fifa | Before the reset: `nohup bash deploy/demo.sh traffic --minutes 90 &` (about 55 real payments for the dashboard's Fraud insights charts, spread over 90 minutes; it runs from the server, not the hotspot). Then `bash deploy/demo.sh reset`: copy today's cards and emails onto the cheat sheet |
 | 1 h before | Fifa | `bash deploy/demo.sh reset` again, then `bash deploy/demo.sh preflight` → **READY**. No more test payments from the presenter's laptop or the hotspot after this (screening counts attempts per IP for an hour) |
 | 30 min before | Everyone | Tabs open (marketing site, shop, dashboard signed in as operator and as administrator with the authenticator ready, Mailpit). Fallback laptop running and seeded, on charge. Phone hotspot on. Video on the desktop |
 | After | Fifa | `bash deploy/freeze.sh off` and delete `MERGE_FREEZE_UNTIL`. Delete the snapshot once all is well |
