@@ -49,6 +49,18 @@ for db in gateway simulator merchant; do
     else
       echo "FAIL  $db: restored, but $tables tables and $rows rows"; fail=1
     fi
+    if [ "$db" = gateway ]; then
+      # Card data must never be in a backup (backup.sh leaves the vault rows out).
+      cards="$(psql -d "$scratch" -c "SELECT CASE WHEN to_regclass('vault.vault_storedcard') IS NULL
+        THEN -1 ELSE (SELECT count(*) FROM vault.vault_storedcard) END")"
+      if [ "$cards" = -1 ]; then
+        echo "FAIL  gateway: the vault table is missing from the backup"; fail=1
+      elif [ "$cards" != 0 ]; then
+        echo "FAIL  gateway: the backup holds $cards stored card(s); make backups with the current backup.sh"; fail=1
+      else
+        echo "ok    gateway: vault table present and empty (no card data in the backup)"
+      fi
+    fi
   fi
   psql -d postgres -c "DROP DATABASE IF EXISTS $scratch" >/dev/null
 done
