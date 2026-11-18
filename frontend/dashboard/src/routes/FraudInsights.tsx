@@ -11,7 +11,7 @@ import {
   SegmentedBar, StackedColumns, type Bin, type Line, type OutcomeKey,
 } from "../components/InsightCharts";
 import { ErrorAlert, PageHeader, Tile } from "../components/ui";
-import { reasonLabel, shortDate } from "../format";
+import { FEATURE_LABELS, reasonLabel, shortDate } from "../format";
 
 type Counts = Record<OutcomeKey, number>;
 
@@ -28,6 +28,7 @@ export interface FraudInsights {
   outcomes: (Counts & { start: string })[];
   decided_by: { rules: number; model: number; allowed: number; unavailable: number };
   top_rules: { reason: string; blocked: number; verify: number; total: number }[];
+  top_factors?: { feature: string; example: string; blocked: number; verify: number; total: number }[];
   scores: {
     scored: number;
     points: { at: string; score: number; outcome: OutcomeKey; case_id: string | null }[];
@@ -53,6 +54,7 @@ const SCORED: OutcomeKey[] = ["allowed", "verify", "blocked"];
 const VERIFY_LINE = "#6B4A00";
 const BLOCK_LINE = "#0F2240";
 
+const featureLabel = (f: string) => FEATURE_LABELS[f] ?? f.replace(/_/g, " ");
 const pct = (n: number, d: number) => (d ? `${((n / d) * 100).toFixed(1)}%` : "–");
 
 function bucketLabels(start: string, interval: "hour" | "day") {
@@ -130,6 +132,7 @@ function Insights({ d, onOpenCase }: { d: FraudInsights; onOpenCase: (id: string
     { value: th.block, label: `Block line ${Number(th.block.toFixed(4))}`, color: BLOCK_LINE },
   ];
   const points = d.scores.points;
+  const factors = d.top_factors ?? [];
   const yMax = scoreAxisMax([th.verify, th.block], points.map((p) => p.score));
   const from = new Date(d.from).getTime(), to = new Date(d.to).getTime();
   const timeLabel = (ms: number) => new Date(ms).toLocaleString("en-SG", d.interval === "hour"
@@ -216,6 +219,28 @@ function Insights({ d, onOpenCase }: { d: FraudInsights; onOpenCase: (id: string
           </Typography>
         </ChartSection>
       </Box>
+
+      {!th.stub_model && (
+        <ChartSection
+          title="What pushed scores up"
+          subtitle="Model features most often among the top three that raised a blocked or step-up payment's score (TreeSHAP)"
+          table={<DataTable label="What pushed scores up" head={["Feature", "Example", "Blocked", "Step-up", "Total"]}
+            rows={factors.map((f) => [featureLabel(f.feature), f.example, f.blocked, f.verify, f.total])} />}
+        >
+          {factors.length === 0
+            ? <Typography color="text.secondary">No blocked or step-up payment in this range has a model explanation yet.</Typography>
+            : <>
+                <HorizontalBars keys={FLAGS} ariaLabel={`What pushed scores up: ${factors.map((f) => `${featureLabel(f.feature)} ${f.total}`).join(", ")}`}
+                  rows={factors.map((f) => ({ label: featureLabel(f.feature), values: { blocked: f.blocked, verify: f.verify } }))} />
+                <Legend items={FLAGS.map((k) => ({ label: OUTCOME_LABELS[k], color: OUTCOME_COLORS[k] }))} />
+                {factors[0].example && (
+                  <Typography variant="body2" color="text.secondary" mt={1.5}>
+                    For example: “{factors[0].example}”. Open a case to see every factor with its effect.
+                  </Typography>
+                )}
+              </>}
+        </ChartSection>
+      )}
 
       <ChartSection
         title="Model scores over time"

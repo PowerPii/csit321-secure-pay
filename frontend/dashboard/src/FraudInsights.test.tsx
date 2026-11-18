@@ -40,6 +40,8 @@ const insights = {
   decided_by: { rules: 8, model: 2, allowed: 30, unavailable: 0 },
   top_rules: [{ reason: "card_attempt_burst", blocked: 3, verify: 0, total: 3 },
     { reason: "high_amount", blocked: 0, verify: 4, total: 4 }],
+  top_factors: [{ feature: "card_attempts_10m", example: "4 earlier tries with this card in the last 10 minutes",
+    blocked: 2, verify: 1, total: 3 }],
   scores: {
     scored: 33, points_limit: 500, model_versions: ["hgb-fs02-2026-11-13"],
     points: [{ at: "2026-11-18T02:00:00Z", score: 0.03, outcome: "allowed", case_id: null },
@@ -71,6 +73,8 @@ describe("fraud insights", () => {
     expect(await screen.findByText("4 · 10.0%")).toBeTruthy();
     expect(screen.getByRole("img", { name: /per day; 30 allowed, 6 step-up, 4 blocked/ })).toBeTruthy();
     expect(screen.getByRole("img", { name: /Top rules hit: Burst of attempts/ })).toBeTruthy();
+    expect(screen.getByRole("img", { name: "What pushed scores up: Card attempts, 10 min 3" })).toBeTruthy();
+    expect(screen.getByText(/For example: “4 earlier tries with this card/)).toBeTruthy();
     expect(screen.getByText("Block line: score 0.2222")).toBeTruthy();
     expect(screen.getByText(/0.1% of genuine payments are blocked/)).toBeTruthy();
     expect(calls.find((u) => u.startsWith("/internal/insights/fraud"))).toBe("/internal/insights/fraud?range=7d");

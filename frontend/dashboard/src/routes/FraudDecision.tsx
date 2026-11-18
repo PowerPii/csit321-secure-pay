@@ -1,6 +1,7 @@
-// The decision record (FR-FRD-01) as on D4: score on the policy scale, reasons, versions.
+// The decision record (FR-FRD-01) as on D4: score on the policy scale, why it was decided in
+// plain words (rule hits plus the model's TreeSHAP contributions), reasons and versions.
 import { Box, Divider, Stack, Typography } from "@mui/material";
-import type { Screening } from "../api/client";
+import type { Explanation, ExplanationFactor, Screening } from "../api/client";
 import { Badge, Row, Section } from "../components/ui";
 import { FEATURE_LABELS, featureValue, orderedFeatures, reasonLabel } from "../format";
 
@@ -24,6 +25,78 @@ function Scale({ score, thresholds }: { score: number | null; thresholds: Screen
   );
 }
 
+const RAISES = "#B23A48";
+const LOWERS = "#4C7FC0";
+
+function ModelFactors({ factors, baseScore }: { factors: ExplanationFactor[]; baseScore: number | null }) {
+  const max = Math.max(...factors.map((f) => Math.abs(f.effect ?? 0)), 0.0001);
+  return (
+    <Box mt={1.5}>
+      <Typography fontWeight={600} variant="body2" mb={0.5}>What moved the model score</Typography>
+      <Stack gap={0.75} component="ul" sx={{ m: 0, p: 0, listStyle: "none" }}>
+        {factors.map((f) => {
+          const effect = f.effect ?? 0;
+          const up = f.direction === "raises";
+          return (
+            <Box component="li" key={f.feature} sx={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 90px 52px", gap: 1, alignItems: "center" }}>
+              <Typography variant="body2">
+                {f.text}
+                <Box component="span" sx={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0 0 0 0)" }}>
+                  {up ? ", raised the risk" : ", lowered the risk"}
+                </Box>
+              </Typography>
+              <Box aria-hidden="true" sx={{ height: 8, bgcolor: "#EEEAE2", borderRadius: 1 }}>
+                <Box sx={{ height: 8, width: `${Math.max(4, (Math.abs(effect) / max) * 100)}%`, bgcolor: up ? RAISES : LOWERS, borderRadius: 1 }} />
+              </Box>
+              <Typography variant="caption" textAlign="right" sx={{ fontVariantNumeric: "tabular-nums", color: up ? RAISES : LOWERS }}>
+                {effect > 0 ? "+" : "−"}{Math.abs(effect).toFixed(2)}
+              </Typography>
+            </Box>
+          );
+        })}
+      </Stack>
+      <Typography variant="caption" color="text.secondary" display="block" mt={0.75}>
+        TreeSHAP contributions in log-odds{baseScore !== null ? `, starting from the model's average score of ${baseScore.toFixed(3)}` : ""}.
+        Red raised the risk, blue lowered it.
+      </Typography>
+    </Box>
+  );
+}
+
+/** Why: the plain-language explanation stored with the decision. */
+function Why({ explanation }: { explanation: Explanation }) {
+  if ("areas" in explanation) {
+    if (!explanation.areas.length) return null;
+    return (
+      <Box mb={1}>
+        <Typography fontWeight={600} variant="body2" mb={0.5}>Main risk areas</Typography>
+        <Box component="ul" sx={{ m: 0, pl: 2.5 }}>
+          {explanation.areas.map((a) => <Typography component="li" variant="body2" key={a} py={0.25}>{a}</Typography>)}
+        </Box>
+      </Box>
+    );
+  }
+  const rules = explanation.factors.filter((f) => f.source !== "model");
+  const model = explanation.factors.filter((f) => f.source === "model");
+  return (
+    <Box mb={1}>
+      <Typography fontWeight={600} variant="body2" mb={0.5}>Why</Typography>
+      <Typography variant="body2" sx={{ fontWeight: 600, bgcolor: "#F6F3EE", borderRadius: 1, px: 1.25, py: 1 }}>
+        {explanation.headline.charAt(0).toUpperCase() + explanation.headline.slice(1)}
+      </Typography>
+      {rules.length > 0 && (
+        <Box mt={1.5}>
+          <Typography fontWeight={600} variant="body2" mb={0.5}>Rules and lists that fired</Typography>
+          <Box component="ul" sx={{ m: 0, pl: 2.5 }}>
+            {rules.map((f) => <Typography component="li" variant="body2" key={f.code ?? f.text} py={0.25}>{f.text}</Typography>)}
+          </Box>
+        </Box>
+      )}
+      {model.length > 0 && <ModelFactors factors={model} baseScore={explanation.base_score} />}
+    </Box>
+  );
+}
+
 export function FraudDecision({ screening, badge, showFeatures = true }: {
   screening: Screening; badge: string; showFeatures?: boolean;
 }) {
@@ -37,7 +110,8 @@ export function FraudDecision({ screening, badge, showFeatures = true }: {
       </Typography>
       <Scale score={s.score} thresholds={s.thresholds} />
       <Divider sx={{ my: 1.5 }} />
-      <Typography fontWeight={600} variant="body2" mb={0.5}>Why</Typography>
+      {s.explanation && <Why explanation={s.explanation} />}
+      <Typography fontWeight={600} variant="body2" mb={0.5}>{s.explanation ? "Recorded reasons" : "Why"}</Typography>
       {s.reasons.length ? (
         <Box component="ul" sx={{ m: 0, pl: 2.5 }}>
           {s.reasons.map((r) => <Typography component="li" variant="body2" key={r} py={0.25}>{reasonLabel(r)}</Typography>)}

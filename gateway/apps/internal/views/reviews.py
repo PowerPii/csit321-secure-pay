@@ -98,6 +98,7 @@ def case_row(event: ScreeningEvent) -> dict:
         "outcome": event.outcome,
         "decision": decision_key(event),
         "reasons": list(event.reasons or []),
+        "headline": (event.explanation or {}).get("headline") or None,
         "occurred_at": rfc3339(event.occurred_at),
         "review": review_to_dict(_review(event)),
     }
