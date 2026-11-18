@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
+import { expectAccessible } from "./a11y.testutil";
 
 type Reply = (init?: RequestInit) => Response;
 const json = (data: unknown, status = 200) =>
@@ -96,6 +97,7 @@ describe("dashboard", () => {
     });
     at("/payments");
     expect(await screen.findByText("Sign in to the dashboard")).toBeTruthy();
+    await expectAccessible();
     fireEvent.change(screen.getByLabelText(/Email/), { target: { value: "ops@demoshop.sg" } });
     fireEvent.change(screen.getByLabelText(/Password/), { target: { value: "correct horse" } });
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
@@ -147,6 +149,7 @@ describe("dashboard", () => {
     });
     at("/payments/pay_1");
     expect(await screen.findByText("Fraud decision")).toBeTruthy();
+    await expectAccessible();
     expect(screen.getByText("0.47")).toBeTruthy();
     expect(screen.getByText("Amount over S$ 500")).toBeTruthy();
     expect(screen.getByText("Created by merchant API")).toBeTruthy();
@@ -204,6 +207,7 @@ describe("dashboard", () => {
     });
     at("/reviews/scr_9");
     expect(await screen.findByText("Case · SP-5LKD-2ZZ8")).toBeTruthy();
+    await expectAccessible();
     expect(screen.getByText("7 other attempts · 3 merchants · 2 blocked")).toBeTruthy();
     expect(screen.queryByText(/Payments/, { selector: "button" })).toBeNull();
     fireEvent.click(screen.getByRole("radio", { name: "Confirmed fraud" }));
@@ -227,6 +231,7 @@ describe("dashboard", () => {
     });
     at("/");
     expect(await screen.findByText("Payments today")).toBeTruthy();
+    await expectAccessible();
     expect(screen.getByText("60%")).toBeTruthy();
     expect(screen.getByText("S$ 2,548.90")).toBeTruthy();
     expect(screen.getByRole("img", { name: /last 14 days/ })).toBeTruthy();

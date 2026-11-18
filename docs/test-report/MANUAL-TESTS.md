@@ -251,6 +251,9 @@ time of each payment's result and of its alert appearing (screen recording is ea
 **Pass:** no horizontal scroll at 360 px, and no message fails a checklist item. Record the
 messages checked in a table (message, 4 ticks).
 
+Step 1 can be scripted: `tests/a11y/scan.mjs` measures sideways scrolling on every customer
+page at 320 px and 1280 px. The message table from 18 Nov 2026 is in `ACCESSIBILITY.md`.
+
 ## M-USE-02: accessibility
 
 With the axe DevTools browser extension (free), scan: checkout card form, verification code,
@@ -259,6 +262,10 @@ Shift+Tab, Enter, Space).
 
 **Pass:** 0 critical issues on every page, every page completed by keyboard alone, and every
 form field has a label. Save the axe results (export) as evidence.
+
+Or run `tests/a11y/scan.mjs` against the server (same axe engine, every customer page at 320
+and 1280 px, one keyboard-only payment, the dashboard with a staff sign-in); keep its
+`a11y-results.json`. Findings, fixes and limits of the 18 Nov 2026 pass: `ACCESSIBILITY.md`.
 
 ## M-USE-03: cross-browser demo script
 

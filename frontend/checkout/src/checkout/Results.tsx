@@ -23,11 +23,14 @@ export function Checking({ session }: { session: Session }) {
 
 export function Approved({ session }: { session: Session }) {
   const [left, setLeft] = useState(AUTO_RETURN_SECONDS);
+  const [stay, setStay] = useState(false);
   const returned = useRef(false);
   useEffect(() => {
+    // WCAG 2.2.1: a time limit the customer can turn off ("Stay on this page").
+    if (stay) return;
     const t = window.setInterval(() => setLeft((s) => Math.max(0, s - 1)), 1000);
     return () => window.clearInterval(t);
-  }, []);
+  }, [stay]);
   useEffect(() => {
     if (left === 0 && !returned.current) {
       returned.current = true;
@@ -50,7 +53,14 @@ export function Approved({ session }: { session: Session }) {
         <p className="muted small">A receipt is on its way to {session.customer_email_masked}.</p>
       )}
       <a className="btn primary" href={session.return_url}>Return to {session.merchant.name}</a>
-      <p className="muted tiny">Returning you automatically in {left} s</p>
+      {stay ? (
+        <p className="muted tiny">You can stay here as long as you like.</p>
+      ) : (
+        <p className="muted tiny">
+          Returning you automatically in {left} s ·{" "}
+          <button className="link" type="button" onClick={() => setStay(true)}>Stay on this page</button>
+        </p>
+      )}
     </div>
   );
 }

@@ -22,14 +22,51 @@ export function Badge({ label, tone = "neutral" }: { label: string; tone?: "dark
 
 export function Section({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
   return (
-    <Paper sx={{ p: 2.5, borderRadius: 2 }}>
+    <Paper sx={{ p: 2.5, borderRadius: 2, position: "relative" }}>
       <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1.5}>
-        <Typography variant="h6">{title}</Typography>
+        <Typography variant="h6" component="h2">{title}</Typography>
         {action}
       </Stack>
       {children}
     </Paper>
   );
+}
+
+/** A box that scrolls sideways on small screens. It takes keyboard focus so the hidden part
+ *  can be scrolled with the arrow keys (WCAG 2.1.1). */
+export function ScrollBox({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <Box tabIndex={0} role="region" aria-label={label}
+      sx={{ overflowX: "auto", position: "relative", "&:focus-visible": { outline: "2px solid #0F2240", outlineOffset: 2 } }}>
+      {children}
+    </Box>
+  );
+}
+
+/** The main control of a clickable table row: the row still opens on a mouse click anywhere,
+ *  and this button makes the same action reachable by Tab and Enter (WCAG 2.1.1). It looks
+ *  like the plain cell text until hovered or focused. */
+export function RowAction({ onClick, label, children }: { onClick: () => void; label?: string; children: ReactNode }) {
+  return (
+    <Box component="button" type="button" aria-label={label}
+      onClick={(e: { stopPropagation: () => void }) => { e.stopPropagation(); onClick(); }}
+      sx={{ font: "inherit", color: "inherit", fontWeight: "inherit", background: "none", border: 0, p: 0, m: 0,
+        textAlign: "left", cursor: "pointer", "&:hover": { textDecoration: "underline" },
+        "&:focus-visible": { outline: "2px solid #0F2240", outlineOffset: 2, borderRadius: "2px" } }}>
+      {children}
+    </Box>
+  );
+}
+
+/** Hidden on screen, still read by screen readers. */
+export const visuallyHidden = {
+  border: 0, clip: "rect(0 0 0 0)", height: "1px", margin: "-1px", overflow: "hidden", padding: 0,
+  position: "absolute", whiteSpace: "nowrap", width: "1px",
+} as const;
+
+/** Text for screen readers only. */
+export function SrOnly({ children }: { children: ReactNode }) {
+  return <Box component="span" sx={visuallyHidden}>{children}</Box>;
 }
 
 export function Row({ label, value }: { label: string; value: ReactNode }) {
@@ -47,7 +84,7 @@ export function Tile({ label, value }: { label: string; value: ReactNode }) {
   return (
     <Paper sx={{ p: 2, borderRadius: 2, flex: 1, minWidth: 150 }}>
       <Typography variant="body2" color="text.secondary">{label}</Typography>
-      <Typography variant="h5" mt={0.5}>{value}</Typography>
+      <Typography variant="h5" component="p" mt={0.5}>{value}</Typography>
     </Paper>
   );
 }

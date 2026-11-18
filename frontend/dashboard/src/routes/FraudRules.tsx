@@ -8,7 +8,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { ApiError, api, post, type FraudRule, type RuleConflict, type RuleSet } from "../api/client";
 import { useStaff } from "../auth";
-import { Badge, ErrorAlert, PageHeader, Section } from "../components/ui";
+import { Badge, ErrorAlert, PageHeader, Section, SrOnly } from "../components/ui";
 import { longDate, shortDate, titleCase } from "../format";
 
 // --- rules --------------------------------------------------------------------------------------
@@ -151,7 +151,7 @@ export function FraudRules() {
         <TableContainer component={Paper} sx={{ borderRadius: 2, mb: 2 }}>
           <Table aria-label="Fraud rules">
             <TableHead>
-              <TableRow><TableCell>Rule</TableCell><TableCell>Condition</TableCell><TableCell>Action</TableCell><TableCell>On</TableCell><TableCell /></TableRow>
+              <TableRow><TableCell>Rule</TableCell><TableCell>Condition</TableCell><TableCell>Action</TableCell><TableCell>On</TableCell><TableCell><SrOnly>Actions</SrOnly></TableCell></TableRow>
             </TableHead>
             <TableBody>
               {s.rules.map((r) => (

@@ -8,7 +8,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, ApiError, post, type PaymentDetail as Detail, type Refund, type TrailEntry } from "../api/client";
-import { Badge, ErrorAlert, Row, Section } from "../components/ui";
+import { Badge, ErrorAlert, Row, ScrollBox, Section, SrOnly } from "../components/ui";
 import {
   actionLabel, actorLabel, cardLabel, longDate, money, parseMoney, riskLabel, statusLabel, statusTone, timeOnly, titleCase,
 } from "../format";
@@ -79,13 +79,14 @@ function FullTimeline({ p }: { p: Detail }) {
         Correlation ID <Box component="span" sx={{ fontFamily: "monospace" }}>{p.correlation_id}</Box>: screening, processor
         operations, refunds, notifications and audit entries for this payment.
       </Typography>
+      <ScrollBox label="Full timeline table">
       <Table size="small" aria-label="Full timeline">
         <TableBody>
           {rows.map((r) => (
             <TableRow key={`${r.kind}-${r.id}`}>
               <TableCell sx={{ whiteSpace: "nowrap", width: 1 }} title={longDate(r.at)}>{timeOnly(r.at)}</TableCell>
               <TableCell sx={{ width: 1 }}><Badge label={TRAIL_KIND[r.kind]} /></TableCell>
-              <TableCell>
+              <TableCell sx={{ wordBreak: "break-word", minWidth: 120 }}>
                 <Typography variant="body2">{r.kind === "audit" ? actionLabel(r.title) : r.title}</Typography>
                 {(r.detail || r.request_id) && (
                   <Typography variant="caption" color="text.secondary">
@@ -98,6 +99,7 @@ function FullTimeline({ p }: { p: Detail }) {
           ))}
         </TableBody>
       </Table>
+      </ScrollBox>
     </Section>
   );
 }
@@ -106,7 +108,7 @@ function Webhooks({ p }: { p: Detail }) {
   if (!p.webhooks.length) return null;
   return (
     <Section title="Webhook deliveries">
-      <Box sx={{ overflowX: "auto" }}>
+      <ScrollBox label="Webhook deliveries table">
         <Table size="small">
           <TableHead>
             <TableRow><TableCell>Event</TableCell><TableCell>Seq</TableCell><TableCell>Result</TableCell><TableCell>Attempts</TableCell></TableRow>
@@ -126,7 +128,7 @@ function Webhooks({ p }: { p: Detail }) {
             ))}
           </TableBody>
         </Table>
-      </Box>
+      </ScrollBox>
     </Section>
   );
 }
@@ -135,7 +137,7 @@ function Refunds({ refunds, refundable }: { refunds: Refund[]; refundable: numbe
   return (
     <Section title="Refunds">
       {refunds.length ? (
-        <Box sx={{ overflowX: "auto" }}>
+        <ScrollBox label="Refunds table">
           <Table size="small">
             <TableHead>
               <TableRow><TableCell>Refund</TableCell><TableCell>Created</TableCell><TableCell align="right">Amount</TableCell><TableCell>Status</TableCell><TableCell>Reason</TableCell></TableRow>
@@ -152,7 +154,7 @@ function Refunds({ refunds, refundable }: { refunds: Refund[]; refundable: numbe
               ))}
             </TableBody>
           </Table>
-        </Box>
+        </ScrollBox>
       ) : <Typography variant="body2" color="text.secondary">No refunds yet.</Typography>}
       <Stack direction="row" justifyContent="space-between" mt={1.5}>
         <Typography variant="body2" color="text.secondary">Refundable balance</Typography>
@@ -178,10 +180,10 @@ function Operations({ p }: { p: Detail }) {
         Every call to the simulator has its own operation ID. An unanswered call is checked again with the same ID;
         nobody can set its outcome by hand.
       </Typography>
-      <Box sx={{ overflowX: "auto" }}>
+      <ScrollBox label="Processor operations table">
         <Table size="small">
           <TableHead>
-            <TableRow><TableCell>Operation</TableCell><TableCell>Type</TableCell><TableCell>Status</TableCell><TableCell>Checks</TableCell><TableCell /></TableRow>
+            <TableRow><TableCell>Operation</TableCell><TableCell>Type</TableCell><TableCell>Status</TableCell><TableCell>Checks</TableCell><TableCell><SrOnly>Actions</SrOnly></TableCell></TableRow>
           </TableHead>
           <TableBody>
             {p.operations.map((o) => (
@@ -206,7 +208,7 @@ function Operations({ p }: { p: Detail }) {
             ))}
           </TableBody>
         </Table>
-      </Box>
+      </ScrollBox>
       {recheck.data && (
         <Alert severity={recheck.data.settled ? "success" : "warning"} sx={{ mt: 1 }}>
           {recheck.data.settled ? "The simulator answered; the operation is settled." : "Still no answer from the simulator."}
@@ -351,7 +353,7 @@ export default function PaymentDetail({ refund = false }: { refund?: boolean }) 
       )}
       {p.outcome && <Alert severity="info" sx={{ mb: 2 }}>{p.outcome.message}</Alert>}
 
-      <Box sx={{ display: "grid", gap: 2.5, gridTemplateColumns: { xs: "1fr", lg: "minmax(0, 1.6fr) minmax(0, 1fr)" }, alignItems: "start" }}>
+      <Box sx={{ display: "grid", gap: 2.5, gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: "minmax(0, 1.6fr) minmax(0, 1fr)" }, alignItems: "start" }}>
         <Stack gap={2.5} minWidth={0}>
           <Section title="Summary">
             <Row label="Reference" value={p.reference} />

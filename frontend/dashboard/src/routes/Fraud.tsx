@@ -9,7 +9,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { api, post, query, type AlertList, type AlertRow, type FraudReport } from "../api/client";
 import { Pagination } from "../components/Pagination";
-import { Badge, ErrorAlert, PageHeader, ScoreBar, Section, Tile } from "../components/ui";
+import { Badge, ErrorAlert, PageHeader, ScoreBar, Section, Tile, RowAction } from "../components/ui";
 import { CASE_DECISION_LABELS, FINDING_LABELS, money, reasonLabel, shortDate } from "../format";
 
 // --- alerts ---------------------------------------------------------------------------------
@@ -77,7 +77,7 @@ export function FraudAlerts() {
                   </Stack>
                 </TableCell>
                 <TableCell sx={{ whiteSpace: "nowrap", fontWeight: a.read ? 400 : 700 }}>
-                  {a.case.payment.reference}
+                  <RowAction onClick={() => open(a)} label={`${a.read ? "" : "Unread: "}open alert for ${a.case.payment.reference}`}>{a.case.payment.reference}</RowAction>
                   <Typography variant="caption" color="text.secondary" display="block">{money(a.case.payment.amount)}</Typography>
                 </TableCell>
                 <TableCell>{a.case.merchant.name}</TableCell>
@@ -261,7 +261,7 @@ export function FraudReports() {
               <Section title={`Trend by ${r.period.interval}`}>
                 <TrendChart trend={r.trend} interval={r.period.interval} />
               </Section>
-              <Box sx={{ display: "grid", gap: 2.5, gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" } }}>
+              <Box sx={{ display: "grid", gap: 2.5, gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "1fr 1fr" } }}>
                 <Section title="By decision">
                   <CountTable label="By decision" total={r.totals.flagged} rows={[
                     [CASE_DECISION_LABELS.blocked, r.decisions.blocked],

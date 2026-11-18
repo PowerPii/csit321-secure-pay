@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
+import { expectAccessible } from "./a11y.testutil";
 
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
@@ -54,6 +55,7 @@ describe("history search and block list", () => {
     });
     at("/search?by=ip&value=203.0.113.9");
     expect(await screen.findByText("SP-AAAA-BBBB")).toBeTruthy();
+    await expectAccessible();
     expect(screen.getByText("Attempts · 203.0.113.•")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Blocklist this IP address" }));
     const dialog = await screen.findByRole("dialog");
@@ -95,6 +97,7 @@ describe("fraud rules", () => {
     });
     at("/rules");
     fireEvent.click(await screen.findByRole("button", { name: "New rule" }));
+    await expectAccessible();
     const dialog = await screen.findByRole("dialog", { name: "New fraud rule" });
     fireEvent.change(within(dialog).getByLabelText("Value"), { target: { value: "20000" } });
     fireEvent.change(within(dialog).getByLabelText(/Reason code/), { target: { value: "large_order" } });

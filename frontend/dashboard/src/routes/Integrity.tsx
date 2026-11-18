@@ -12,7 +12,7 @@ import { useState } from "react";
 import {
   api, post, type DataKeyRow, type IntegrityOverview, type MaintenanceRun, type RunKind, type SelfCheckResult,
 } from "../api/client";
-import { Badge, ErrorAlert, PageHeader, Section } from "../components/ui";
+import { Badge, ErrorAlert, PageHeader, Section, SrOnly } from "../components/ui";
 import { longDate, titleCase } from "../format";
 
 const STATUS_LABEL: Record<SelfCheckResult["status"], string> = {
@@ -170,7 +170,7 @@ function Keys({ data }: { data: IntegrityOverview }) {
           <TableHead>
             <TableRow>
               <TableCell>Protects</TableCell><TableCell>Key</TableCell><TableCell>Status</TableCell>
-              <TableCell>Created</TableCell><TableCell align="right">Age</TableCell><TableCell />
+              <TableCell>Created</TableCell><TableCell align="right">Age</TableCell><TableCell><SrOnly>Actions</SrOnly></TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -233,6 +233,7 @@ function History() {
   if (!runs.data?.data.length) return null;
   return (
     <Section title="Run history">
+      <TableContainer>
       <Table size="small" aria-label="Run history">
         <TableHead><TableRow><TableCell>When</TableCell><TableCell>Run</TableCell><TableCell>Outcome</TableCell><TableCell>Started by</TableCell></TableRow></TableHead>
         <TableBody>
@@ -246,6 +247,7 @@ function History() {
           ))}
         </TableBody>
       </Table>
+      </TableContainer>
     </Section>
   );
 }
@@ -257,7 +259,7 @@ export function IntegrityPage() {
       <PageHeader title="Integrity and keys" subtitle="Self-checks, tamper checks, encryption keys and data clean-up" />
       <ErrorAlert error={overview.error} />
       {overview.data && (
-        <Box sx={{ display: "grid", gap: 2.5, gridTemplateColumns: { xs: "1fr", lg: "minmax(0, 1fr) minmax(0, 1fr)" }, alignItems: "start" }}>
+        <Box sx={{ display: "grid", gap: 2.5, gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: "minmax(0, 1fr) minmax(0, 1fr)" }, alignItems: "start" }}>
           <Stack gap={2.5} minWidth={0}>
             <SelfChecks data={overview.data} />
             <Keys data={overview.data} />

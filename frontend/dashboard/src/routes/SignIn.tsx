@@ -15,7 +15,7 @@ interface LoginReply { next: "totp"; email: string; setup: Setup | null }
 
 export function Card({ children, maxWidth = 420 }: { children: React.ReactNode; maxWidth?: number }) {
   return (
-    <Stack alignItems="center" justifyContent="center" sx={{ minHeight: "100vh", bgcolor: "background.default", p: 2 }}>
+    <Stack component="main" alignItems="center" justifyContent="center" sx={{ minHeight: "100vh", bgcolor: "background.default", p: 2 }}>
       <Paper sx={{ p: { xs: 3, sm: 4 }, width: "100%", maxWidth, borderRadius: 2 }}>{children}</Paper>
     </Stack>
   );
@@ -57,7 +57,7 @@ export function SignIn() {
     <Card>
       <Stack direction="row" alignItems="center" spacing={1.2}>
         <BrandMark size={28} />
-        <Typography variant="h6" fontWeight={700}>SecurePay</Typography>
+        <Typography variant="h6" component="p" fontWeight={700}>SecurePay</Typography>
       </Stack>
       <Typography variant="h5" component="h1" mt={2}>Sign in to the dashboard</Typography>
       <Typography color="text.secondary" variant="body2" mt={1} mb={3}>

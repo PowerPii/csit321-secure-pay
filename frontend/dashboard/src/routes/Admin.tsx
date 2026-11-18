@@ -10,7 +10,7 @@ import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api, post, query, type AuditRow, type Merchant, type Page } from "../api/client";
 import { Pagination } from "../components/Pagination";
-import { Badge, ErrorAlert, PageHeader } from "../components/ui";
+import { Badge, ErrorAlert, PageHeader, SrOnly } from "../components/ui";
 import { longDate, money, parseMoney, titleCase } from "../format";
 import { StatusDialog, type StatusAction } from "./Manage";
 
@@ -127,7 +127,7 @@ export function Merchants() {
           <TableHead>
             <TableRow>
               <TableCell>Merchant</TableCell><TableCell>Status</TableCell><TableCell>Webhook</TableCell>
-              <TableCell>API key</TableCell><TableCell>Limit</TableCell><TableCell>Created</TableCell><TableCell />
+              <TableCell>API key</TableCell><TableCell>Limit</TableCell><TableCell>Created</TableCell><TableCell><SrOnly>Actions</SrOnly></TableCell>
             </TableRow>
           </TableHead>
           <TableBody>

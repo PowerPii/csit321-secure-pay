@@ -8,7 +8,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { useState } from "react";
 import { api, post, query, type Limits, type Merchant, type Role, type StaffList, type StaffRow } from "../api/client";
 import { useStaff } from "../auth";
-import { Badge, ErrorAlert, PageHeader, Section } from "../components/ui";
+import { Badge, ErrorAlert, PageHeader, Section, SrOnly } from "../components/ui";
 import { longDate, money, parseMoney, titleCase } from "../format";
 
 export const REASONS = [
@@ -126,7 +126,7 @@ export function Accounts() {
       <TableContainer component={Paper} sx={{ borderRadius: 2 }}>
         <Table aria-label="Staff accounts">
           <TableHead>
-            <TableRow><TableCell>Account</TableCell><TableCell>Role</TableCell><TableCell>Status</TableCell><TableCell>Last sign-in</TableCell><TableCell /></TableRow>
+            <TableRow><TableCell>Account</TableCell><TableCell>Role</TableCell><TableCell>Status</TableCell><TableCell>Last sign-in</TableCell><TableCell><SrOnly>Actions</SrOnly></TableCell></TableRow>
           </TableHead>
           <TableBody>
             {rows.map((a) => (
@@ -198,7 +198,7 @@ export function LimitsPage() {
       {saved && <Alert severity="success" sx={{ mb: 2 }}>Saved. New requests use the new limits within a few seconds.</Alert>}
       {l && values && (
         <Section title="Current limits">
-          <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" }, mb: 2 }}>
+          <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "repeat(3, 1fr)" }, mb: 2 }}>
             <TextField label="Maximum per payment (SGD)" value={values.amount} onChange={(e) => set("amount", e.target.value)}
               helperText={`Up to ${money(l.bounds.max_amount_cents[1])}. Above it: "amount exceeds limit", before screening.`} />
             <TextField label="Requests a minute per API key" value={values.key} onChange={(e) => set("key", e.target.value)}

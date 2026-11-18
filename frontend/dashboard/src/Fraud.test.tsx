@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import { sgDate } from "./routes/Fraud";
+import { expectAccessible } from "./a11y.testutil";
 
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
@@ -66,7 +67,10 @@ describe("fraud alerts and reports", () => {
     });
     at("/alerts");
     expect(await screen.findByText("SP-5LKD-2ZZ8")).toBeTruthy();
-    expect(screen.getByRole("status", { name: "3 unread fraud alerts" })).toBeTruthy();
+    await expectAccessible();
+    expect(screen.getByRole("link", { name: "3 unread fraud alerts" })).toBeTruthy();
+    // Screen readers hear the count from a live region that is always on the page.
+    expect(screen.getByRole("status").textContent).toBe("3 unread fraud alerts");
     expect(screen.getByText("Card on blocklist")).toBeTruthy();
     expect(screen.getByText("Unread (1)")).toBeTruthy();
     fireEvent.click(screen.getByRole("row", { name: /Unread: SP-5LKD-2ZZ8/ }));
@@ -94,6 +98,7 @@ describe("fraud alerts and reports", () => {
     });
     at("/reports");
     expect(await screen.findByText("10 · 25.0%")).toBeTruthy();
+    await expectAccessible();
     expect(screen.getByText("High (0.90 and above)")).toBeTruthy();
     expect(screen.getByText("Not reviewed yet")).toBeTruthy();
     expect(screen.getByRole("img", { name: "Screened and flagged payments per day" })).toBeTruthy();

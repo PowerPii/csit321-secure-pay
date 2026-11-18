@@ -3,7 +3,7 @@ import { getMe, type Customer } from "../accountApi";
 import { addCard, ApiError, getSession, submit } from "../api";
 import { brandName, cardBrand, countdown, digitsOnly, formatCardNumber, formatExpiry, luhnOk, money, parseExpiry } from "../format";
 import { ConsentBox } from "../Privacy";
-import { Field } from "../ui";
+import { Field, invalidProps } from "../ui";
 import { LockIcon } from "./icons";
 import { useSessionExpiry, type SessionFormProps } from "./session";
 
@@ -92,7 +92,8 @@ export function CardForm({
   }
 
   return (
-    <form className="form" onSubmit={onSubmit} noValidate>
+    <form className="form" onSubmit={onSubmit} noValidate aria-labelledby="card-form-title">
+      <h1 id="card-form-title" className="sr-only">Pay {money(session.amount)} to {session.merchant.name} by card</h1>
       {errors.form && <p className="alert" role="alert">{errors.form}</p>}
       {customer && (
         <p className="muted small" role="status">
@@ -112,7 +113,7 @@ export function CardForm({
       <Field label="Card number" error={errors.number} id="number">
         <div className="card-input">
           <input id="number" inputMode="numeric" autoComplete="cc-number" placeholder="1234 5678 9012 3456"
-            aria-describedby="card-brands"
+            {...invalidProps("number", errors.number, "card-brands")}
             value={number} onChange={(e) => setNumber(formatCardNumber(e.target.value))} />
           {brand && <span className={`card-chip ${brand}`} data-testid="card-brand">{brandName(brand)}</span>}
         </div>
@@ -136,7 +137,7 @@ export function CardForm({
         <input id="name" autoComplete="cc-name" placeholder="As shown on card"
           value={name} onChange={(e) => setName(e.target.value)} />
       </Field>
-      <ConsentBox checked={consent} onChange={setConsent} error={errors.privacy_consent}>
+      <ConsentBox id="privacy-consent" checked={consent} onChange={setConsent} error={errors.privacy_consent}>
         I agree that SecurePay uses my details to process and protect this payment, as the privacy notice says.
       </ConsentBox>
       <button className="btn primary with-lock" type="submit" disabled={busy}>
@@ -146,6 +147,7 @@ export function CardForm({
         Cancel and return to {session.merchant.name}
       </a>
       <p className="muted tiny">
+        {/* Updates every second, so it is not a live region; the page reloads the result when it ends. */}
         Session expires in {countdown(session.expires_at, now)} · Card details are encrypted and never shared with the shop.
       </p>
     </form>

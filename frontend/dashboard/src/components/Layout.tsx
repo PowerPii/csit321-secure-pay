@@ -5,13 +5,13 @@ import {
   Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Drawer, IconButton, InputBase, List, ListItemButton, ListItemText, Paper, Stack, Typography,
   useMediaQuery, useTheme,
 } from "@mui/material";
-import { useCallback, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import { CAN, useSignOut, useStaff } from "../auth";
 import { minSec, useIdleSignOut } from "../idle";
-import { BrandMark } from "./ui";
+import { BrandMark, SrOnly, visuallyHidden } from "./ui";
 
 const SIDEBAR = 232;
 
@@ -60,7 +60,7 @@ function useOpenSecurityAlerts(enabled: boolean): number {
 function Count({ n }: { n: number }) {
   return (
     <Box component="span" aria-hidden="true"
-      sx={{ ml: 1, px: 0.9, minWidth: 22, height: 22, borderRadius: 11, bgcolor: "#D9434B", color: "#fff",
+      sx={{ ml: 1, px: 0.9, minWidth: 22, height: 22, borderRadius: 11, bgcolor: "#C2333B", color: "#fff",
         fontSize: 12, fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
       {n > 99 ? "99+" : n}
     </Box>
@@ -74,10 +74,10 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const unread = useUnreadAlerts(CAN.alerts.includes(staff.role));
   const security = useOpenSecurityAlerts(CAN.security.includes(staff.role));
   return (
-    <Stack sx={{ width: SIDEBAR, height: "100%", bgcolor: "#F3F0EA", p: 2.5, boxSizing: "border-box" }}>
+    <Stack component="aside" aria-label="Sidebar" sx={{ width: SIDEBAR, height: "100%", bgcolor: "#F3F0EA", p: 2.5, boxSizing: "border-box" }}>
       <Stack direction="row" alignItems="center" spacing={1.2}>
         <BrandMark />
-        <Typography variant="h6" fontWeight={700}>SecurePay</Typography>
+        <Typography variant="h6" component="p" fontWeight={700}>SecurePay</Typography>
       </Stack>
       <Stack direction="row" alignItems="center" spacing={1} mt={0.5} mb={3}>
         <Typography variant="body2" color="text.secondary">Dashboard</Typography>
@@ -100,8 +100,8 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
               sx={{ borderRadius: 1.5, mb: 0.5, "&.Mui-selected": { bgcolor: "#E6E1D8", fontWeight: 600 } }}
             >
               <ListItemText primary={n.label} primaryTypographyProps={{ fontWeight: active ? 600 : 400 }} />
-              {n.page === "alerts" && unread > 0 && <Count n={unread} />}
-              {n.page === "security" && security > 0 && <Count n={security} />}
+              {n.page === "alerts" && unread > 0 && <><Count n={unread} /><SrOnly>, {unread} unread</SrOnly></>}
+              {n.page === "security" && security > 0 && <><Count n={security} /><SrOnly>, {security} open</SrOnly></>}
             </ListItemButton>
           );
         })}
@@ -148,7 +148,7 @@ function AlertsLink() {
   const unread = useUnreadAlerts(CAN.alerts.includes(staff.role));
   if (!unread) return null;
   return (
-    <Button component={Link} to="/alerts" size="small" variant="contained" role="status"
+    <Button component={Link} to="/alerts" size="small" variant="contained"
       aria-label={`${unread} unread fraud alert${unread === 1 ? "" : "s"}`} sx={{ whiteSpace: "nowrap", flexShrink: 0 }}>
       {unread > 99 ? "99+" : unread} new alert{unread === 1 ? "" : "s"}
     </Button>
@@ -161,11 +161,24 @@ function SecurityLink() {
   const open = useOpenSecurityAlerts(CAN.security.includes(staff.role));
   if (!open) return null;
   return (
-    <Button component={Link} to="/security" size="small" variant="outlined" role="status"
+    <Button component={Link} to="/security" size="small" variant="outlined"
       aria-label={`${open} open security alert${open === 1 ? "" : "s"}`} sx={{ whiteSpace: "nowrap", flexShrink: 0 }}>
       {open > 99 ? "99+" : open} security alert{open === 1 ? "" : "s"}
     </Button>
   );
+}
+
+/** Says new alerts out loud for screen-reader users: the top-bar buttons appear without focus
+ *  moving to them, so a polite live region that is always on the page announces the counts. */
+function AlertAnnouncer() {
+  const staff = useStaff();
+  const unread = useUnreadAlerts(CAN.alerts.includes(staff.role));
+  const open = useOpenSecurityAlerts(CAN.security.includes(staff.role));
+  const parts = [
+    unread ? `${unread} unread fraud alert${unread === 1 ? "" : "s"}` : "",
+    open ? `${open} open security alert${open === 1 ? "" : "s"}` : "",
+  ].filter(Boolean);
+  return <Box role="status" sx={visuallyHidden}>{parts.join(". ")}</Box>;
 }
 
 /** FR-ACC-10: warn at 13 idle minutes, sign out at 15 (the server's session limit). */
@@ -204,8 +217,23 @@ export default function Layout() {
   const wide = useMediaQuery(theme.breakpoints.up("md"));
   const [open, setOpen] = useState(false);
   const scope = staff.merchant ? `Merchant: ${staff.merchant.name}` : "All merchants (read-only)";
+  // After moving to another page, put keyboard and screen-reader focus at the start of the new
+  // page's content, as a full page load would (not on the first page shown).
+  const mainRef = useRef<HTMLElement>(null);
+  const firstPath = useRef(location.pathname);
+  useEffect(() => {
+    if (location.pathname === firstPath.current) return;
+    firstPath.current = "";
+    mainRef.current?.focus({ preventScroll: false });
+  }, [location.pathname]);
   return (
     <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "#fff" }}>
+      <Box component="a" href="#main"
+        onClick={(e: { preventDefault: () => void }) => { e.preventDefault(); mainRef.current?.focus(); }}
+        sx={{ ...visuallyHidden, "&:focus": { clip: "auto", width: "auto", height: "auto", margin: 0, zIndex: 2000,
+          top: 8, left: 8, px: 2, py: 1, bgcolor: "#0F2240", color: "#fff", borderRadius: 1, fontWeight: 600 } }}>
+        Skip to content
+      </Box>
       {wide ? (
         <Box sx={{ width: SIDEBAR, flexShrink: 0, bgcolor: "#F3F0EA" }}>
           <Box sx={{ position: "sticky", top: 0, height: "100vh" }}>
@@ -219,6 +247,7 @@ export default function Layout() {
       )}
       <Box sx={{ flexGrow: 1, minWidth: 0 }}>
         <Stack
+          component="header"
           direction="row"
           alignItems="center"
           gap={2}
@@ -236,7 +265,8 @@ export default function Layout() {
           <SecurityLink />
           <Typography variant="body2" sx={{ ml: { xs: 0, sm: "auto" }, display: { xs: "none", sm: "block" } }}>{scope}</Typography>
         </Stack>
-        <Box component="main" sx={{ px: { xs: 2, md: 3.5 }, py: 3, maxWidth: 1240 }}>
+        <Box component="main" id="main" tabIndex={-1} ref={mainRef}
+          sx={{ px: { xs: 2, md: 3.5 }, py: 3, maxWidth: 1240, "&:focus": { outline: "none" } }}>
           {staff.merchant?.status === "pending" && (
             <Alert severity="info" sx={{ mb: 2 }}>
               {staff.merchant.name} is waiting for administrator approval. No API key is issued until then.
@@ -254,6 +284,7 @@ export default function Layout() {
           <Outlet />
         </Box>
         <IdleWarning />
+        <AlertAnnouncer />
       </Box>
     </Box>
   );

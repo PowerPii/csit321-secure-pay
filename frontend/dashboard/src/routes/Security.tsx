@@ -10,7 +10,7 @@ import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api, post, query, type SecurityAlert, type SecurityAlertList } from "../api/client";
 import { Pagination } from "../components/Pagination";
-import { Badge, ErrorAlert, PageHeader, Row } from "../components/ui";
+import { Badge, ErrorAlert, PageHeader, Row, RowAction } from "../components/ui";
 import { longDate, shortDate, titleCase } from "../format";
 
 function AlertDialog({ id, onClose }: { id: string | null; onClose: () => void }) {
@@ -40,7 +40,7 @@ function AlertDialog({ id, onClose }: { id: string | null; onClose: () => void }
         {a && (
           <>
             <Typography mb={2}>{a.summary}</Typography>
-            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, columnGap: 4, mb: 2 }}>
+            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", sm: "1fr 1fr" }, columnGap: 4, mb: 2 }}>
               <Row label="Severity" value={titleCase(a.severity)} />
               <Row label="Times seen" value={a.count} />
               <Row label="Source" value={<code>{a.source}</code>} />
@@ -131,7 +131,7 @@ export function SecurityAlerts() {
               <TableRow key={a.id} hover sx={{ cursor: "pointer" }} onClick={() => setOpenId(a.id)} aria-label={`${a.kind_label}: ${a.source}`}>
                 <TableCell sx={{ whiteSpace: "nowrap" }}>{shortDate(a.last_seen_at)}</TableCell>
                 <TableCell>
-                  <Typography variant="body2" fontWeight={600}>{a.kind_label}</Typography>
+                  <Typography variant="body2" fontWeight={600}><RowAction onClick={() => setOpenId(a.id)}>{a.kind_label}</RowAction></Typography>
                   <Typography variant="caption" color="text.secondary">{a.summary}</Typography>
                 </TableCell>
                 <TableCell><Badge label={titleCase(a.severity)} tone={a.severity === "high" ? "dark" : "neutral"} /></TableCell>

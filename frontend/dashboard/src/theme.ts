@@ -12,7 +12,9 @@ export const theme = createTheme({
     divider: "#E6E1D8",
     success: { main: "#1F9D63" },
     warning: { main: "#D98A0B" },
-    error: { main: "#D9434B" },
+    // Darker than the brand red (#D9434B, 4.3:1) so red text such as "Deactivate" reaches the
+    // WCAG AA 4.5:1 contrast on white (accessibility pass, 18 Nov 2026).
+    error: { main: "#C2333B" },
   },
   shape: { borderRadius: 8 },
   typography: {
@@ -25,6 +27,16 @@ export const theme = createTheme({
   components: {
     MuiButton: { defaultProps: { disableElevation: true } },
     MuiPaper: { defaultProps: { variant: "outlined" } },
+    // Wide tables scroll sideways on phones; focusable so the keyboard can scroll them too.
+    // position: relative keeps screen-reader-only text inside the scrolling box.
+    MuiTableContainer: {
+      defaultProps: { tabIndex: 0 } as object,
+      styleOverrides: { root: { position: "relative", "&:focus-visible": { outline: "2px solid #0F2240", outlineOffset: 2 } } },
+    },
+    // A visible keyboard focus ring on every control (WCAG 2.4.7), in the brand navy.
+    MuiButtonBase: {
+      styleOverrides: { root: { "&.Mui-focusVisible": { outline: "2px solid #0F2240", outlineOffset: 2 } } },
+    },
     MuiTableCell: {
       styleOverrides: {
         head: { backgroundColor: "#F3F0EA", color: "#3A4357", fontWeight: 600 },

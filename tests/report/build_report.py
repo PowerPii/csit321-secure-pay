@@ -30,8 +30,9 @@ ROOT = Path(__file__).resolve().parents[2]
 DOCS = ROOT / "docs" / "test-report"
 SERVICE_DIRS = {"gateway": ROOT / "gateway", "simulator": ROOT / "simulator",
                 "merchant": ROOT / "merchant", "checkout": ROOT / "frontend" / "checkout",
+                "dashboard": ROOT / "frontend" / "dashboard",
                 "integration": ROOT / "tests" / "integration"}
-CI_SERVICES = {"gateway", "simulator", "merchant", "checkout"}
+CI_SERVICES = {"gateway", "simulator", "merchant", "checkout", "dashboard"}
 VITEST = {"checkout", "dashboard"}
 
 PASS, FAIL, PENDING, NOT_RUN = "Pass", "Fail", "Pending", "Not run"

@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
+import { expectAccessible } from "./a11y.testutil";
 
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
@@ -57,6 +58,7 @@ describe("API key rotation and revocation", () => {
     });
     at("/api-keys");
     fireEvent.click(await screen.findByRole("button", { name: "Rotate" }));
+    await expectAccessible();
     const dialog = await screen.findByRole("dialog", { name: "Rotate API key" });
     const submit = within(dialog).getByRole("button", { name: "Rotate key" });
     expect((submit as HTMLButtonElement).disabled).toBe(true);
@@ -119,7 +121,9 @@ describe("security alerts", () => {
       "POST /security/alerts/sal_1/resolve": () => { resolved = true; return json({ ...alert, status: "resolved" }); },
     });
     at("/security");
-    expect(await screen.findByRole("status", { name: "1 open security alert" })).toBeTruthy();
+    expect(await screen.findByRole("link", { name: "1 open security alert" })).toBeTruthy();
+    await expectAccessible();
+    expect(screen.getByRole("status").textContent).toContain("1 open security alert");
     fireEvent.click(await screen.findByRole("row", { name: /Repeated cross-merchant access: key_7/ }));
     const dialog = await screen.findByRole("dialog", { name: "Repeated cross-merchant access" });
     expect(await within(dialog).findByText("security.cross_merchant_access")).toBeTruthy();

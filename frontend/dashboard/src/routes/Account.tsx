@@ -87,9 +87,9 @@ export function Register() {
 
   return (
     <Card maxWidth={900}>
-      <Box sx={{ display: "grid", gap: 4, gridTemplateColumns: { xs: "1fr", md: "3fr 2fr" } }}>
+      <Box sx={{ display: "grid", gap: 4, gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "3fr 2fr" } }}>
         <Box>
-          <Typography variant="h6" fontWeight={700}>SecurePay</Typography>
+          <Typography variant="h6" component="p" fontWeight={700}>SecurePay</Typography>
           <Typography variant="h5" component="h1" mt={2}>Register your business</Typography>
           <Typography color="text.secondary" variant="body2" mt={0.5} mb={3}>
             Create a merchant account to accept test payments.
@@ -104,7 +104,7 @@ export function Register() {
             </Stack>
           ) : (
             <Box component="form" onSubmit={submit} noValidate>
-              <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" } }}>
+              <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "minmax(0, 1fr)", sm: "1fr 1fr" } }}>
                 {field("business_name", "Business name", { autoFocus: true, autoComplete: "organization" })}
                 {field("registration_number", "Registration number (UEN)", { placeholder: "202612345K" })}
                 {field("website", "Website", { placeholder: "https://", autoComplete: "url" })}
@@ -165,7 +165,7 @@ export function VerifyEmail() {
 
   return (
     <Card maxWidth={520}>
-      <Typography variant="h6" fontWeight={700}>SecurePay</Typography>
+      <Typography variant="h6" component="p" fontWeight={700}>SecurePay</Typography>
       {state.done ? (
         <>
           <Typography variant="h5" component="h1" mt={2}>Registration received</Typography>
@@ -220,7 +220,7 @@ export function ForgotPassword() {
 
   return (
     <Card>
-      <Typography variant="h6" fontWeight={700}>SecurePay</Typography>
+      <Typography variant="h6" component="p" fontWeight={700}>SecurePay</Typography>
       <Typography variant="h5" component="h1" mt={2}>Reset your password</Typography>
       {sent ? (
         <Stack gap={2} mt={2}>
@@ -337,7 +337,7 @@ export function ResetPassword() {
 
   return (
     <Card>
-      <Typography variant="h6" fontWeight={700}>SecurePay</Typography>
+      <Typography variant="h6" component="p" fontWeight={700}>SecurePay</Typography>
       <Typography variant="h5" component="h1" mt={2}>Choose a new password</Typography>
       {body}
     </Card>
