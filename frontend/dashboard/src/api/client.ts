@@ -135,6 +135,15 @@ export interface Screening {
   explanation?: Explanation | null;
 }
 
+/** What a merchant operator gets instead: the decision and broad reasons, no screening internals. */
+export interface MerchantScreening {
+  id: string;
+  outcome: string;
+  occurred_at: string;
+  merchant_view: true;
+  explanation: { areas: string[] } | null;
+}
+
 export interface Operation {
   id: string;
   type: string;
@@ -254,7 +263,7 @@ export interface PaymentDetail {
   merchant: MerchantRef;
   customer: string | null;
   description: string | null;
-  screening: Screening | null;
+  screening: Screening | MerchantScreening | null;
   screening_decision: string | null;
   verification: string | null;
   operations: Operation[];

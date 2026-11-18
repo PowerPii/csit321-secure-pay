@@ -1,7 +1,7 @@
 // The decision record (FR-FRD-01) as on D4: score on the policy scale, why it was decided in
 // plain words (rule hits plus the model's TreeSHAP contributions), reasons and versions.
 import { Box, Divider, Stack, Typography } from "@mui/material";
-import type { Explanation, ExplanationFactor, Screening } from "../api/client";
+import type { Explanation, ExplanationFactor, MerchantScreening, Screening } from "../api/client";
 import { Badge, Row, Section } from "../components/ui";
 import { FEATURE_LABELS, featureValue, orderedFeatures, reasonLabel } from "../format";
 
@@ -97,9 +97,37 @@ function Why({ explanation }: { explanation: Explanation }) {
   );
 }
 
+/** Merchant operators: what was decided and the broad areas, never the screening internals. */
+function MerchantDecision({ screening, badge }: { screening: MerchantScreening; badge: string }) {
+  const areas = screening.explanation?.areas ?? [];
+  const text: Record<string, string> = {
+    allow: "Screening found nothing that needed a check.",
+    verify: "The customer was asked for an emailed code before the payment went ahead.",
+    block: "The payment was stopped before it reached the bank.",
+    not_screened: "Screening could not be completed, so the payment was stopped. This is not a fraud finding.",
+  };
+  return (
+    <Section title="Fraud decision" action={<Badge label={badge} />}>
+      <Typography variant="body2">{text[screening.outcome] ?? ""}</Typography>
+      {areas.length > 0 && (
+        <Box mt={1.5}>
+          <Typography fontWeight={600} variant="body2" mb={0.5}>Main risk areas</Typography>
+          <Box component="ul" sx={{ m: 0, pl: 2.5 }}>
+            {areas.map((a) => <Typography component="li" variant="body2" key={a} py={0.25}>{a}</Typography>)}
+          </Box>
+        </Box>
+      )}
+      <Typography variant="caption" color="text.secondary" display="block" mt={1.5}>
+        The fraud team can see the full decision. Contact them if you think this was a mistake.
+      </Typography>
+    </Section>
+  );
+}
+
 export function FraudDecision({ screening, badge, showFeatures = true }: {
-  screening: Screening; badge: string; showFeatures?: boolean;
+  screening: Screening | MerchantScreening; badge: string; showFeatures?: boolean;
 }) {
+  if ("merchant_view" in screening) return <MerchantDecision screening={screening} badge={badge} />;
   const s = screening;
   const rules = s.reasons.filter((r) => !r.startsWith("model_"));
   return (

@@ -55,10 +55,45 @@ def test_merchant_operator_sees_broad_areas_only(operator, stepped_up):
     event.explanation["factors"] += MODEL_FACTORS
     event.save(update_fields=["explanation"])
     detail = operator.get(f"/internal/payments/{stepped_up.public_id}").json()
-    why = detail["screening"]["explanation"]
-    assert why == {"areas": ["Unusually large amount", "Unusual activity on this card"]}
-    text = str(why)
-    assert "high_amount" not in text and "500" not in text and "effect" not in text
+    screening = detail["screening"]
+    assert screening == {
+        "id": event.public_id, "outcome": "verify", "occurred_at": screening["occurred_at"],
+        "merchant_view": True,
+        "explanation": {"areas": ["Unusually large amount", "Unusual activity on this card"]}}
+    # No reason code, score, feature value, threshold or version anywhere in the reply.
+    text = str(detail)
+    for hidden in ("high_amount", "card_attempts", "score", "threshold", "rules-0",
+                   "policy-", "stub-0", "fs-0", "effect", "500.00"):
+        assert hidden not in text, hidden
+    screening_row = next(r for r in detail["trail"] if r["kind"] == "screening")
+    assert screening_row.get("detail") is None
+    # The status history keeps the decision itself.
+    step_up = next(e for e in detail["timeline"]
+                   if e["action"] == "payment.verification_required")
+    assert step_up["details"]["screening"] == "verify"
+
+
+def test_merchant_operator_does_not_see_the_fraud_teams_review(operator, analyst, stepped_up):
+    event = ScreeningEvent.objects.get(payment=stepped_up)
+    analyst.post(f"/internal/reviews/{event.public_id}", {"action": "assign"}, format="json")
+    seen = analyst.get(f"/internal/payments/{stepped_up.public_id}").json()
+    assert any(e["action"] == "review.assigned" for e in seen["timeline"])
+    detail = operator.get(f"/internal/payments/{stepped_up.public_id}").json()
+    assert not any(e["action"].startswith("review.") for e in detail["timeline"])
+    assert not any(r["title"].startswith("review.") for r in detail["trail"])
+
+
+def test_analyst_and_admin_keep_the_full_decision_record(analyst, staff_client, stepped_up):
+    admin = staff_client("administrator")
+    for client in (analyst, admin):
+        detail = client.get(f"/internal/payments/{stepped_up.public_id}").json()
+        screening = detail["screening"]
+        assert "merchant_view" not in screening
+        assert screening["reasons"] == ["high_amount"]
+        assert screening["score"] == 0.0 and screening["features"]
+        assert screening["rules_version"] and screening["model_version"]
+        row = next(r for r in detail["trail"] if r["kind"] == "screening")
+        assert row["detail"] == "score 0.0000"
 
 
 def test_insights_rank_the_features_that_raised_flagged_scores(analyst, stepped_up, shop):

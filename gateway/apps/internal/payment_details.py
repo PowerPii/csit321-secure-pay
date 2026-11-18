@@ -27,8 +27,27 @@ def _payment_audit(payment: Payment):
         .order_by("occurred_at", "id"))
 
 
+# What merchant operators do not see of the fraud screening: the audit details that name
+# reason codes and versions, and the fraud team's own review of the case (who looked at it,
+# their finding). They see the decision itself and broad reasons (serializers.screening_to_dict).
+FRAUD_DETAIL_KEYS = frozenset({"reasons", "model_version", "policy_version", "rules_version",
+                               "score", "features", "explanation", "thresholds"})
+FRAUD_TEAM_ACTIONS = ("review.",)
+
+
+def _hidden_from_merchant(event: AuditEvent) -> bool:
+    return event.action.startswith(FRAUD_TEAM_ACTIONS)
+
+
+def _details(event: AuditEvent, merchant_view: bool) -> dict:
+    details = event.details or {}
+    if merchant_view and isinstance(details, dict):
+        return {k: v for k, v in details.items() if k not in FRAUD_DETAIL_KEYS}
+    return details
+
+
 # Audit actions that describe the payment's own history (D4 "Status history").
-def timeline(payment: Payment) -> list[dict]:
+def timeline(payment: Payment, merchant_view: bool = False) -> list[dict]:
     events = list(_payment_audit(payment))
     staff_ids = {e.actor_id for e in events if e.actor_type == AuditEvent.ActorType.STAFF}
     names = dict(StaffAccount.objects.filter(public_id__in=staff_ids)
@@ -37,6 +56,8 @@ def timeline(payment: Payment) -> list[dict]:
     for event in events:
         if event.action == "payment.viewed":
             continue  # access log, not history
+        if merchant_view and _hidden_from_merchant(event):
+            continue
         actor = event.actor_id
         if event.actor_type == AuditEvent.ActorType.STAFF:
             actor = names.get(event.actor_id, event.actor_id)
@@ -47,7 +68,7 @@ def timeline(payment: Payment) -> list[dict]:
             "actor": actor or None,
             "target_type": event.target_type,
             "target_id": event.target_id,
-            "details": event.details,
+            "details": _details(event, merchant_view),
         })
     return out
 
@@ -74,7 +95,7 @@ def webhooks(payment: Payment) -> list[dict]:
 
 
 def trail(payment: Payment, screening, ops: list[Operation], refunds: list[Refund],
-          hooks: list[dict]) -> list[dict]:
+          hooks: list[dict], merchant_view: bool = False) -> list[dict]:
     """FR-TXN-16: one timeline of everything linked by the payment's correlation ID: the
     screening decision, processing operations, refunds, notifications (webhooks and
     emails) and audit entries, oldest first. Email addresses are never included."""
@@ -86,7 +107,8 @@ def trail(payment: Payment, screening, ops: list[Operation], refunds: list[Refun
         rows.append({"at": screening.occurred_at, "kind": "screening",
                      "id": screening.public_id, "title": f"Screening: {screening.outcome}",
                      "status": screening.outcome, "request_id": None,
-                     "detail": (f"score {screening.score:.4f}" if screening.score is not None
+                     "detail": (f"score {screening.score:.4f}"
+                                if screening.score is not None and not merchant_view
                                 else None)})
     for op in ops:
         rows.append({"at": op.created_at, "kind": "operation", "id": op.public_id,
@@ -107,6 +129,8 @@ def trail(payment: Payment, screening, ops: list[Operation], refunds: list[Refun
                      "title": f"Email to customer: {email.get_kind_display()}",
                      "status": email.status, "request_id": None})
     for event in _payment_audit(payment):
+        if merchant_view and _hidden_from_merchant(event):
+            continue
         rows.append({"at": event.occurred_at, "kind": "audit", "id": str(event.pk),
                      "title": event.action, "status": None,
                      "request_id": event.request_id or None,
@@ -171,9 +195,10 @@ def payment_detail(staff: StaffAccount, payment: Payment) -> dict:
         "operations": [operation_to_dict(op) for op in ops],
         "refunds": refund_rows,
         "webhooks": hooks,
-        "timeline": timeline(payment),
+        "timeline": timeline(payment, merchant_view=staff.is_operator),
         "correlation_id": payment.public_id,
-        "trail": trail(payment, screening, ops, refunds, hooks),
+        "trail": trail(payment, screening, ops, refunds, hooks,
+                       merchant_view=staff.is_operator),
         "actions": allowed_actions(staff, payment, ops, data["refundable_amount"]),
     })
     return data
