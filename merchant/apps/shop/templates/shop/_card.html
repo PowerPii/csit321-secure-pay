@@ -5,11 +5,11 @@
     <span class="blurb">{{ p.blurb }}</span>
     <span class="price">{{ p.price_cents|money }}{% if p.low_stock %} <span class="lowstock">Only {{ p.stock }} left</span>{% endif %}</span>
     {% if p.sold_out %}
-    <button class="btn block" type="button" disabled>Sold out</button>
+    <button class="btn" type="button" disabled>Sold out</button>
     {% else %}
     <form method="post" action="{% url 'shop-cart-add' %}">{% csrf_token %}
       <input type="hidden" name="sku" value="{{ p.sku }}">
-      <button class="btn block" type="submit">Add to cart</button>
+      <button class="btn" type="submit">Add to cart</button>
     </form>
     {% endif %}
   </div>

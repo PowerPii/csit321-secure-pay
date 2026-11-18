@@ -55,3 +55,11 @@ When asking an assistant for a new screen, give it this page and say:
 > frontend/brand/tokens.json. Start from the closest existing screen and change as little as
 > possible. Avoid everything in the "Do not use" list. Before you finish, list anything you
 > added that is not already used elsewhere in the app, and remove it unless it is needed.
+
+## The demo store, Volt & Co.
+
+Volt & Co. is a fictional merchant, so it does not use the SecurePay look: warm paper
+(`#FBFAF7`), graphite ink, one orange (`#E8692A`) for the ampersand in its name and small
+details in the product drawings, 6 px corners, system fonts. The same "do not use" list
+applies. Its styles live in `merchant/apps/shop/templates/shop/base.html` and the drawings'
+colours in `merchant/apps/shop/templatetags/shop.py`.

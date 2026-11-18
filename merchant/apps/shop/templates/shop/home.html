@@ -2,12 +2,13 @@
 {% block body %}
 <main class="wrap">
   {% if hero %}
-  <section class="hero">
+  <section class="hero" aria-labelledby="hero-title">
     <div>
       <span class="kicker">New this month</span>
-      <h1>{{ hero.name }}</h1>
+      <h1 id="hero-title">{{ hero.name }}</h1>
       <p>{{ hero.blurb }} Free delivery across Singapore and a 2-year Volt warranty.</p>
-      <a class="btn accent" href="{% url 'shop-product' hero.sku %}">Shop now · {{ hero.price_cents|money }}</a>
+      <span class="price">{{ hero.price_cents|money }}</span>
+      <a class="btn primary" href="{% url 'shop-product' hero.sku %}">See the {{ hero.name }}</a>
     </div>
     {% product_art hero "hero" %}
   </section>
@@ -18,7 +19,7 @@
     {% for tile in tiles %}
     <a class="tile" href="{% url 'shop-category' tile.key %}">
       {% if tile.product %}{% product_art tile.product "tile" %}{% endif %}
-      <span><strong>{{ tile.label }}</strong><span class="muted small">{{ tile.count }} product{{ tile.count|pluralize }}</span></span>
+      <strong>{{ tile.label }}</strong><span class="muted small">{{ tile.count }} product{{ tile.count|pluralize }}</span>
     </a>
     {% endfor %}
   </div>
@@ -27,11 +28,5 @@
   <div class="grid">
     {% for p in products %}{% include "shop/_card.html" %}{% endfor %}
   </div>
-
-  <section class="perks" aria-label="Why shop with us">
-    <div class="perk"><strong>Free delivery over S$ 80</strong><span class="muted">Next working day across Singapore.</span></div>
-    <div class="perk"><strong>30-day returns</strong><span class="muted">Changed your mind? Send it back, on us.</span></div>
-    <div class="perk"><strong>Secure payments by SecurePay</strong><span class="muted">We never see or store your card number.</span></div>
-  </section>
 </main>
 {% endblock %}
