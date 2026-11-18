@@ -4,3 +4,10 @@ b5e32330a803d3ff6cd54d5c7c4db4031c17072c:frontend/website/src/content/snippets.t
 
 # Test Idempotency-Key value in an acceptance test, not a secret; renamed in the next commit.
 3d912d5b70475a1f2da786975b5187aa8df90c8a:gateway/acceptance/test_nfr_integrity.py:generic-api-key:21
+
+# Made-up card tokens (tok_...) in contract examples, not secrets (security self-test, 18 Nov 2026).
+99e4759a2eba530efced15a1eb3319c5a17fe211:contracts/examples/api/get-payment-authorised.200.json:generic-api-key:13
+99e4759a2eba530efced15a1eb3319c5a17fe211:contracts/examples/api/capture-no-answer.202.json:generic-api-key:13
+99e4759a2eba530efced15a1eb3319c5a17fe211:contracts/examples/api/get-payment-captured-with-refund.200.json:generic-api-key:13
+99e4759a2eba530efced15a1eb3319c5a17fe211:contracts/examples/events/payment.authorised.json:generic-api-key:21
+99e4759a2eba530efced15a1eb3319c5a17fe211:contracts/examples/events/payment.blocked.json:generic-api-key:21

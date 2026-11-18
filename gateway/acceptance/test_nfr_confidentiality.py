@@ -101,8 +101,9 @@ def test_nfr_con_03_twenty_sign_ins_without_the_right_code_are_refused(role, sho
         client = _csrf_client()
         r = json_post(client, "/internal/auth/login",
                       {"email": account.user.email, "password": STAFF_PASSWORD})
-        # After five failures the account is locked: the password step refuses too.
-        assert r.status_code in (200, 403), r.content
+        # After five failures the account is locked: the password step refuses too, with the
+        # same reply as a wrong password (SEC-07).
+        assert r.status_code in (200, 401), r.content
         if r.status_code == 200 and attempt % 2:
             r = json_post(client, "/internal/auth/totp", {"code": wrong})
             assert r.status_code in (400, 401, 403), r.content

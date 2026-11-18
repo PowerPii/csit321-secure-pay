@@ -213,7 +213,7 @@ def test_staff_lockout_at_sign_in_raises_an_alert(client, db):
     assert account.email not in alert.summary
     assert client.post("/internal/auth/login", {"email": account.email,
                                                 "password": STAFF_PASSWORD},
-                       content_type="application/json").status_code == 403
+                       content_type="application/json").status_code == 401
 
 
 def test_payments_still_work_for_the_owner(shop):

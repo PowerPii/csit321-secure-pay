@@ -14,14 +14,24 @@ from apps.merchants.models import ApiKey, Merchant
 CONTRACTS = Path(__file__).resolve().parent.parent / "contracts"
 
 
+DB_FIXTURES = ("db", "transactional_db", "django_db_reset_sequences",
+               "django_db_serialized_rollback")
+
+
 @pytest.fixture(autouse=True)
-def _clear_throttle_cache():
+def _clear_throttle_cache(request):
     from apps.security import keyring
 
-    cache.clear()  # rate-limit counters must not leak between tests
+    # The cache is a database table (settings.CACHES), so only tests that may use the
+    # database can (or need to) clear it; the rest never reach a throttle.
+    db_fixtures = [name for name in DB_FIXTURES if name in request.fixturenames]
+    uses_db = bool(db_fixtures) or request.node.get_closest_marker("django_db") is not None
+    for name in db_fixtures:
+        request.getfixturevalue(name)  # open the database before clearing the cache
+    if uses_db:
+        cache.clear()  # rate-limit counters must not leak between tests
     keyring.forget_all()  # data key rows roll back with each test
     yield
-    cache.clear()
     keyring.forget_all()
 
 

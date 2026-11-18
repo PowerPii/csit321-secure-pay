@@ -133,4 +133,7 @@ def test_nfr_int_04_fifty_simultaneous_refunds_never_exceed_the_refundable_amoun
     assert unresolved, "the simulator was meant to leave some refunds unresolved"
     for item in unresolved:  # each keeps its reservation until reconciliation settles it
         assert item.amount == amount
-    assert results.count(422) >= 50 - refundable // amount
+    # Every request that would overdraw is refused: 422 once the amount is used up, or 409
+    # operation_in_progress once a lost reply has left a refund unresolved (rule 5). Which of
+    # the two a request gets depends on when the lost reply lands, so count both.
+    assert results.count(422) + results.count(409) >= 50 - refundable // amount

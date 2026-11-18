@@ -115,7 +115,7 @@ def test_wrong_backup_codes_count_towards_the_lockout(admin):
     r = backup(client, "not a code")
     assert r.status_code == 403 and r.json()["error"]["code"] == "account_locked"
     # Locked: the password step is refused, so no code can be tried.
-    assert login(client, admin.email).json()["error"]["code"] == "account_locked"
+    assert login(client, admin.email).json()["error"]["code"] == "invalid_credentials"
     assert StaffAccount.objects.get(pk=admin.pk).is_locked()
     assert BackupCode.objects.filter(user=admin.user, used_at__isnull=False).count() == 0
     assert AuditEvent.objects.filter(action="staff.sign_in_failed",

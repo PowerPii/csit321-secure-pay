@@ -96,15 +96,19 @@ def test_five_failures_lock_the_account_and_email_the_holder(analyst):
     r = totp(client, "111111")
     assert r.status_code == 403 and r.json()["error"]["code"] == "account_locked"
     assert int(r["Retry-After"]) > 14 * 60
-    # Locked: even the right password and code are not checked.
+    # Locked: even the right password is not checked, and the password step answers like a
+    # wrong password, so it does not tell whether the email is a staff account (SEC-07).
     r = login(client)
-    assert r.status_code == 403 and r.json()["error"]["code"] == "account_locked"
+    assert r.status_code == 401 and r.json()["error"]["code"] == "invalid_credentials"
+    unknown = login(client, "nobody@securepay.sg")
+    assert r.json()["error"]["message"] == unknown.json()["error"]["message"]
     analyst.refresh_from_db()
     assert analyst.is_locked()
     assert len(mail.outbox) == 1 and mail.outbox[0].to == ["analyst@securepay.sg"]
     assert AuditEvent.objects.filter(action="staff.locked", actor_id=analyst.public_id).count() \
         == 1
-    assert AuditEvent.objects.filter(action="staff.sign_in_failed").count() == 5
+    assert AuditEvent.objects.filter(action="staff.sign_in_failed",
+                                     actor_id=analyst.public_id).count() == 5
 
 
 def test_lock_ends_after_fifteen_minutes(analyst):
