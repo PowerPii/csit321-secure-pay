@@ -13,6 +13,7 @@ from apps.common import crypto
 from apps.common.logmask import MaskPersonalData, mask_text
 from apps.events.models import OutboundEmail
 from apps.payments.models import Payment
+from apps.payments.states import PaymentStatus
 from apps.security import integrity, keyring, maintenance, retention, selfchecks
 from apps.security.models import AlertKind, DataKey, MaintenanceRun, SecurityAlert
 from apps.security.tests import fresh_code
@@ -265,6 +266,22 @@ def test_card_kept_after_submission_and_an_old_key_fail_their_checks(shop):
     assert run.outcome == "problems"
     kinds = set(SecurityAlert.objects.values_list("kind", flat=True))
     assert {AlertKind.KEY_AGE, AlertKind.SELF_CHECK_FAILED} <= kinds
+    StoredCard.objects.using("vault").all().delete()
+
+
+def test_card_held_for_a_verification_code_does_not_fail_the_check(shop):
+    """The card stays in the vault while the customer has the code page open (FR-CHK-18)."""
+    payment = make_payment(shop)
+    summary = vault.tokenise("4242424242424242", 12, 2030, "123",
+                             expires_at=timezone.now() + timedelta(hours=1))
+    Payment.objects.filter(pk=payment.pk).update(
+        card_token=summary.token, submitted_at=timezone.now(),
+        status=PaymentStatus.VERIFICATION_REQUIRED,
+        checkout_expires_at=timezone.now() + timedelta(minutes=30))
+    assert selfchecks.no_card_data_after_submission()[0] == "passed"
+    Payment.objects.filter(pk=payment.pk).update(  # session over, card still there: fails
+        checkout_expires_at=timezone.now() - timedelta(minutes=1))
+    assert selfchecks.no_card_data_after_submission()[0] == "failed"
     StoredCard.objects.using("vault").all().delete()
 
 

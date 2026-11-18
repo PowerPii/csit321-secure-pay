@@ -275,6 +275,14 @@ desktop, and the customer scenes (2 and 3) plus the dashboard overview in one mo
 
 **Pass:** every step works in all three; note the browser versions.
 
+`tests/browsers/demo-script.mjs` plays the customer scenes (1 to 5) in Playwright's Chromium,
+Firefox and WebKit (Safari's engine) and in the installed Chrome (`BROWSERS=chrome,...`), then
+scenes 2 and 3 at iPhone and Pixel sizes; instructions at the top of the file. It makes fresh
+demo cards, so screening history does not build up. What stays by hand: the dashboard scenes
+(6 and 7), the scene 3 code unless `MAILPIT_USER`/`MAILPIT_PASS` are set, a browser
+Playwright cannot start (its Firefox build does not start on macOS 27: use the real Firefox),
+and the real phone.
+
 ## M-USE-04: stakeholder walkthroughs (task 11.5)
 
 Five participants who are not on the team. Show them each result page in turn (authorised,
