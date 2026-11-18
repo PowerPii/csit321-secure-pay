@@ -15,8 +15,10 @@ Tables 4.4.1.1 to 4.4.9.1) against its acceptance criterion.
 ## Getting the report
 
 Every CI run builds it: open the run on GitHub (Actions, `ci`), the report is on the summary
-page and in the `test-report` artifact. The `test-report` job is red if a requirement fails
-or `evidence.yaml` names a test that no longer exists.
+page and in the `test-report` artifact. The `ci-ok` job is red if a requirement fails, and
+the `changes` job if `evidence.yaml` names a test that no longer exists. CI tests only the
+parts a change touches, so the rest show as "Not run"; for a full report, Actions, `ci`,
+"Run workflow" on `main`.
 
 Locally, after running the suites with JUnit output:
 

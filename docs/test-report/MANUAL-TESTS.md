@@ -304,10 +304,10 @@ with nothing missing (compare with the audit log filtered by the payment ID).
 
 ## M-MNT-01: pipeline inspection
 
-1. Open the latest pull request: the `ci` workflow ran the gateway, simulator, merchant and
-   front-end tests and the test report job.
-2. Repository settings, Branches: `main` requires a pull request and the status checks
-   (`python`, `frontend`, `contracts`, `test-report`). This needs GitHub Pro (Student Pack)
+1. Open the latest pull request: the `ci` workflow ran the tests for the parts the change
+   touches (the run's summary lists them) and the `ci-ok` job built the test report.
+2. Repository settings, Branches: `main` requires a pull request and the status check
+   `ci-ok` (green only when every CI job that had to run passed). This needs GitHub Pro (Student Pack)
    on a private repository.
 
 **Pass:** both true. Until branch protection is on, record it as **fail** with the reason

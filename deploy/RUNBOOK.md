@@ -395,7 +395,8 @@ before a demo. Two switches, use both:
 1. **GitHub** (stops people merging and stops the deploy workflow): Settings > Secrets and
    variables > Actions > Variables > New repository variable `MERGE_FREEZE_UNTIL`, value a
    date and time with its zone, for example `2027-04-02T18:00+08:00`. While it is in the
-   future, every pull request shows a red **merge-freeze** check ("Do not merge") and the
+   future, every pull request shows a red **ci-ok** check (the `changes` job says "Merge
+   freeze for a demo ... Do not merge") and the
    deploy workflow fails without touching the server. Delete the variable, or let the time
    pass, to end it. (Branch protection would enforce it, but the free private plan does not
    have it.)

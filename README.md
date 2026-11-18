@@ -20,7 +20,7 @@ The MVP endpoints are implemented. See `docs/MVP-SCOPE.md` for completed sprints
 | `tests/report/`, `tests/load/` | All | Non-functional test report builder; checkout load test (NFR-PER-01) |
 | `deploy/` | VM | Docker Compose, Caddyfile, Postgres init, secrets templates, backups |
 | `docs/` | All | MVP scope, architecture, diagrams |
-| `.github/workflows/ci.yml` | CI | Lint, checks, tests on real Postgres, dependency audits, gitleaks |
+| `.github/workflows/ci.yml` | CI | Lint, checks, tests on real Postgres, dependency audits, gitleaks. Runs on pull requests and on `main`, only for the parts a change touches; `ci-ok` is the check to require |
 
 ## Quick start
 
