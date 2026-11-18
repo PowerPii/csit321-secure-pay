@@ -143,10 +143,14 @@ def test_fifth_wrong_password_locks_sign_in_for_15_minutes(customer):
     for _ in range(4):
         assert sign_in(password="wrong password 1")[1].status_code == 401
     locked = sign_in(password="wrong password 1")[1]
-    assert locked.status_code == 403 and locked.json()["error"]["code"] == "account_locked"
-    assert 14 * 60 < int(locked["Retry-After"]) <= 15 * 60
-    # The right password does not get in while locked.
-    assert sign_in()[1].status_code == 403
+    # The fifth failure locks the account but answers like any wrong password (SEC-07).
+    assert locked.status_code == 401 and locked.json()["error"]["code"] == "invalid_credentials"
+    assert CustomerAccount.objects.get(pk=customer.pk).is_locked()
+    # The right password does not get in while locked, and the reply matches an unknown email.
+    right = sign_in()[1]
+    _, unknown = sign_in(email="nobody@example.com")
+    assert right.status_code == 401
+    assert right.json()["error"]["message"] == unknown.json()["error"]["message"]
     CustomerAccount.objects.update(locked_until=timezone.now() - timedelta(seconds=1))
     assert sign_in()[1].status_code == 200
     customer.refresh_from_db()

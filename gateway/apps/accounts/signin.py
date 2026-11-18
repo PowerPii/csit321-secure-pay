@@ -154,11 +154,13 @@ def check_password(request, email: str, password: str) -> dict:
         _audit("staff.sign_in_failed", None, request, stage="password")
         raise invalid_credentials()
     if account.is_locked():
-        raise locked_error(account)
+        # The same reply as a wrong password, so the password step never tells whether an
+        # email is a staff account (security self-test SEC-07, Fifa 18 Nov 2026). The holder
+        # was emailed when it locked; the message itself mentions the lockout.
+        raise invalid_credentials()
     user = authenticate(request, username=account.user.get_username(), password=password)
     if user is None:
-        if _record_failure(account, request, "password"):
-            raise locked_error(StaffAccount.objects.get(pk=account.pk))
+        _record_failure(account, request, "password")
         raise invalid_credentials()
 
     if account.merchant is not None and account.merchant.status in ("suspended", "deactivated"):

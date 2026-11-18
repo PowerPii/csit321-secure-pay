@@ -8,7 +8,7 @@ and the non-functional test report (M6).
 
 **Result: no critical or high findings.** One medium finding (rate limits counted per server
 process) and five low findings were fixed in the pull request that adds this report. Two low
-findings are design choices left for the team to decide (section 4). Everything else in the
+findings are kept as known limitations, as Fifa decided on 18 Nov 2026 (section 4). Everything else in the
 checklist passed (section 5).
 
 ## 1. Scope and method
@@ -40,8 +40,9 @@ deployment (a student demo with test cards, but built as a payment system).
 | SEC-04 | DRF's browsable HTML API was served on the public server | Low | A05 | Fixed |
 | SEC-05 | Public JSON endpoints that never read a body (submit, resend, sign-out) accepted HTML form posts | Low | A01 (CSRF, defence in depth) | Fixed |
 | SEC-06 | Five made-up card tokens in contract examples flagged by a full-history gitleaks scan | Info | A07 | Fixed (ignore list) |
-| SEC-07 | Staff and customer sign-in say "account locked" for a real, locked account; customer sign-up says "email already registered" | Low | A07 Identification and authentication failures | Open: team decision |
-| SEC-08 | Anyone who knows a staff email can lock that account for 15 minutes (5 wrong passwords) | Low | A07 | Open: team decision |
+| SEC-07 | Staff and customer sign-in said "account locked" for a real, locked account | Low | A07 Identification and authentication failures | Fixed |
+| SEC-07b | Customer sign-up says "email already registered" | Low | A07 | Accepted (known limitation) |
+| SEC-08 | Anyone who knows a staff email can lock that account for 15 minutes (5 wrong passwords) | Low | A07 | Accepted (known limitation) |
 | SEC-09 | Webhook address is resolved for the private-address check, then resolved again for the call (DNS rebinding window) | Low | A10 SSRF | Accepted (mitigated) |
 | SEC-10 | Dashboard CSP allows inline styles (`style-src 'unsafe-inline'`) | Info | A05 | Accepted (MUI needs it; no inline script allowed) |
 | SEC-11 | Mailpit's 401 page names the web server (`Server: Caddy`) | Info | A05 | Accepted |
@@ -111,23 +112,32 @@ the view runs. New tests cover the five endpoints and three content types.
 Five `tok_...` values in `contracts/examples/` look like keys to gitleaks. They are made up;
 their fingerprints are now in `.gitleaksignore`, so a full-history scan is clean.
 
-## 4. Open findings (team decision)
+### SEC-07 Account enumeration at sign-in (Low)
 
-### SEC-07 Account enumeration (Low)
+**What:** staff and customer sign-in answered `account_locked` (403) for a real, locked
+account and `invalid_credentials` (401) for an unknown email, so after 5 wrong passwords an
+attacker learned that the email had an account.
 
-Staff sign-in answers `account_locked` (403) for a real, locked account and
-`invalid_credentials` (401) for an unknown email, so after 5 wrong passwords an attacker
-learns that the email is a staff account. Customer sign-up answers `email_taken` (409).
-Both are throttled per IP (60 and 30 a minute). Options: answer locked accounts with the
-same message as a wrong password (the holder is still emailed), and make sign-up reply "check
-your email" for every address. Both change what users see, so they are left to the team.
+**Fix (agreed with Fifa, 18 Nov 2026):** the email and password step answers a locked account
+exactly like a wrong password. That message already says that 5 failures lock sign-in for 15
+minutes, and the staff holder is still emailed. The two-step code page, which is only reached
+with the right password, still says "locked" with the minutes left.
+
+## 4. Known limitations (kept, Fifa 18 Nov 2026)
+
+### SEC-07b Customer sign-up says "email already registered" (Low)
+
+Hiding it would need a "check your email to continue" sign-up flow. Customer accounts hold no
+card data and sign-up is limited to 30 attempts a minute per IP, so it stays as a known
+limitation.
 
 ### SEC-08 Lockout as denial of service (Low)
 
 FR-ACC-15 locks a staff account for 15 minutes after 5 failures, and anyone who knows the email
 can trigger it repeatedly. This is the usual trade-off of lockout (ASVS 2.2.1 allows it with
-notification, which we do). Options: lock per email and IP pair, or add a short delay instead of
-a lock. Recommended: keep as is for the demo and mention it in the design specification.
+notification, which we do: the holder is emailed and administrators get an alert). Locking per
+email and IP pair would let an attacker with many addresses keep guessing, so it stays as a
+known limitation.
 
 ### SEC-09 DNS rebinding window on webhooks (Low, accepted)
 
@@ -149,7 +159,7 @@ transport; not worth it for the demo.
 | | Refund amount validation (negative, 0, decimal, string, above refundable) | Pass |
 | Authentication (V2) | Password only, no TOTP: dashboard API | Pass: 401 |
 | | TOTP code reused in a second sign-in | Pass: refused and counted as a failure |
-| | Lockout after 5 failures, right password while locked | Pass: locked, right password refused |
+| | Lockout after 5 failures, right password while locked | Pass: locked, right password refused with the same reply as an unknown email (after SEC-07) |
 | | Password hashing, length | Pass: Argon2, at least 12 characters, common-password check |
 | Sessions (V3) | Staff session cookie | Pass: HttpOnly, Secure (live: not DEBUG), SameSite=Strict, 15 minutes idle, new key at sign-in |
 | | Customer and guest cookies | Pass: HttpOnly, Secure, SameSite=Strict |
@@ -174,8 +184,7 @@ transport; not worth it for the demo.
 ## 6. For the documents
 
 - **Design specification / technical manual (M3):** security controls in section 5 as
-  implemented; the shared rate-limit cache (SEC-01); SEC-07 and SEC-08 as known limitations
-  if the team keeps them.
+  implemented; the shared rate-limit cache (SEC-01); SEC-07b and SEC-08 as known limitations.
 - **Progress report (M4):** "A security self-test against OWASP Top 10 and ASVS found no
   critical or high issues; one medium and five low issues were fixed."
 - **Test report (M6):** section 5 as test cases with results; NFR-AVA-02 (per-key rate limit)

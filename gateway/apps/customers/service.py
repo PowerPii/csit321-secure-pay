@@ -202,15 +202,6 @@ def invalid_credentials() -> ApiError:
                     f"locked for {_rules()['CUSTOMER_LOCKOUT_MINUTES']} minutes.")
 
 
-def locked_error(account: CustomerAccount) -> ApiError:
-    seconds = account.lock_seconds_left()
-    minutes = max(1, -(-seconds // 60))
-    return ApiError(403, "account_locked",
-                    "Sign-in is locked after too many failed attempts. Try again in "
-                    f"{minutes} minute{'s' if minutes != 1 else ''}, or reset your password.",
-                    retry_after=seconds)
-
-
 def _record_failure(account: CustomerAccount, request) -> bool:
     now = timezone.now()
     with transaction.atomic():
@@ -255,10 +246,13 @@ def sign_in(data, request=None) -> tuple[CustomerAccount, str, CustomerSession]:
         _audit("customer.sign_in_failed", None, request)
         raise invalid_credentials()
     if account.is_locked():
-        raise locked_error(account)
+        # Same reply as a wrong password: sign-in never tells whether an email has an
+        # account (security self-test SEC-07, Fifa 18 Nov 2026). The message mentions the
+        # lockout, and a password reset still unlocks.
+        check_password(password, _DUMMY_HASH or make_password(secrets.token_urlsafe(16)))
+        raise invalid_credentials()
     if not check_password(password, account.password):
-        if _record_failure(account, request):
-            raise locked_error(CustomerAccount.objects.get(pk=account.pk))
+        _record_failure(account, request)
         raise invalid_credentials()
     with transaction.atomic():
         CustomerAccount.objects.filter(pk=account.pk).update(
