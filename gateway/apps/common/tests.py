@@ -215,3 +215,25 @@ def test_readyz_needs_a_live_worker(client):
     beat.seen_at -= timedelta(minutes=3)
     beat.save()
     assert client.get("/readyz").status_code == 503
+
+
+@pytest.mark.parametrize(("hops", "expected"), [(0, "203.0.113.9"), (1, "198.51.100.7")])
+def test_rate_limits_count_the_same_client_address_as_screening(settings, hops, expected):
+    """DRF's per-IP throttles must not key on the part of X-Forwarded-For a client writes:
+    a new made-up address per request would otherwise get a fresh limit every time."""
+    from rest_framework.test import APIRequestFactory
+    from rest_framework.throttling import AnonRateThrottle
+
+    from apps.common.clientip import client_ip
+
+    settings.TRUSTED_PROXY_HOPS = hops
+    settings.REST_FRAMEWORK = {**settings.REST_FRAMEWORK, "NUM_PROXIES": hops}
+    request = APIRequestFactory().get("/", HTTP_X_FORWARDED_FOR="10.6.6.6, 198.51.100.7",
+                                      REMOTE_ADDR="203.0.113.9")
+    assert AnonRateThrottle().get_ident(request) == expected == client_ip(request)
+
+
+def test_throttle_proxy_count_follows_trusted_proxy_hops():
+    from django.conf import settings
+
+    assert settings.REST_FRAMEWORK["NUM_PROXIES"] == settings.TRUSTED_PROXY_HOPS

@@ -14,7 +14,7 @@ import socket
 import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, urlunsplit
 
 import httpx
 from django.conf import settings
@@ -45,27 +45,55 @@ class EndpointRefused(Exception):
     """The merchant's address may not be called (not approved, not HTTPS, private IP)."""
 
 
-def check_endpoint(url: str) -> None:
+def check_endpoint(url: str) -> str | None:
     """Allow only an approved HTTPS address that resolves to public IPs (SSRF guard).
 
-    Checked before every attempt, because DNS can change between attempts.
+    Checked before every attempt, because DNS can change between attempts. Returns the
+    public address that this attempt must connect to, so the name is resolved once and the
+    call cannot be sent somewhere else by a second lookup (DNS rebinding, security self-test
+    SEC-09). None for a host in WEBHOOK_ALLOWED_PRIVATE_HOSTS (local stack only), which is
+    called by name as before.
     """
     parts = urlsplit(url)
     if parts.scheme != "https" or not parts.hostname:
         raise EndpointRefused("not_https")
     host = parts.hostname.lower()
     if host in settings.WEBHOOK_ALLOWED_PRIVATE_HOSTS:
-        return
+        return None
     try:
         infos = socket.getaddrinfo(host, parts.port or 443, proto=socket.IPPROTO_TCP)
-    except (socket.gaierror, UnicodeError):
+    except (socket.gaierror, UnicodeError, ValueError):
         raise EndpointRefused("dns_error") from None
-    addresses = {info[4][0] for info in infos}
+    addresses = []
+    for info in infos:
+        address = ipaddress.ip_address(str(info[4][0]).split("%", 1)[0])
+        if not address.is_global:
+            raise EndpointRefused("blocked_address")
+        if address not in addresses:
+            addresses.append(address)
     if not addresses:
         raise EndpointRefused("dns_error")
-    for address in addresses:
-        if not ipaddress.ip_address(address.split("%", 1)[0]).is_global:
-            raise EndpointRefused("blocked_address")
+    # Prefer IPv4: the server's Docker networks may have no IPv6 route.
+    addresses.sort(key=lambda a: a.version)
+    return str(addresses[0])
+
+
+def pinned_target(url: str, address: str | None) -> tuple[str, dict, dict]:
+    """The URL, extra headers and httpx extensions for one call to `url` at `address`.
+
+    The connection goes to the checked IP address, while the Host header and the TLS name
+    (SNI, and the name the certificate is verified against) stay the merchant's host name,
+    so a valid certificate for that name is still required.
+    """
+    if address is None:
+        return url, {}, {}
+    parts = urlsplit(url)
+    host = parts.hostname
+    literal = f"[{address}]" if ":" in address else address
+    port = f":{parts.port}" if parts.port else ""
+    target = urlunsplit(parts._replace(netloc=literal + port))
+    host_header = (f"[{host}]" if ":" in host else host) + port
+    return target, {"Host": host_header}, {"sni_hostname": host}
 
 
 def excerpt(text: str) -> str:
@@ -91,9 +119,10 @@ def send(event: OutboxEvent, attempt_number: int) -> Result:
     if not merchant.webhook_url or not merchant.webhook_url_approved:
         return Result(False, error="no_approved_endpoint")
     try:
-        check_endpoint(merchant.webhook_url)
+        address = check_endpoint(merchant.webhook_url)
     except EndpointRefused as exc:
         return Result(False, error=str(exc), duration_ms=elapsed())
+    target, extra_headers, extensions = pinned_target(merchant.webhook_url, address)
 
     body = body_bytes(event)
     headers = {
@@ -103,12 +132,14 @@ def send(event: OutboxEvent, attempt_number: int) -> Result:
         "SecurePay-Event-Type": event.type,
         "SecurePay-Delivery-Attempt": str(attempt_number),
         "User-Agent": USER_AGENT,
+        **extra_headers,
     }
     try:
         with httpx.Client(timeout=settings.GATEWAY_RULES["WEBHOOK_TIMEOUT_SECONDS"],
                           verify=settings.WEBHOOK_CA_BUNDLE or True, follow_redirects=False,
                           transport=TRANSPORT) as client:
-            response = client.post(merchant.webhook_url, content=body, headers=headers)
+            response = client.post(target, content=body, headers=headers,
+                                   extensions=extensions)
     except httpx.TimeoutException:
         return Result(False, error="timeout", duration_ms=elapsed())
     except httpx.HTTPError as exc:

@@ -364,6 +364,10 @@ RISK_SIMULATE_OUTAGE = env("RISK_SIMULATE_OUTAGE", "")
 # How many reverse proxies (Caddy) sit in front of the gateway; the client IP used for
 # screening is that many entries from the right of X-Forwarded-For. 0 = REMOTE_ADDR.
 TRUSTED_PROXY_HOPS = int(env("TRUSTED_PROXY_HOPS", "0"))
+# DRF's per-IP throttles count the same address. Without NUM_PROXIES, DRF keys them on the
+# whole X-Forwarded-For header, which a client writes itself; that is only safe while Caddy
+# replaces the header. With it, they read the same entry as screening (or REMOTE_ADDR at 0).
+REST_FRAMEWORK["NUM_PROXIES"] = TRUSTED_PROXY_HOPS
 
 # Email (verification codes). Mailpit in the local stack; nothing leaves the machine.
 # Every message gets a branded HTML version (apps/common/branded_email.py), then goes out
