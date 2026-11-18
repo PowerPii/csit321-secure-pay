@@ -449,3 +449,123 @@ def test_email_change_withdraws_reset_links(customer):
     post(signed_in, "profile", {"current_password": PASSWORD, "email": "new@example.com"})
     response = post(client, "password-reset/confirm", {"token": token, "password": NEW_PASSWORD})
     assert response.status_code == 400 and response.json()["error"]["code"] == "link_invalid"
+
+
+# --- spending insights (account page "Spending") -------------------------------------------
+
+def _capture(shop, payment, amount=None):
+    import uuid
+
+    body = {} if amount is None else {"amount": amount}
+    r = shop.post(f"/v1/payments/{payment.public_id}/capture", body, format="json",
+                  headers={"Idempotency-Key": str(uuid.uuid4())})
+    assert r.status_code == 200, r.json()
+    payment.refresh_from_db()
+    return payment
+
+
+def _refund(shop, payment, amount):
+    import uuid
+
+    r = shop.post(f"/v1/payments/{payment.public_id}/refunds", {"amount": amount},
+                  format="json", headers={"Idempotency-Key": str(uuid.uuid4())})
+    assert r.status_code == 201, r.json()
+
+
+def _month(data, key):
+    return next(m for m in data["by_month"] if m["month"] == key)
+
+
+def test_insights_need_a_session(customer):
+    assert APIClient().get("/customer/insights").status_code == 401
+
+
+def test_insights_count_charged_payments_net_of_completed_refunds(customer, shop, other_shop,
+                                                                   fake_sim):
+    from apps.refunds.models import Refund
+
+    browser, _ = sign_in()
+    first = _capture(shop, pay(shop, browser))
+    second = _capture(other_shop, pay(other_shop, browser))
+    _refund(shop, first, 1500)
+    Refund.objects.filter(payment=first).update(status=Refund.Status.COMPLETED)
+    _refund(other_shop, second, 500)
+    # Not completed yet (still with the bank): counted as spent.
+    Refund.objects.filter(payment=second).update(status=Refund.Status.RESERVED)
+    held = pay(shop, browser)  # authorised only: held, not spent
+    pay(shop, browser, "4000000000000002")  # declined: never counted
+
+    r = browser.get("/customer/insights")
+    assert r.status_code == 200
+    data = r.json()
+    total = first.captured_amount + second.captured_amount
+    assert data["totals"] == {
+        "spent": total, "refunded": 1500, "net": total - 1500, "payments": 2, "merchants": 2,
+        "on_hold": held.amount, "on_hold_payments": 1}
+    assert len(data["by_month"]) == 12 and data["time_zone"] == "Asia/Singapore"
+    this_month = timezone.localtime(timezone.now(), service_zone()).strftime("%Y-%m")
+    assert data["to"] == this_month
+    assert _month(data, this_month) == {"month": this_month, "spent": total, "refunded": 1500,
+                                        "net": total - 1500, "payments": 2}
+    assert sum(m["net"] for m in data["by_month"]) == data["totals"]["net"]
+    by_name = {m["merchant_name"]: m for m in data["by_merchant"]}
+    assert by_name[shop.merchant.name]["net"] == first.captured_amount - 1500
+    assert by_name[other_shop.merchant.name]["net"] == second.captured_amount
+    # Nothing about the card, the screening or the payment references leaves the gateway.
+    text = r.content.decode()
+    assert "4242" not in text and "last4" not in text and first.reference not in text
+
+
+def service_zone():
+    from apps.customers.insights import _zone
+    return _zone()
+
+
+def test_insights_put_payments_in_their_singapore_month_and_skip_old_ones(customer, shop,
+                                                                           fake_sim):
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    from apps.customers.insights import insights
+
+    browser, _ = sign_in()
+    sgt = ZoneInfo("Asia/Singapore")
+    late_night = _capture(shop, pay(shop, browser))  # 31 Oct 23:30 SGT is 15:30 UTC
+    Payment.objects.filter(pk=late_night.pk).update(
+        created_at=datetime(2026, 10, 31, 23, 30, tzinfo=sgt))
+    too_old = _capture(shop, pay(shop, browser))
+    Payment.objects.filter(pk=too_old.pk).update(created_at=datetime(2025, 11, 30, tzinfo=sgt))
+
+    data = insights(customer, now=datetime(2026, 11, 18, 12, tzinfo=sgt))
+    assert data["from"] == "2025-12" and data["to"] == "2026-11"
+    assert _month(data, "2026-10")["net"] == late_night.captured_amount
+    assert _month(data, "2026-11")["net"] == 0
+    assert data["totals"]["payments"] == 1  # the payment from Nov 2025 is outside the window
+
+
+def test_insights_show_only_the_customers_own_payments(customer, shop, fake_sim):
+    _capture(shop, pay(shop, APIClient()))  # a guest payment
+    other, _ = register(email="sam@example.com")
+    _capture(shop, pay(shop, other))
+    jane, _ = sign_in()
+    data = jane.get("/customer/insights").json()
+    assert data["totals"]["payments"] == 0 and data["by_merchant"] == []
+    assert all(m["net"] == 0 for m in data["by_month"])
+    assert other.get("/customer/insights").json()["totals"]["payments"] == 1
+
+
+def test_insights_add_up_small_merchants_as_other(customer, make_merchant, fake_sim):
+    from apps.risk.models import FraudRule
+
+    FraudRule.objects.update(enabled=False)  # seven payments with one card trip the burst rule
+    browser, _ = sign_in()
+    for i in range(7):
+        shop = make_merchant(name=f"Shop {i}")
+        _capture(shop, pay(shop, browser))
+    data = browser.get("/customer/insights").json()
+    names = [m["merchant_name"] for m in data["by_merchant"]]
+    assert len(names) == 6 and names[-1] == "Other merchants"
+    other = data["by_merchant"][-1]
+    assert other["merchant_count"] == 2 and other["payments"] == 2
+    assert sum(m["net"] for m in data["by_merchant"]) == data["totals"]["net"]
+    assert data["totals"]["merchants"] == 7

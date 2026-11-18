@@ -12,7 +12,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle, ScopedRateThrottle
 
 from apps.common.views import PublicJSONView, body_or_empty
-from apps.customers import history, service
+from apps.customers import history, insights, service
 
 
 class CustomerView(PublicJSONView):
@@ -108,6 +108,13 @@ class ProfileView(CustomerView):
 class PaymentsView(CustomerView):
     def get(self, request):
         return Response(history.history(self.session(request).customer))
+
+
+class InsightsView(CustomerView):
+    """GET -> this customer's spending for the last 12 months, by month and by merchant."""
+
+    def get(self, request):
+        return Response(insights.insights(self.session(request).customer))
 
 
 class PaymentDetailView(CustomerView):

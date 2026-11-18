@@ -40,6 +40,27 @@ export interface PaymentDetail extends HistoryRow {
   timeline: { at: string; label: string }[];
 }
 
+export interface SpendFigures {
+  spent: number;
+  refunded: number;
+  net: number;
+  payments: number;
+}
+export interface MonthSpend extends SpendFigures { month: string } // "2026-11"
+export interface MerchantSpend extends SpendFigures {
+  merchant_name: string;
+  merchant_count?: number; // only on the "Other merchants" row
+}
+export interface Insights {
+  currency: string;
+  time_zone: string;
+  from: string;
+  to: string;
+  totals: SpendFigures & { merchants: number; on_hold: number; on_hold_payments: number };
+  by_month: MonthSpend[];
+  by_merchant: MerchantSpend[];
+}
+
 export class AccountApiError extends ApiError {
   constructor(status: number, code: string, message: string, param: string | null, public retryAfter: number | null) {
     super(status, code, message, param);
@@ -64,6 +85,7 @@ export const signOutEverywhere = () => post<void>("sign-out-everywhere");
 export const changePassword = (current_password: string, password: string) =>
   post<{ message: string }>("password", { current_password, password });
 export const getPayments = () => call<{ data: HistoryRow[]; has_more: boolean }>("payments");
+export const getInsights = () => call<Insights>("insights");
 export const getPayment = (reference: string) => call<PaymentDetail>(`payments/${encodeURIComponent(reference)}`);
 export const requestReset = (email: string) => post<{ message: string }>("password-reset/request", { email });
 export const checkReset = (token: string) => post<{ email: string }>("password-reset/check", { token });

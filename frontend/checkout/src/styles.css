@@ -164,7 +164,21 @@ h1[tabindex="-1"]:focus { outline: none; }
 .reset-page { padding: 32px 40px; display: flex; flex-direction: column; gap: 16px; }
 .reset-page h1 { margin: 0; }
 
+/* Spending insights (/account/spending): total tiles, then a chart or table per section. */
+.spend-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 4px 0; }
+.spend-tile { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+.spend-tile dt { margin: 0; }
+.spend-tile dd { margin: 4px 0 0; font-size: 20px; font-weight: 700; color: var(--ink); }
+.spend-section { display: flex; flex-direction: column; gap: 10px; padding: 14px; }
+.spend-chart { width: 100%; min-width: 0; }
+.spend-chart svg { display: block; }
+.spend-section > div:last-child { overflow-x: auto; }
+.spend-table th[scope="row"] { font-weight: 400; background: none; }
+.spend-table td { white-space: nowrap; }
+
 @media (max-width: 767px) {
+  .spend-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .history-table.spend-table { display: table; }
   .signin-layout { grid-template-columns: 1fr; min-height: 0; }
   /* Kept for screen readers so the page still has its heading. */
   .signin-intro { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; padding: 0; }

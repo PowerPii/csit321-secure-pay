@@ -1,6 +1,7 @@
 // Customer account pages, wireframes C10 to C12 (FR-ACC-01 to FR-ACC-04, FR-ACC-07, FR-ACC-08):
 //   /account/sign-in   C10 sign in or create an account
 //   /account/payments  C11 payment history (only payments made while signed in)
+//   /account/spending  spending insights: last 12 months by month and by shop, after refunds
 //   /account/profile   name, email, sign out on every device
 //   /account/password  change password (signs out every other device)
 //   /account/reset     C12 forgot password: request a link, then set a new password
@@ -12,13 +13,14 @@ import { minSec, useIdleSignOut } from "./idle";
 import { Brand } from "./Brand";
 import { SignInPage } from "./account/SignIn";
 import { History } from "./account/History";
+import { Spending } from "./account/Spending";
 import { Profile } from "./account/Profile";
 import { PasswordPage } from "./account/Password";
 import { ResetPage } from "./account/Reset";
 export { newPasswordProblems } from "./account/forms";
 
-export type Page = "sign-in" | "payments" | "profile" | "password" | "reset";
-const PAGES: Page[] = ["sign-in", "payments", "profile", "password", "reset"];
+export type Page = "sign-in" | "payments" | "spending" | "profile" | "password" | "reset";
+const PAGES: Page[] = ["sign-in", "payments", "spending", "profile", "password", "reset"];
 export function pageFromPath(path: string): Page {
   const name = path.replace(/^\/account\/?/, "").replace(/\/$/, "");
   return (PAGES as string[]).includes(name) ? (name as Page) : "sign-in";
@@ -65,7 +67,7 @@ export default function Account({ path = window.location.pathname, hash = window
     go("sign-in", ENDED_NOTICE);
   }, [go]);
 
-  const signedInPage = page === "payments" || page === "profile" || page === "password";
+  const signedInPage = page === "payments" || page === "spending" || page === "profile" || page === "password";
   useEffect(() => {
     if (me === undefined) return;
     if (signedInPage && me === null) go("sign-in", notice);
@@ -109,10 +111,10 @@ export default function Account({ path = window.location.pathname, hash = window
     body = (
       <div className="account-grid">
         <nav className="side-nav" aria-label="Account">
-          {(["payments", "profile", "password"] as Page[]).map((p) => (
+          {(["payments", "spending", "profile", "password"] as Page[]).map((p) => (
             <button key={p} type="button" className={`nav-item${page === p ? " active" : ""}`}
               aria-current={page === p ? "page" : undefined} onClick={() => go(p)}>
-              {{ payments: "Payment history", profile: "Profile", password: "Password" }[p as "payments"]}
+              {{ payments: "Payment history", spending: "Spending", profile: "Profile", password: "Password" }[p as "payments"]}
             </button>
           ))}
           <button type="button" className="nav-item" onClick={onSignOut}>Sign out</button>
@@ -120,6 +122,7 @@ export default function Account({ path = window.location.pathname, hash = window
         <section className="account-main">
           {notice && <p className="muted small" role="status">{notice}</p>}
           {page === "payments" && <History onEnded={ended} />}
+          {page === "spending" && <Spending onEnded={ended} />}
           {page === "profile" && (
             <Profile onChanged={(d) => setMe((m) => (m ? { ...m, full_name: d.full_name, email: d.email } : m))}
               onSignedOut={() => { setMe(null); go("sign-in", "You have signed out on every device."); }} onEnded={ended} />
