@@ -23,7 +23,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 
 from django.conf import settings
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.db import connection, transaction
 from django.utils import timezone
 
@@ -125,6 +125,8 @@ class Command(BaseCommand):
             f"   over the {budget} ms budget: {sum(w > budget for w in walls)}\n"
             f"  outcomes: {dict(sorted(outcomes.items()))}\n"
             f"  NFR-PER-02 p95 <= {target} ms at {rate:g}/s: {'PASS' if passed else 'FAIL'}")
+        if not passed:  # a missed target fails the command (exit status 1)
+            raise CommandError("NFR-PER-02 target missed")
 
     def _history(self, merchant, count, rng, cards, emails, ips):
         now = timezone.now()
