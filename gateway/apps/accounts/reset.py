@@ -113,12 +113,11 @@ def reset_password(request, token, password, code) -> StaffAccount:
         raise invalid("weak_password", " ".join(exc.messages), param="password") from None
 
     device = signin.confirmed_device(account)
-    if device is not None:
-        if not signin.verify_totp(device, code):
-            if signin._record_failure(account, request, "password_reset_totp"):
-                raise signin.locked_error(StaffAccount.objects.get(pk=account.pk))
-            raise ApiError(401, "code_incorrect", "That code is not right. Enter the current "
-                           "6-digit code from your authenticator app.", param="code")
+    if device is not None and not signin.verify_totp(device, code):
+        if signin._record_failure(account, request, "password_reset_totp"):
+            raise signin.locked_error(StaffAccount.objects.get(pk=account.pk))
+        raise ApiError(401, "code_incorrect", "That code is not right. Enter the current "
+                       "6-digit code from your authenticator app.", param="code")
 
     with transaction.atomic():
         row = tokens.consume(PURPOSE, token)  # a second request with the same link fails here
