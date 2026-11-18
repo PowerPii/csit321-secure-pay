@@ -13,8 +13,7 @@ def local_zone() -> ZoneInfo:
 
 def parse_date(value: str, param: str):
     try:
-        # Only the calendar date is kept, so no time zone is involved.
-        return datetime.strptime(value, "%Y-%m-%d").date()  # noqa: DTZ007
+        return datetime.strptime(value, "%Y-%m-%d").date()
     except ValueError:
         raise invalid("invalid_field", f"'{param}' must be a date like 2026-11-13.",
                       param=param) from None

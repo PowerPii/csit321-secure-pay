@@ -28,6 +28,8 @@ dev = [
     "ruff>=0.6",
     "mypy>=1.11",
     "django-stubs>=5.1",
+    "pip-audit>=2.7",  # CI dependency audit (.github/ci-python.sh)
+    "bandit>=1.7",  # CI code audit
 ]
 
 [tool.pytest.ini_options]

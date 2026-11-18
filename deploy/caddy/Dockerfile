@@ -1,13 +1,13 @@
 # Production Caddy image: builds the checkout page and staff dashboard bundles, so the server
 # needs no Node.js. Built from the repository root by deploy/compose.prod.yaml.
-FROM node:22-slim AS frontend
+FROM node:22.23.5-bookworm-slim@sha256:e9f565d32859f0cbfb52125eafe8be39390f24dac302dc3cdf566e8ba3ab21ee AS frontend
 WORKDIR /src
 COPY frontend/checkout ./frontend/checkout
 COPY frontend/dashboard ./frontend/dashboard
 RUN cd frontend/checkout && npm ci && npm run build
 RUN cd frontend/dashboard && npm ci && npm run build
 
-FROM caddy:2
+FROM caddy:2.11.9@sha256:4851e54a46b206517c574821bb5cc67f170d2156041e9fbc4c9193b45e84a75b
 COPY --from=frontend /src/frontend/checkout/dist /srv/checkout
 COPY --from=frontend /src/frontend/dashboard/dist /srv/dashboard
 COPY deploy/Caddyfile.prod /etc/caddy/Caddyfile
