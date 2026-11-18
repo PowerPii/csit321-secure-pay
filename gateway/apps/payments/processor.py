@@ -6,6 +6,7 @@ and the operation becomes Unresolved for reconciliation to settle with the same 
 """
 import json
 import logging
+import threading
 from dataclasses import dataclass
 from enum import StrEnum
 
@@ -38,19 +39,42 @@ class Answer:
     problem: str = ""  # why there is no answer, for logs and audit (never card data)
 
 
+_clients: dict[tuple, httpx.Client] = {}
+_clients_lock = threading.Lock()
+
+
 def _client() -> httpx.Client:
+    """One long-lived client per process (and per settings), shared by its threads.
+
+    A new client per call built a fresh TLS context (loading the CA store) and opened a new
+    connection to the simulator for every payment: about a quarter of the submit time in the
+    checkout profile at 20 payments/s (Codex release review, 18 Nov 2026). The shared client
+    keeps connections open between calls. A connection that drops mid-call is a lost reply,
+    which reconciliation already resolves (contract section 6).
+    """
     rules = settings.GATEWAY_RULES
-    timeout = httpx.Timeout(rules["SIMULATOR_TIMEOUT_SECONDS"],
-                            connect=rules["SIMULATOR_CONNECT_TIMEOUT_SECONDS"])
-    return httpx.Client(
-        base_url=settings.SIMULATOR_URL,
-        timeout=timeout,
-        verify=settings.SIMULATOR_CA_BUNDLE or True,
-        follow_redirects=False,
-        transport=TRANSPORT,
-        headers={"Authorization": f"Bearer {settings.SIMULATOR_API_KEY}",
-                 "User-Agent": "SecurePay-Gateway/1.0"},
-    )
+    key = (settings.SIMULATOR_URL, settings.SIMULATOR_CA_BUNDLE, settings.SIMULATOR_API_KEY,
+           rules["SIMULATOR_TIMEOUT_SECONDS"], rules["SIMULATOR_CONNECT_TIMEOUT_SECONDS"],
+           TRANSPORT)
+    with _clients_lock:
+        client = _clients.get(key)
+        if client is None:
+            if len(_clients) >= 8:  # settings changed (tests): drop the old clients
+                for old in _clients.values():
+                    old.close()
+                _clients.clear()
+            timeout = httpx.Timeout(rules["SIMULATOR_TIMEOUT_SECONDS"],
+                                    connect=rules["SIMULATOR_CONNECT_TIMEOUT_SECONDS"])
+            client = _clients[key] = httpx.Client(
+                base_url=settings.SIMULATOR_URL,
+                timeout=timeout,
+                verify=settings.SIMULATOR_CA_BUNDLE or True,
+                follow_redirects=False,
+                transport=TRANSPORT,
+                headers={"Authorization": f"Bearer {settings.SIMULATOR_API_KEY}",
+                         "User-Agent": "SecurePay-Gateway/1.0"},
+            )
+        return client
 
 
 def _interpret(response: httpx.Response, operation: Operation) -> Answer:
@@ -80,8 +104,7 @@ def _interpret(response: httpx.Response, operation: Operation) -> Answer:
 
 def _call(operation: Operation, method: str, path: str, **kwargs) -> Answer:
     try:
-        with _client() as client:
-            response = client.request(method, path, **kwargs)
+        response = _client().request(method, path, **kwargs)
     except httpx.TimeoutException:
         return Answer(AnswerKind.NO_ANSWER, problem="timeout")
     except httpx.HTTPError as exc:
