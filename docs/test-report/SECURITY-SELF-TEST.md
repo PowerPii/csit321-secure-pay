@@ -43,7 +43,7 @@ deployment (a student demo with test cards, but built as a payment system).
 | SEC-07 | Staff and customer sign-in said "account locked" for a real, locked account | Low | A07 Identification and authentication failures | Fixed |
 | SEC-07b | Customer sign-up says "email already registered" | Low | A07 | Accepted (known limitation) |
 | SEC-08 | Anyone who knows a staff email can lock that account for 15 minutes (5 wrong passwords) | Low | A07 | Accepted (known limitation) |
-| SEC-09 | Webhook address is resolved for the private-address check, then resolved again for the call (DNS rebinding window) | Low | A10 SSRF | Accepted (mitigated) |
+| SEC-09 | Webhook address is resolved for the private-address check, then resolved again for the call (DNS rebinding window) | Low | A10 SSRF | Fixed in the second pass (section 7) |
 | SEC-10 | Dashboard CSP allows inline styles (`style-src 'unsafe-inline'`) | Info | A05 | Accepted (MUI needs it; no inline script allowed) |
 | SEC-11 | Mailpit's 401 page names the web server (`Server: Caddy`) | Info | A05 | Accepted |
 
@@ -139,14 +139,14 @@ notification, which we do: the holder is emailed and administrators get an alert
 email and IP pair would let an attacker with many addresses keep guessing, so it stays as a
 known limitation.
 
-### SEC-09 DNS rebinding window on webhooks (Low, accepted)
+### SEC-09 DNS rebinding window on webhooks (Low, fixed 18 Nov 2026)
 
-`check_endpoint` resolves the merchant's host and refuses private addresses, then httpx
-resolves it again for the call. A merchant controlling DNS could switch to a private address in
-between. Mitigated: only an administrator-approved HTTPS address is ever called, the TLS
-certificate must match the host name (internal services use a different CA), redirects are not
-followed and the reply body is never read. A full fix pins the checked address in the HTTP
-transport; not worth it for the demo.
+`check_endpoint` resolved the merchant's host and refused private addresses, then httpx
+resolved it again for the call. A merchant controlling DNS could switch to a private address in
+between. First accepted as mitigated (approved HTTPS address only, certificate must match the
+host name, no redirects, reply body never read). The webhook delivery log added on 18 Nov 2026
+stores and shows the start of the reply, so that last point no longer held, and the second
+pass fixed it: see section 7.
 
 ## 5. Checklist results
 
@@ -173,7 +173,7 @@ transport; not worth it for the demo.
 | Communications (V9) | TLS versions and ciphers (Caddy 2.11, same image as live) | Pass: TLS 1.2 and 1.3 only, AEAD ciphers only; TLS 1.0, 1.1 and CBC suites refused |
 | | HTTP to HTTPS, HSTS | Pass: 308 redirect, `max-age=31536000` |
 | Webhooks and simulator (V13) | Webhook signature | Pass: HMAC-SHA256 over timestamp and body, 5-minute tolerance, constant-time compare; the shop re-reads the payment from the API |
-| | SSRF guard | Pass with SEC-09 noted: HTTPS only, public addresses only, admin approval, no redirects |
+| | SSRF guard | Pass: HTTPS only, public addresses only, admin approval, no redirects, connection pinned to the checked address (SEC-09, section 7) |
 | | Simulator key and test controls | Pass: constant-time compare, not published on the public server |
 | Configuration (V14) | Django admin, OpenAPI schema on live | Pass: 404 |
 | | `manage.py check --deploy` with DEBUG off | Pass: only HSTS and SSL-redirect warnings, which Caddy handles |
@@ -194,3 +194,40 @@ Not covered: a test by someone outside the team, denial-of-service resilience, t
 operating system and Google Cloud account settings, and TLS measured from outside on the live
 server (the cloud test machine sits behind a TLS proxy; the same Caddy image was measured
 locally). An SSL Labs test of the live gateway would close the last gap.
+
+## 7. Second pass, 18 November 2026 (evening)
+
+A second review aimed at the mistakes generated code often has, and at the code merged after
+the first test: fraud insights charts, webhook delivery log and Resend, customer spending tab,
+fraud explanations and the merchant view of fraud decisions.
+
+**Result: no critical, high or medium findings.** One low finding from the first test
+(SEC-09) and one new low finding (SEC-12) were fixed.
+
+| ID | Finding | Severity | Status |
+| --- | --- | --- | --- |
+| SEC-09 | DNS rebinding window on webhooks; the new delivery log shows the start of the reply, so a rebinding would no longer be blind | Low | Fixed: the name is resolved once per attempt, every answer must be public, and the call connects to that address, with the Host header and the TLS name (SNI and certificate check) still the merchant's host name |
+| SEC-12 | DRF's per-IP rate limits keyed on the whole `X-Forwarded-For` header, which the client writes; safe today only because Caddy replaces the header | Low | Fixed: `NUM_PROXIES` follows `TRUSTED_PROXY_HOPS`, so the limits and fraud screening read the same address |
+| SEC-13 | `npm audit` reports `picomatch` (ReDoS) in the three front ends | Info | Accepted: build tools only, not in the files served to browsers (`npm audit --omit=dev`: 0) |
+| SEC-14 | Python dependencies are version ranges and Docker images are tags, so a deploy installs the newest matching releases | Info | Recommendation: lock exact versions (with hashes) before the final submission |
+
+What was checked, and passed:
+
+| Area | Check | Result |
+| --- | --- | --- |
+| Access control | Every route of the gateway (merchant API, checkout, guest status, customer, staff API) read for authentication, role and merchant/customer scoping, including the five new features | Pass: every object lookup is scoped (merchant, customer, or role); another merchant's webhook event or payment answers 404; fraud analysts cannot open the webhook log; merchant operators get no scores, reason codes, features or thresholds |
+| | Permission-matrix acceptance test (six principals against every endpoint) and the full gateway suite | Pass: 593 tests (before the fixes), all passing after |
+| Injection | Raw SQL, `.extra`, shell, `eval`, unsafe deserialisation, template `safe` | Pass: three raw queries, all parameterised; the model file is loaded only after its SHA-256 matches the manifest |
+| | CSV export | Pass: formula cells escaped |
+| SSRF | Webhook URL submission, approval and delivery | Pass after SEC-09 (tested with a local TLS server: pinned call succeeds for the certificate's name, refused for another name) |
+| Sessions and 2FA | Staff two-step sign-in, backup codes, step-up TOTP for key changes, staff and customer password reset, lockout | Pass: no step can be skipped; reset needs the TOTP code once 2FA is set up |
+| Card data | Vault, logs, API replies | Pass: AES-256-GCM with the token as associated data, card deleted at submission, no card number in logs or replies |
+| Secrets | gitleaks over all 139 commits on every branch; working tree | Pass: no leaks |
+| Static analysis | bandit (3 services); semgrep rules for Django, Python security, React, browser JavaScript, secrets and Dockerfiles | Pass: no security issue (style rules and known-safe patterns only) |
+| Dependencies | pip-audit (3 services), npm audit (3 front ends) | Pass: no known vulnerabilities in anything that runs (SEC-13 is build-only) |
+| Live server | Headers, TLS versions, exposed paths (`/admin/`, `/api/schema/`, `/.env`, `/.git/`), HTTP to HTTPS, private simulator | Pass: TLS 1.2 and 1.3 only; HSTS, CSP, nosniff, frame protection; nothing sensitive exposed; Mailpit behind basic auth |
+
+Residual risks, unchanged by this pass: the demo inbox (Mailpit) receives every reset link and
+code, so its password protects every customer account; SEC-07b and SEC-08 above; no test by
+someone outside the team; no denial-of-service testing; the Google Cloud account, firewall and
+server operating system were not reviewed.

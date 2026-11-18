@@ -1,5 +1,6 @@
 """Webhook delivery from the outbox (API-CONTRACT.md section 7)."""
 import json
+import socket
 from datetime import timedelta
 from itertools import pairwise
 
@@ -160,6 +161,84 @@ def test_private_or_plain_http_addresses_are_refused(make_merchant, receiver, ur
     delivery.deliver_due()
     assert receiver.requests == []
     assert WebhookAttempt.objects.get().error == error
+
+
+def _resolver(monkeypatch, *answers):
+    """socket.getaddrinfo for the delivery module: each call returns the next answer."""
+    calls = []
+
+    def getaddrinfo(host, port, *args, **kwargs):
+        address = answers[min(len(calls), len(answers) - 1)]
+        calls.append(host)
+        family = socket.AF_INET6 if ":" in address else socket.AF_INET
+        return [(family, socket.SOCK_STREAM, 6, "", (address, port))]
+
+    monkeypatch.setattr(delivery.socket, "getaddrinfo", getaddrinfo)
+    return calls
+
+
+@pytest.mark.parametrize("private", ["10.0.0.5", "127.0.0.1", "169.254.169.254",
+                                     "::ffff:127.0.0.1", "fd00::1", "100.64.0.1"])
+def test_a_name_that_resolves_to_a_private_address_is_refused(make_merchant, receiver,
+                                                               monkeypatch, settings, private):
+    settings.WEBHOOK_ALLOWED_PRIVATE_HOSTS = frozenset()
+    _resolver(monkeypatch, private)
+    make_event(make_merchant(webhook_url="https://hooks.example/h", webhook_url_approved=True))
+    delivery.deliver_due()
+    assert receiver.requests == []
+    assert WebhookAttempt.objects.get().error == "blocked_address"
+
+
+def test_call_goes_to_the_checked_address_not_a_second_lookup(make_merchant, receiver,
+                                                              monkeypatch, settings):
+    """SEC-09 (DNS rebinding): the name is resolved once per attempt, and the connection
+    goes to that public address. A second lookup that would answer 127.0.0.1 never
+    happens. The Host header and the TLS name stay the merchant's host name."""
+    settings.WEBHOOK_ALLOWED_PRIVATE_HOSTS = frozenset()
+    calls = _resolver(monkeypatch, "93.184.216.34", "127.0.0.1")
+    make_event(make_merchant(webhook_url="https://hooks.example:8443/h?x=1",
+                             webhook_url_approved=True))
+    delivery.deliver_due()
+    (request,) = receiver.requests
+    assert calls == ["hooks.example"]
+    assert str(request.url) == "https://93.184.216.34:8443/h?x=1"
+    assert request.headers["Host"] == "hooks.example:8443"
+    assert request.extensions["sni_hostname"] == "hooks.example"
+    assert WebhookAttempt.objects.get().succeeded
+
+
+def test_ipv6_answer_is_bracketed_and_ipv4_preferred(make_merchant, receiver, monkeypatch,
+                                                      settings):
+    settings.WEBHOOK_ALLOWED_PRIVATE_HOSTS = frozenset()
+
+    def getaddrinfo(host, port, *args, **kwargs):
+        return [(socket.AF_INET6, socket.SOCK_STREAM, 6, "", ("2606:2800:220:1::1", port, 0, 0)),
+                (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", port))]
+
+    monkeypatch.setattr(delivery.socket, "getaddrinfo", getaddrinfo)
+    assert delivery.check_endpoint("https://hooks.example/h") == "93.184.216.34"
+    target, headers, ext = delivery.pinned_target("https://hooks.example/h", "2606:2800:220:1::1")
+    assert target == "https://[2606:2800:220:1::1]/h"
+    assert headers == {"Host": "hooks.example"} and ext == {"sni_hostname": "hooks.example"}
+
+
+def test_one_private_answer_among_public_ones_is_refused(monkeypatch, settings):
+    settings.WEBHOOK_ALLOWED_PRIVATE_HOSTS = frozenset()
+
+    def getaddrinfo(host, port, *args, **kwargs):
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", port)),
+                (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("10.0.0.5", port))]
+
+    monkeypatch.setattr(delivery.socket, "getaddrinfo", getaddrinfo)
+    with pytest.raises(delivery.EndpointRefused, match="blocked_address"):
+        delivery.check_endpoint("https://hooks.example/h")
+
+
+def test_allowed_private_host_is_called_by_name(hooked_shop, receiver):
+    make_event(hooked_shop)
+    delivery.deliver_due()
+    (request,) = receiver.requests
+    assert str(request.url) == HOOK and "sni_hostname" not in request.extensions
 
 
 def test_two_workers_never_claim_the_same_event(hooked_shop, receiver):
