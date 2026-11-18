@@ -106,9 +106,9 @@ def test_detail_has_decision_record_timeline_and_webhooks(operator, shop, fake_s
     data = operator.get(f"/internal/payments/{payment.public_id}").json()
     assert data["status"] == "authorised"
     assert data["screening"]["outcome"] == "allow"
-    assert data["screening"]["policy_version"] == "policy-0.1"
-    assert data["screening"]["thresholds"] == {"verify": 0.5, "block": 0.9}
-    assert "card_attempts_10m" in data["screening"]["features"]
+    # Merchant operators get the decision, not the screening internals (test_explanations).
+    assert data["screening"]["merchant_view"] is True
+    assert "features" not in data["screening"] and "thresholds" not in data["screening"]
     actions = [e["action"] for e in data["timeline"]]
     assert actions[0] == "payment.created" and "payment.authorised" in actions
     assert [w["type"] for w in data["webhooks"]] == ["payment.processing",

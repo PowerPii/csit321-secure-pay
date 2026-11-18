@@ -40,11 +40,15 @@ describe("fraud decision explanation", () => {
     expect(screen.getByText("Recorded reasons")).toBeTruthy();
   });
 
-  it("gives a merchant operator broad areas only", () => {
-    render(<FraudDecision badge="Block" screening={{ ...base, explanation: { areas: ["Unusual activity on this card"] } }} />);
+  it("gives a merchant operator the decision and broad areas only", () => {
+    render(<FraudDecision badge="Block" screening={{ id: "scr_1", outcome: "block", occurred_at: "2026-11-18T06:00:00Z",
+      merchant_view: true, explanation: { areas: ["Unusual activity on this card"] } }} />);
+    expect(screen.getByText("The payment was stopped before it reached the bank.")).toBeTruthy();
     expect(screen.getByText("Main risk areas")).toBeTruthy();
     expect(screen.getByText("Unusual activity on this card")).toBeTruthy();
-    expect(screen.queryByText("What moved the model score")).toBeNull();
+    for (const hidden of ["Risk score", "Recorded reasons", "Model", "Rules", "Policy", "What moved the model score"]) {
+      expect(screen.queryByText(hidden)).toBeNull();
+    }
   });
 
   it("still works for records made before explanations existed", () => {

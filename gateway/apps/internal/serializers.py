@@ -71,9 +71,21 @@ def explanation_for(event: ScreeningEvent, merchant_view: bool) -> dict | None:
 
 
 def screening_to_dict(event: ScreeningEvent | None, merchant_view: bool = False) -> dict | None:
-    """The decision record (FR-FRD-01): score, reasons, features, versions and the explanation."""
+    """The decision record (FR-FRD-01): score, reasons, features, versions and the explanation.
+    With merchant_view (merchant operators), only the outcome and broad areas."""
     if event is None:
         return None
+    if merchant_view:
+        # Merchant operators see what was decided and broad reasons only: no reason codes,
+        # score, feature values, thresholds or versions, so the screening logic (which rules,
+        # which lines, which model) cannot be learned from the merchant dashboard.
+        return {
+            "id": event.public_id,
+            "outcome": event.outcome,
+            "occurred_at": rfc3339(event.occurred_at),
+            "merchant_view": True,
+            "explanation": explanation_for(event, merchant_view=True),
+        }
     return {
         "id": event.public_id,
         "outcome": event.outcome,
