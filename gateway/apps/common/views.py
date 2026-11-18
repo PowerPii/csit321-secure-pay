@@ -1,6 +1,7 @@
 """Shared view helpers."""
 from typing import ClassVar
 
+from rest_framework.exceptions import UnsupportedMediaType
 from rest_framework.parsers import JSONParser
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -22,6 +23,15 @@ class PublicJSONView(APIView):
     permission_classes: ClassVar = [AllowAny]
     parser_classes: ClassVar = [JSONParser]
     throttle_classes: ClassVar = [AnonRateThrottle]
+
+    def initial(self, request, *args, **kwargs):
+        super().initial(request, *args, **kwargs)
+        # Every unsafe request must say it is JSON, even one whose view never reads the body
+        # (submit, resend, sign-out). A cross-site HTML form can only send form or text
+        # types, so it is refused here before any view runs.
+        if request.method not in ("GET", "HEAD", "OPTIONS") and request.content_type.split(
+                ";")[0].strip().lower() != "application/json":
+            raise UnsupportedMediaType(request.content_type)
 
     def finalize_response(self, request, response, *args, **kwargs):
         response = super().finalize_response(request, response, *args, **kwargs)

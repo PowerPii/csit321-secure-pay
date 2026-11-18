@@ -15,7 +15,9 @@
 	header {
 		Strict-Transport-Security "max-age=31536000"
 		X-Content-Type-Options nosniff
-		Referrer-Policy same-origin
+		# "?" = only where a route did not set its own: the checkout, account and dashboard
+		# pages keep no-referrer. Without it this (deferred) block overwrote theirs.
+		?Referrer-Policy same-origin
 		-Server
 	}
 }
@@ -68,6 +70,9 @@
 	}
 	handle {
 		reverse_proxy gateway:8000
+		# The gateway itself only answers JSON and PDFs: nothing there may run script or be
+		# framed.
+		header Content-Security-Policy "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
 	}
 	import security_headers
 }
@@ -82,6 +87,8 @@ shop.{$DOMAIN} {
 	}
 	handle {
 		reverse_proxy merchant:8002
+		# The shop's pages have no script at all, only inline styles and data: images.
+		header Content-Security-Policy "default-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; frame-ancestors 'none'; base-uri 'none'"
 	}
 	import security_headers
 }

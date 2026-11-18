@@ -152,12 +152,31 @@ SESSION_SAVE_EVERY_REQUEST = True
 OTP_TOTP_ISSUER = "SecurePay"
 OTP_TOTP_THROTTLE_FACTOR = 0
 
+# Shared cache for the rate limits (DRF throttles, apps.security.limits). Gunicorn runs several
+# worker processes; Django's default per-process memory cache gave each its own counters, so a
+# key could make about three times its per-minute limit (security self-test, 18 Nov 2026).
+# A table in the gateway database needs nothing new on the server; migration
+# security 0004 creates it.
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.db.DatabaseCache",
+        "LOCATION": "gateway_cache",
+    }
+}
+
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [],
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     # Every error in the contract format (contracts/schemas/error.schema.json).
     "EXCEPTION_HANDLER": "apps.common.errors.exception_handler",
+    # JSON only. DRF's browsable HTML pages (forms, view names, allowed methods) are for
+    # local development; on the public server they only told visitors how the API is built
+    # (security self-test, 18 Nov 2026).
+    "DEFAULT_RENDERER_CLASSES": (
+        ["rest_framework.renderers.JSONRenderer", "rest_framework.renderers.BrowsableAPIRenderer"]
+        if DEBUG else ["rest_framework.renderers.JSONRenderer"]
+    ),
 }
 
 REST_FRAMEWORK.update(
