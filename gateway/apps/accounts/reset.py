@@ -114,8 +114,7 @@ def reset_password(request, token, password, code) -> StaffAccount:
 
     device = signin.confirmed_device(account)
     if device is not None:
-        code = (code or "").strip().replace(" ", "") if isinstance(code, str) else ""
-        if not (len(code) == 6 and code.isdigit() and device.verify_token(code)):
+        if not signin.verify_totp(device, code):
             if signin._record_failure(account, request, "password_reset_totp"):
                 raise signin.locked_error(StaffAccount.objects.get(pk=account.pk))
             raise ApiError(401, "code_incorrect", "That code is not right. Enter the current "

@@ -121,6 +121,28 @@ def confirmed_device(account: StaffAccount) -> TOTPDevice | None:
     return TOTPDevice.objects.filter(user=account.user, confirmed=True).first()
 
 
+def verify_totp(device: TOTPDevice | None, code) -> bool:
+    """Check a 6-digit authenticator code and use it up: one success per device and time step.
+
+    django-otp compares the code with the last accepted time step held on the object it is
+    given, then saves. Two gunicorn workers holding the same device could each accept the same
+    code, so the device row is locked and read again before the check (Codex release review,
+    18 Nov 2026). Every flow that accepts a TOTP code goes through here.
+    """
+    if device is None or not isinstance(code, str):
+        return False
+    code = code.strip().replace(" ", "")
+    if not (len(code) == 6 and code.isdigit()):
+        return False
+    with transaction.atomic():
+        locked = TOTPDevice.objects.select_for_update().filter(pk=device.pk).first()
+        if locked is None:
+            return False
+        ok = locked.verify_token(code)
+    device.refresh_from_db()  # the caller may save the device (first-time confirmation)
+    return ok
+
+
 def _setup_device(account: StaffAccount) -> TOTPDevice:
     """The unconfirmed device for first-time setup; a new secret each time it is shown."""
     TOTPDevice.objects.filter(user=account.user, confirmed=False).delete()
@@ -202,8 +224,7 @@ def check_code(request, code: str) -> "SignedIn":
         device = TOTPDevice.objects.filter(user=account.user, confirmed=False).first()
         if device is None:
             raise ApiError(401, "sign_in_required", "Enter your email and password again.")
-    code = (code or "").strip().replace(" ", "")
-    if not (len(code) == 6 and code.isdigit() and device.verify_token(code)):
+    if not verify_totp(device, code or ""):
         if _record_failure(account, request, "totp"):
             request.session.pop(PENDING_KEY, None)
             raise locked_error(StaffAccount.objects.get(pk=account.pk))
@@ -302,9 +323,7 @@ def confirm_with_totp(request, account: StaffAccount, code, action: str) -> None
     if not isinstance(code, str):
         raise ApiError(400, "missing_field", "Enter the 6-digit code from your authenticator "
                        "app to confirm.", param="code")
-    code = code.strip().replace(" ", "")
-    device = confirmed_device(account)
-    if device is not None and len(code) == 6 and code.isdigit() and device.verify_token(code):
+    if verify_totp(confirmed_device(account), code):
         return
     if _record_failure(account, request, f"confirm:{action}"):
         from django.contrib.auth import logout

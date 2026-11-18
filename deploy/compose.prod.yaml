@@ -41,7 +41,9 @@ services:
       - ./postgres/init:/docker-entrypoint-initdb.d:ro
     networks: [data]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      # Healthy only once postgres/init/01-databases.sh has made all 4 roles, all 3 databases
+      # and the vault schema: a first start that stopped half-way must not look ready.
+      test: ["CMD-SHELL", "pg_isready -U postgres && psql -U postgres -d gateway -tAc \"SELECT (SELECT count(*) FROM pg_roles WHERE rolname IN ('gateway','vault','simulator','merchant')) + (SELECT count(*) FROM pg_database WHERE datname IN ('gateway','simulator','merchant')) + (SELECT count(*) FROM pg_namespace WHERE nspname = 'vault')\" | grep -qx 8"]
       interval: 5s
       retries: 10
 
