@@ -49,7 +49,10 @@ services:
 
   gateway:
     <<: *django
-    build: ../gateway
+    build:
+      context: ../gateway
+      labels:
+        org.opencontainers.image.revision: "${GIT_REVISION:-unknown}"
     environment:
       <<: *django-env
       POSTGRES_DB: gateway
@@ -85,7 +88,10 @@ services:
 
   gateway-worker:
     <<: *django
-    build: ../gateway
+    build:
+      context: ../gateway
+      labels:
+        org.opencontainers.image.revision: "${GIT_REVISION:-unknown}"
     command: ["python", "manage.py", "run_worker"]
     environment:
       <<: *django-env
@@ -118,7 +124,10 @@ services:
 
   simulator:
     <<: *django
-    build: ../simulator
+    build:
+      context: ../simulator
+      labels:
+        org.opencontainers.image.revision: "${GIT_REVISION:-unknown}"
     environment:
       <<: *django-env
       POSTGRES_DB: simulator
@@ -144,7 +153,10 @@ services:
 
   merchant:
     <<: *django
-    build: ../merchant
+    build:
+      context: ../merchant
+      labels:
+        org.opencontainers.image.revision: "${GIT_REVISION:-unknown}"
     environment:
       <<: *django-env
       POSTGRES_DB: merchant
@@ -168,6 +180,8 @@ services:
     build:
       context: ..
       dockerfile: deploy/caddy/Dockerfile
+      labels:
+        org.opencontainers.image.revision: "${GIT_REVISION:-unknown}"
     restart: unless-stopped
     logging: *logging
     ports: ["80:80", "443:443", "443:443/udp"]
