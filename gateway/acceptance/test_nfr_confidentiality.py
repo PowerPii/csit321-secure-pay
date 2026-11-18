@@ -251,6 +251,7 @@ MATRIX: dict[tuple[str, str], set[str] | str] = {
     ("internal/alerts/{id}/read", "post"): ANALYST_OR_ADMIN,
     ("internal/reports/fraud", "get"): ANALYST_OR_ADMIN,
     ("internal/reports/fraud/export", "get"): ANALYST_OR_ADMIN,
+    ("internal/insights/fraud", "get"): ANALYST_OR_ADMIN,
     ("internal/fraud/search", "get"): ANALYST_OR_ADMIN,
     ("internal/blocklist", "get"): ANALYST_OR_ADMIN,
     ("internal/blocklist", "post"): ANALYST_OR_ADMIN,
