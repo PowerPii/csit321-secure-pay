@@ -1,13 +1,109 @@
 name: ci
 
-on: [push, pull_request]
+# Built to spend few GitHub Actions minutes (the private repo's free 2,000 ran out on
+# 18 Nov 2026). GitHub bills every job rounded UP to a whole minute, so:
+#   - four jobs instead of eleven: each service's work runs as steps of one job;
+#   - a job only runs for the parts of the repo a change touches (the `changes` job decides;
+#     a docs-only change runs `changes` and `ci-ok` only);
+#   - one run per change: pushes to branches no longer run CI, pull requests do, and so does
+#     main after a merge (the deploy workflow waits for that run);
+#   - a newer push to a pull request cancels the run still going for the older one;
+#   - pip and npm downloads are cached.
+# `ci-ok` is the one check for branch protection to require. It is green only when every job
+# that had to run passed. "Run workflow" (Actions tab) runs everything, for a full test report.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  # Never cancel a run on main: the deploy workflow needs its result.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
 
 jobs:
-  python:
+  # Works out what the change touches, then runs the quick repo-wide checks: merge freeze,
+  # gitleaks, the contracts, the test-report mapping and (when deploy files change) the
+  # public server's config.
+  changes:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        service: [gateway, simulator, merchant]
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      python: ${{ steps.paths.outputs.python }}
+      frontend: ${{ steps.paths.outputs.frontend }}
+    env:
+      MAIL_PASSWORD_HASH: $2a$14$abcdefghijklmnopqrstuuMOs2yZ1nOv8wOEUx1AYQ1zt6S1zBe2m
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: paths
+        name: Decide what to test
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BEFORE: ${{ github.event.before }}
+        run: bash .github/ci-changes.sh
+      - name: Merge freeze (deploy/RUNBOOK.md section 10a)
+        if: ${{ !cancelled() && github.event_name == 'pull_request' }}
+        env:
+          UNTIL: ${{ vars.MERGE_FREEZE_UNTIL }}
+        run: |
+          if [ -z "$UNTIL" ]; then echo "No merge freeze."; exit 0; fi
+          end="$(date -d "$UNTIL" +%s)" || { echo "::error::MERGE_FREEZE_UNTIL is not a date: $UNTIL"; exit 1; }
+          if [ "$end" -gt "$(date +%s)" ]; then
+            echo "::error::Merge freeze for a demo until $UNTIL. Do not merge; wait, or ask Fifa to clear MERGE_FREEZE_UNTIL."
+            exit 1
+          fi
+          echo "The freeze ended at $UNTIL."
+      - name: Secrets scan (gitleaks)
+        if: ${{ !cancelled() }}
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-python@v5
+        if: ${{ !cancelled() }}
+        with:
+          python-version: "3.12"
+      - if: ${{ !cancelled() }}
+        run: pip install -q jsonschema pyyaml openapi-spec-validator
+      - name: Contracts
+        if: ${{ !cancelled() }}
+        run: python contracts/check.py
+      # The test report's mapping (docs/test-report/evidence.yaml) still names real tests.
+      - name: Test report mapping
+        if: ${{ !cancelled() }}
+        run: python tests/report/build_report.py --check
+      # The public server's Compose file and Caddyfile parse with the example settings, and
+      # the production Caddy image (checkout + dashboard bundles) builds.
+      - name: Deploy config
+        if: ${{ !cancelled() && steps.paths.outputs.deploy == 'true' }}
+        run: |
+          docker compose --env-file deploy/prod.env.example -f deploy/compose.prod.yaml config -q
+          docker run --rm -e DOMAIN=203-0-113-5.sslip.io -e ACME_EMAIL=ci@example.com \
+            -e MAIL_USER=team -e MAIL_PASSWORD_HASH \
+            -v "$PWD/deploy/Caddyfile.prod:/etc/caddy/Caddyfile:ro" \
+            caddy:2 caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+          docker build -f deploy/caddy/Dockerfile -t securepay-caddy .
+          # bash -n checks only its first file, so check each script on its own.
+          for f in deploy/*.sh deploy/backup/*.sh; do bash -n "$f" || exit 1; done
+
+  # Gateway, simulator and merchant, one after another in one job (each in its own virtual
+  # environment, as before; steps in .github/ci-python.sh). One failing service does not stop
+  # the others.
+  python:
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.python != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     services:
       postgres:
         image: postgres:17
@@ -15,10 +111,8 @@ jobs:
           POSTGRES_PASSWORD: postgres
         ports: ["5432:5432"]
         options: --health-cmd pg_isready --health-interval 5s --health-retries 10
-    defaults:
-      run:
-        working-directory: ${{ matrix.service }}
     env:
+      SERVICES: ${{ needs.changes.outputs.python }}
       DJANGO_DEBUG: "1"
       POSTGRES_HOST: localhost
       POSTGRES_USER: postgres
@@ -31,74 +125,82 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -e ".[dev]" pip-audit bandit
-      - run: ruff check .
-      - run: python manage.py check
-      - run: python manage.py makemigrations --check --dry-run
-      # JUnit results feed the non-functional test report (job test-report below).
-      - run: pytest --junitxml=junit-${{ matrix.service }}.xml
+          cache: pip
+          cache-dependency-path: "*/pyproject.toml"
+      - name: Test ${{ needs.changes.outputs.python }}
+        run: |
+          failed=""
+          for svc in $SERVICES; do
+            echo "::group::$svc"
+            bash .github/ci-python.sh "$svc" || failed="$failed $svc"
+            echo "::endgroup::"
+          done
+          if [ -n "$failed" ]; then echo "::error::Failed:$failed"; exit 1; fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: junit-${{ matrix.service }}
-          path: ${{ matrix.service }}/junit-${{ matrix.service }}.xml
+          name: junit-python
+          path: "*/junit-*.xml"
           if-no-files-found: ignore
-      - run: pip-audit
-      - run: bandit -q -r apps -x "*/tests.py,*/test_*.py"
+          retention-days: 7
 
+  # Checkout, dashboard and website, one after another in one job (steps in
+  # .github/ci-frontend.sh).
   frontend:
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.frontend != '' }}
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        app: [checkout, dashboard, website]
-    defaults:
-      run:
-        working-directory: frontend/${{ matrix.app }}
+    timeout-minutes: 15
+    env:
+      APPS: ${{ needs.changes.outputs.frontend }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - run: npm install
-      - run: npx tsc --noEmit
-      - if: matrix.app == 'website'
-        run: npm test
-      - if: matrix.app != 'website'
-        run: npm test -- --passWithNoTests --reporter=default --reporter=junit --outputFile.junit=junit-${{ matrix.app }}.xml
+          cache: npm
+          cache-dependency-path: frontend/*/package-lock.json
+      - name: Test ${{ needs.changes.outputs.frontend }}
+        run: |
+          failed=""
+          for app in $APPS; do
+            echo "::group::$app"
+            bash .github/ci-frontend.sh "$app" || failed="$failed $app"
+            echo "::endgroup::"
+          done
+          if [ -n "$failed" ]; then echo "::error::Failed:$failed"; exit 1; fi
       - uses: actions/upload-artifact@v4
-        if: always() && matrix.app != 'website'
+        if: always()
         with:
-          name: junit-${{ matrix.app }}
-          path: frontend/${{ matrix.app }}/junit-${{ matrix.app }}.xml
+          name: junit-frontend
+          path: frontend/*/junit-*.xml
           if-no-files-found: ignore
-      - if: matrix.app == 'website'
-        run: npm run build
-      # Audit what ships to the browser. Build tools (vite and its file matchers) never reach
-      # the site; an advisory there with no fixed version blocked every merge and deploy
-      # (picomatch GHSA-fc5q-39xc-vjpf, 17 Nov 2026). Decided by Fifa, 17 Nov 2026.
-      - run: npm audit --audit-level=high --omit=dev
+          retention-days: 7
 
-  # The non-functional test report (URS Section 4.4): maps every requirement to the tests
-  # above and to the manual checks (docs/test-report/). Red if any requirement fails or the
-  # mapping names a test that no longer exists. The report is on the run's summary page and
-  # in the test-report artifact.
-  test-report:
+  # The one check for branch protection to require. Red if any job that ran failed (a job
+  # skipped because the change did not touch its part is fine). Also builds the
+  # non-functional test report (URS Section 4.4) from the JUnit results; parts that did not
+  # run show as "Not run" (Actions, ci, "Run workflow" gives a full report).
+  ci-ok:
     if: always()
-    needs: [python, frontend]
+    needs: [changes, python, frontend]
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install pyyaml
-      - run: python tests/report/build_report.py --check
+      - run: pip install -q pyyaml
       - uses: actions/download-artifact@v4
         with:
           pattern: junit-*
           path: reports
           merge-multiple: true
-      - run: python tests/report/build_report.py --junit reports --out TEST-REPORT.md --strict
+      - name: Test report
+        run: |
+          mkdir -p reports
+          python tests/report/build_report.py --junit reports --out TEST-REPORT.md --strict
       - if: always()
         run: test -f TEST-REPORT.md && cat TEST-REPORT.md >> "$GITHUB_STEP_SUMMARY" || true
       - uses: actions/upload-artifact@v4
@@ -107,62 +209,12 @@ jobs:
           name: test-report
           path: TEST-REPORT.md
           if-no-files-found: ignore
-
-  contracts:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - run: pip install jsonschema pyyaml openapi-spec-validator
-      - run: python contracts/check.py
-
-  secrets-scan:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: read
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: gitleaks/gitleaks-action@v2
+      - name: All required jobs passed
+        if: always()
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  # The public server's Compose file and Caddyfile parse with the example settings, and the
-  # production Caddy image (checkout + dashboard bundles) builds.
-  deploy-config:
-    runs-on: ubuntu-latest
-    env:
-      MAIL_PASSWORD_HASH: $2a$14$abcdefghijklmnopqrstuuMOs2yZ1nOv8wOEUx1AYQ1zt6S1zBe2m
-    steps:
-      - uses: actions/checkout@v4
-      - run: docker compose --env-file deploy/prod.env.example -f deploy/compose.prod.yaml config -q
-      - run: >
-          docker run --rm -e DOMAIN=203-0-113-5.sslip.io -e ACME_EMAIL=ci@example.com
-          -e MAIL_USER=team -e MAIL_PASSWORD_HASH
-          -v "$PWD/deploy/Caddyfile.prod:/etc/caddy/Caddyfile:ro"
-          caddy:2 caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
-      - run: docker build -f deploy/caddy/Dockerfile -t securepay-caddy .
-      # bash -n checks only its first file, so check each script on its own.
-      - run: for f in deploy/make-secrets.sh deploy/server-setup.sh deploy/smoke-check.sh deploy/backup/backup.sh deploy/auto-deploy.sh deploy/setup-auto-deploy.sh deploy/demo.sh deploy/move-server.sh deploy/public-ip.sh deploy/watchdog.sh deploy/freeze.sh deploy/backup/verify.sh; do bash -n "$f" || exit 1; done
-
-  # Demo merge freeze (deploy/RUNBOOK.md section 10a): while the repository variable
-  # MERGE_FREEZE_UNTIL (e.g. 2027-04-02T18:00+08:00) is in the future, pull requests show
-  # this check red, so nobody merges by accident. The deploy workflow also refuses to run.
-  merge-freeze:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      - env:
-          UNTIL: ${{ vars.MERGE_FREEZE_UNTIL }}
+          RESULTS: ${{ needs.changes.result }} ${{ needs.python.result }} ${{ needs.frontend.result }}
         run: |
-          if [ -z "$UNTIL" ]; then echo "No merge freeze."; exit 0; fi
-          end="$(date -d "$UNTIL" +%s)" || { echo "::error::MERGE_FREEZE_UNTIL is not a date: $UNTIL"; exit 1; }
-          if [ "$end" -gt "$(date +%s)" ]; then
-            echo "::error::Merge freeze for a demo until $UNTIL. Do not merge; wait, or ask Fifa to clear MERGE_FREEZE_UNTIL."
-            exit 1
-          fi
-          echo "The freeze ended at $UNTIL."
+          echo "changes, python, frontend: $RESULTS"
+          for r in $RESULTS; do
+            case "$r" in success|skipped) ;; *) echo "::error::A CI job did not pass ($RESULTS)."; exit 1 ;; esac
+          done
