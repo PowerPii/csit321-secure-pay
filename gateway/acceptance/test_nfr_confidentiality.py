@@ -210,6 +210,7 @@ MATRIX: dict[tuple[str, str], set[str] | str] = {
     ("customer/password", "post"): {CUSTOMER},
     ("customer/profile", "get"): {CUSTOMER},
     ("customer/profile", "post"): {CUSTOMER},
+    ("customer/insights", "get"): {CUSTOMER},
     ("customer/payments", "get"): {CUSTOMER},
     ("customer/payments/{id}", "get"): {CUSTOMER},
     ("customer/payments/{id}/receipt.pdf", "get"): {CUSTOMER},
@@ -351,10 +352,15 @@ def _call(client, path, method):
 def test_nfr_con_05_six_principals_against_every_endpoint_match_the_matrix(principals):
     """Allowed = anything but 401/403; denied = 401 or 403. Records of another owner are
     covered by NFR-CON-01 ("not found")."""
+    from django.core.cache import cache
+
     checked, mismatches = 0, []
     for (path, method), allowed in sorted(MATRIX.items()):
         if allowed == "public":
             continue
+        # Every probe comes from one test IP; the per-IP rate limits are not under test here
+        # and would otherwise answer 429 once the matrix has enough customer endpoints.
+        cache.clear()
         for name in PRINCIPALS:
             status = _call(principals[name], path, method).status_code
             ok = status not in (401, 403) if name in allowed else status in (401, 403)
