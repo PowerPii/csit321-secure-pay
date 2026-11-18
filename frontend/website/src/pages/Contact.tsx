@@ -68,7 +68,7 @@ export default function Contact() {
                   </Box>
                 ) : (
                   <Box component="form" onSubmit={submit}>
-                    <Typography variant="h5" sx={{ mb: 3 }}>
+                    <Typography variant="h5" component="h2" sx={{ mb: 3 }}>
                       Send us a message
                     </Typography>
                     <Grid container spacing={2}>
@@ -118,8 +118,8 @@ export default function Contact() {
                       height: 28,
                       flexShrink: 0,
                       borderRadius: "50%",
-                      bgcolor: brand.ink,
-                      color: brand.saffron,
+                      bgcolor: brand.navy,
+                      color: brand.brassLight,
                       display: "grid",
                       placeItems: "center",
                       fontWeight: 700,

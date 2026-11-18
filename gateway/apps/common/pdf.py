@@ -36,11 +36,11 @@ class Page:
     def rect(self, x, y, w, h, fill="#000000"):
         self.ops.append(f"{_hex_rgb(fill)} rg {x:.1f} {PAGE_H - y - h:.1f} {w:.1f} {h:.1f} re f")
 
-    def line(self, x1, y, x2, colour="#E6E1D8", width=0.8):
+    def line(self, x1, y, x2, colour="#E1E6ED", width=0.8):
         self.ops.append(f"{_hex_rgb(colour)} RG {width} w {x1:.1f} {PAGE_H - y:.1f} m "
                         f"{x2:.1f} {PAGE_H - y:.1f} l S")
 
-    def text(self, x, y, value, size=10.0, bold=False, colour="#0A1830", align="left"):
+    def text(self, x, y, value, size=10.0, bold=False, colour="#0E1B30", align="left"):
         if align == "right":
             x -= text_width(value, size, bold)
         font = "F2" if bold else "F1"

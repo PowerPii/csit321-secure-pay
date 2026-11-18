@@ -3,41 +3,47 @@
    below 768 px. A stylesheet rather than inline styles, so the CSP needs no
    'unsafe-inline'. */
 :root {
-  /* SecurePay brand (same as the marketing site): navy ink, saffron signal colour. */
-  --ink: #0A1830;
-  --ink-2: #0F2240;
-  --accent: #F5A524;
-  --muted: #6b6b6b;
-  --line: #d4d4d4;
-  --panel: #FAF8F4;
+  /* SecurePay brand, the same as frontend/brand/tokens.json: navy #13243F, ink #0E1B30,
+     brass #B08A3E (the one accent), slate #DCE2EA, mist #ECEFF4. */
+  --ink: #0E1B30;
+  --ink-2: #13243F;
+  --accent: #B08A3E;
+  --muted: #4A5568;
+  --line: #E1E6ED;
+  --field: #7D8898; /* 3.6:1 on white, the 3:1 a field edge needs (WCAG 1.4.11) */
+  --panel: #DCE2EA;
+  --mist: #ECEFF4;
   --error: #b42318;
   --radius: 10px;
+  --head: "Schibsted Grotesk", "Hanken Grotesk", system-ui, sans-serif;
   color: var(--ink);
   background: #fff;
-  font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   font-size: 15px;
-  line-height: 1.4;
+  line-height: 1.45;
 }
 * { box-sizing: border-box; }
 body { margin: 0; }
-h1 { font-size: 22px; margin: 12px 0 6px; }
+h1 { font-family: var(--head); font-weight: 600; letter-spacing: -0.02em; font-size: 22px; margin: 12px 0 6px; }
 p { margin: 0 0 8px; }
 .muted { color: var(--muted); }
 .small { font-size: 13px; }
 .tiny { font-size: 12px; }
 .center { text-align: center; padding: 48px 16px; }
 
-.topbar { display: flex; justify-content: space-between; align-items: center; background: var(--ink-2); color: #fff; padding: 14px 64px; }
-.brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; letter-spacing: -0.01em; }
-.brand svg { border-radius: 7px; box-shadow: 0 0 0 1px rgba(255,255,255,.25); }
-.testmode { white-space: nowrap; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #0A1830; background: var(--accent); border-radius: 999px; padding: 2px 9px; }
-.topbar-status { font-size: 13px; text-align: right; }
+.topbar { display: flex; justify-content: space-between; align-items: center; background: #fff; color: var(--ink); border-bottom: 1px solid var(--line); padding: 14px 64px; }
+.brand { display: inline-flex; align-items: center; gap: 12px; }
+/* The wordmark: Schibsted Grotesk SemiBold, tight tracking, a brass full stop. */
+.wordmark { font-family: var(--head); font-weight: 600; font-size: 21px; letter-spacing: -0.045em; color: var(--ink-2); line-height: 1; white-space: nowrap; }
+.wordmark-dot { color: var(--accent); }
+.testmode { white-space: nowrap; font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); background: #fff; border: 1px solid var(--accent); border-radius: 999px; padding: 2px 9px; }
+.topbar-status { font-size: 13px; text-align: right; color: var(--muted); }
 
 .layout { display: grid; grid-template-columns: minmax(320px, 39%) 1fr; min-height: calc(100vh - 50px); }
 .panel-left { background: var(--panel); padding: 64px 64px 48px; display: flex; flex-direction: column; justify-content: space-between; gap: 32px; }
-.panel-right { display: flex; align-items: center; justify-content: center; padding: 48px 24px; }
+.panel-right { display: flex; align-items: flex-start; justify-content: center; padding: 64px 24px 48px; }
 .panel-right.only { grid-column: 1 / -1; }
-.amount { font-size: 42px; font-weight: 800; margin: 8px 0 12px; letter-spacing: -0.5px; }
+.amount { font-family: var(--head); font-size: 42px; font-weight: 600; margin: 8px 0 12px; letter-spacing: -0.025em; }
 .lock { display: flex; gap: 8px; align-items: flex-start; }
 .lock svg { flex: none; margin-top: 2px; }
 
@@ -53,12 +59,11 @@ dl { margin: 0; }
 .result .box, .result .btn { width: 100%; }
 .field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .field label { font-size: 13px; font-weight: 600; }
-.field input { width: 100%; font: inherit; padding: 10px 12px; border: 1px solid #9a9a9a; border-radius: var(--radius); background: #fff; }
-/* Keyboard focus (WCAG 2.4.7, 1.4.11): a navy ring with the saffron halo of the brand. The
-   saffron alone is 2:1 on white, too faint to see; navy is 15:1. */
-.field input:focus { outline: 2px solid var(--ink-2); outline-offset: 1px; box-shadow: 0 0 0 4px rgba(245, 165, 36, 0.45); }
+.field input { width: 100%; font: inherit; padding: 10px 12px; border: 1px solid var(--field); border-radius: var(--radius); background: #fff; }
+/* Keyboard focus (WCAG 2.4.7, 1.4.11): a navy ring with the brass halo of the brand. The
+   brass alone is 3:1 on white, too faint to rely on; navy is 15:1. */
+.field input:focus { outline: 2px solid var(--ink-2); outline-offset: 1px; box-shadow: 0 0 0 4px rgba(176, 138, 62, 0.35); }
 a:focus-visible, button:focus-visible, summary:focus-visible, input[type="checkbox"]:focus-visible { outline: 2px solid var(--ink-2); outline-offset: 2px; }
-.topbar a:focus-visible, .topbar button:focus-visible { outline-color: #fff; }
 h1[tabindex="-1"]:focus { outline: none; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 .has-error input { border-color: var(--error); }
@@ -68,23 +73,35 @@ h1[tabindex="-1"]:focus { outline: none; }
 
 .btn { display: block; font: inherit; font-weight: 600; text-align: center; text-decoration: none; padding: 12px 16px; border-radius: var(--radius); cursor: pointer; border: 1.5px solid var(--ink-2); }
 .btn.primary { background: var(--ink-2); color: #fff; }
-.btn.primary:disabled { opacity: 0.6; cursor: progress; }
+.btn.primary:hover:not(:disabled) { background: #1B3054; }
+/* Pay button while screening runs: three brass segments fill in turn (rules, model, policy). */
+.pay-label { display: inline-flex; align-items: center; gap: 8px; }
+.btn.with-lock:has(.pay-meter) { flex-direction: column; gap: 8px; }
+.pay-meter { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; width: 100%; }
+.pay-meter b { height: 3px; border-radius: 2px; background: #2E4266; animation: meter 1.8s infinite; }
+.pay-meter b:nth-child(2) { animation-delay: .3s; }
+.pay-meter b:nth-child(3) { animation-delay: .6s; }
+@keyframes meter { 0%, 15% { background: #2E4266; } 35%, 100% { background: var(--accent); } }
+@media (prefers-reduced-motion: reduce) { .pay-meter b { animation: none; background: var(--accent); } }
+/* Cancel is a quiet text link, so Pay is the only button (one primary action). */
+.cancel-link { align-self: center; font-size: 14px; color: var(--ink-2); text-decoration: underline; text-underline-offset: 3px; padding: 4px 0; }
+.btn.primary:disabled { opacity: 0.85; cursor: progress; }
 .btn.secondary { background: #fff; color: var(--ink); }
 
 .box { border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; text-align: left; }
-.box.grey { background: var(--panel); border-color: var(--panel); }
-.badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; border: 1px solid #8a8a8a; background: #e6e6e6; }
+.box.grey { background: var(--mist); border-color: var(--mist); }
+.badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--field); background: var(--mist); }
 .badge.dark { background: var(--ink-2); border-color: var(--ink-2); color: #fff; }
 .card-result { align-items: flex-start; text-align: left; border: 1px solid var(--line); border-radius: 8px; padding: 18px; }
 .with-icon { display: flex; gap: 10px; align-items: center; font-size: 17px; margin: 0; }
 
-.spinner { width: 48px; height: 48px; border-radius: 50%; border: 4px solid #cfcfcf; border-top-color: var(--ink-2); animation: spin 0.9s linear infinite; }
+.spinner { width: 48px; height: 48px; border-radius: 50%; border: 4px solid var(--line); border-top-color: var(--ink-2); animation: spin 0.9s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 3s; } }
 
 /* Demo sprint 14: the shop's monogram and name, card brand chips, folding order summary. */
 .store { display: flex; align-items: center; gap: 10px; margin: 0 0 28px; font-weight: 700; font-size: 17px; }
-.store-mark { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 9px; background: var(--ink-2); color: var(--accent); font-size: 14px; font-weight: 800; letter-spacing: .02em; flex: none; }
+.store-mark { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 9px; background: var(--ink-2); color: #fff; font-size: 14px; font-weight: 800; letter-spacing: .02em; flex: none; }
 .store-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .summary-toggle { display: none; font: inherit; font-size: 13px; font-weight: 600; color: var(--ink); background: none; border: 0; padding: 4px 0; text-decoration: underline; cursor: pointer; }
 .card-input { position: relative; }
@@ -95,7 +112,7 @@ h1[tabindex="-1"]:focus { outline: none; }
 .card-chip.mastercard { color: #a33a00; border-color: #f0cdb8; }
 .card-brands { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .btn.with-lock { display: flex; align-items: center; justify-content: center; gap: 8px; }
-.step-pill { align-self: flex-start; font-size: 12px; font-weight: 700; color: var(--ink); background: #fdf1d8; border: 1px solid #f5d999; border-radius: 999px; padding: 2px 10px; margin: 0; }
+.step-pill { align-self: flex-start; font-size: 12px; font-weight: 700; color: var(--ink); background: #F6EFE0; border: 1px solid #E2CFA6; border-radius: 999px; padding: 2px 10px; margin: 0; }
 
 @media (max-width: 767px) {
   .topbar { padding: 14px 16px; gap: 12px; }
@@ -126,7 +143,7 @@ h1[tabindex="-1"]:focus { outline: none; }
 
 /* Customer account pages (C10 to C12). Desktop: intro panel + two cards, side navigation
    and a history table with a detail card. Phone: tabs, cards instead of table rows. */
-.link.inverse { color: #fff; }
+.link.inverse { color: var(--ink-2); }
 .account-page { min-height: calc(100vh - 50px); }
 .signin-layout { display: grid; grid-template-columns: minmax(280px, 32%) 1fr; min-height: calc(100vh - 50px); }
 .signin-intro { background: var(--panel); padding: 48px 40px; display: flex; flex-direction: column; gap: 10px; }
@@ -149,14 +166,14 @@ h1[tabindex="-1"]:focus { outline: none; }
 .account-grid { display: grid; grid-template-columns: 180px 1fr; gap: 24px; padding: 32px 40px; }
 .side-nav { display: flex; flex-direction: column; gap: 2px; }
 .nav-item { font: inherit; text-align: left; background: none; border: 0; padding: 8px 10px; border-radius: var(--radius); cursor: pointer; color: var(--ink); }
-.nav-item.active { background: #e2e2e2; font-weight: 600; }
+.nav-item.active { background: var(--mist); font-weight: 600; }
 .account-main { min-width: 0; display: flex; flex-direction: column; gap: 8px; }
 .account-main h1 { margin-top: 0; }
 .history { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(260px, 1fr); gap: 16px; align-items: start; }
 .history-table { width: 100%; border-collapse: collapse; border: 1px solid var(--line); font-size: 14px; }
-.history-table th { text-align: left; background: var(--panel); font-weight: 600; padding: 10px; }
+.history-table th { text-align: left; background: var(--mist); font-weight: 600; padding: 10px; }
 .history-table td { padding: 10px; border-top: 1px solid var(--line); }
-.history-table tr.selected td { background: #f6f6f6; }
+.history-table tr.selected td { background: var(--mist); }
 .history-cards { display: none; list-style: none; padding: 0; margin: 0; flex-direction: column; gap: 8px; }
 .history-card { width: 100%; font: inherit; text-align: left; background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; cursor: pointer; }
 .detail { display: flex; flex-direction: column; gap: 10px; padding: 14px; }
@@ -208,6 +225,7 @@ h1[tabindex="-1"]:focus { outline: none; }
 
 /* Small phones (320 to 380 px): keep the brand and test-mode pill on one line. */
 @media (max-width: 380px) {
-  .brand { gap: 8px; font-size: 16px; }
+  .brand { gap: 8px; }
+  .wordmark { font-size: 19px; }
   .topbar-status { font-size: 12px; }
 }

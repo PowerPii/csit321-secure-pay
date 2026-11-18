@@ -1,70 +1,90 @@
 import { alpha, createTheme } from "@mui/material/styles";
 
-/** Brand colours. Navy ties to the report's UOW accent; saffron is the signal colour. */
+/**
+ * Brand colours, kept in step with frontend/brand/tokens.json (the brand drift test checks this).
+ * Navy carries the brand. Brass is the one accent and is used for marks only (the wordmark's full stop,
+ * the Pay meter, bullets, focus rings), never for text on white.
+ */
 export const brand = {
-  ink: "#0F2240",
-  inkDeep: "#0A1830",
-  saffron: "#F5A524",
-  paper: "#FAF8F4",
-  line: "#E6E1D8",
-  muted: "#5B6475",
+  navy: "#13243F",
+  ink: "#0E1B30",
+  brass: "#B08A3E",
+  brassLight: "#D2AE63",
+  slate: "#DCE2EA",
+  mist: "#ECEFF4",
+  line: "#E1E6ED",
+  muted: "#4A5568",
   allow: "#1F9D63",
   verify: "#D98A0B",
-  block: "#D9434B",
-  sky: "#7FB3FF",
+  block: "#C2333B",
 };
 
 export const fonts = {
-  heading: '"Space Grotesk", "Inter", system-ui, sans-serif',
-  body: '"Inter", system-ui, -apple-system, "Segoe UI", sans-serif',
+  heading: '"Schibsted Grotesk", "Hanken Grotesk", system-ui, sans-serif',
+  body: '"Hanken Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif',
   mono: '"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace',
+};
+
+/** Soft, layered shadows: a hairline plus a long, faint drop. */
+export const shadows = {
+  card: "0 1px 2px rgba(19,36,63,0.06), 0 8px 24px -12px rgba(19,36,63,0.18)",
+  float: "0 1px 2px rgba(19,36,63,0.08), 0 24px 56px -24px rgba(19,36,63,0.35)",
 };
 
 export const theme = createTheme({
   palette: {
     mode: "light",
-    primary: { main: brand.ink, contrastText: "#fff" },
-    secondary: { main: brand.saffron, contrastText: brand.inkDeep },
+    primary: { main: brand.navy, contrastText: "#fff" },
+    secondary: { main: "#FFFFFF", contrastText: brand.navy },
     success: { main: brand.allow },
     warning: { main: brand.verify },
     error: { main: brand.block },
-    background: { default: brand.paper, paper: "#FFFFFF" },
-    text: { primary: brand.inkDeep, secondary: brand.muted },
+    background: { default: brand.slate, paper: "#FFFFFF" },
+    text: { primary: brand.ink, secondary: brand.muted },
     divider: brand.line,
   },
-  shape: { borderRadius: 12 },
+  shape: { borderRadius: 10 },
   typography: {
     fontFamily: fonts.body,
-    h1: { fontFamily: fonts.heading, fontWeight: 700, letterSpacing: "-0.03em", lineHeight: 1.05 },
-    h2: { fontFamily: fonts.heading, fontWeight: 700, letterSpacing: "-0.025em", lineHeight: 1.1 },
+    h1: { fontFamily: fonts.heading, fontWeight: 600, letterSpacing: "-0.035em", lineHeight: 1.05 },
+    h2: { fontFamily: fonts.heading, fontWeight: 600, letterSpacing: "-0.03em", lineHeight: 1.1 },
     h3: { fontFamily: fonts.heading, fontWeight: 600, letterSpacing: "-0.02em", lineHeight: 1.15 },
     h4: { fontFamily: fonts.heading, fontWeight: 600, letterSpacing: "-0.015em" },
-    h5: { fontFamily: fonts.heading, fontWeight: 600 },
+    h5: { fontFamily: fonts.heading, fontWeight: 600, letterSpacing: "-0.01em" },
     h6: { fontFamily: fonts.heading, fontWeight: 600 },
-    overline: { fontWeight: 600, letterSpacing: "0.12em", lineHeight: 1.6 },
+    // Section labels: sentence case, no tracking. Uppercase eyebrows everywhere read as template.
+    overline: { fontWeight: 600, fontSize: "0.9375rem", letterSpacing: 0, lineHeight: 1.6, textTransform: "none" },
     button: { textTransform: "none", fontWeight: 600 },
   },
   components: {
     MuiButton: {
       defaultProps: { disableElevation: true },
       styleOverrides: {
-        root: { borderRadius: 999, paddingInline: 20 },
-        sizeLarge: { paddingBlock: 12, paddingInline: 26, fontSize: "1rem" },
+        root: { borderRadius: 9, paddingInline: 18 },
+        sizeLarge: { paddingBlock: 11, paddingInline: 22, fontSize: "1rem" },
+        containedSecondary: { boxShadow: "inset 0 0 0 1px rgba(19,36,63,0.12)" },
       },
     },
     MuiPaper: { styleOverrides: { root: { backgroundImage: "none" } } },
     MuiCard: {
       defaultProps: { elevation: 0 },
-      styleOverrides: { root: { border: `1px solid ${brand.line}`, borderRadius: 16 } },
+      styleOverrides: { root: { border: `1px solid ${brand.line}`, borderRadius: 14, boxShadow: shadows.card } },
     },
     MuiChip: { styleOverrides: { root: { fontWeight: 600 } } },
+    // Card titles sit under a section's h2, so they are h3 in the outline whatever their size.
+    MuiTypography: { defaultProps: { variantMapping: { h4: "h3", h5: "h3", h6: "h3" } } },
     MuiLink: { defaultProps: { underline: "hover" } },
     MuiTableCell: { styleOverrides: { root: { borderColor: brand.line } } },
+    // Wide tables scroll sideways on phones; focusable so the keyboard can scroll them too.
+    MuiTableContainer: { defaultProps: { tabIndex: 0 } as object },
     MuiCssBaseline: {
       styleOverrides: {
-        "::selection": { background: alpha(brand.saffron, 0.35) },
+        "::selection": { background: alpha(brand.brass, 0.3) },
         "html, body": { scrollBehavior: "smooth" },
+        body: { WebkitFontSmoothing: "antialiased" },
         code: { fontFamily: fonts.mono, fontSize: "0.9em" },
+        ":focus-visible": { outline: `2px solid ${brand.brass}`, outlineOffset: 2 },
+        "@media (prefers-reduced-motion: reduce)": { "html, body": { scrollBehavior: "auto" } },
       },
     },
   },

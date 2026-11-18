@@ -7,7 +7,7 @@ export default function NotFound() {
   usePageTitle("Page not found");
   return (
     <Container maxWidth="sm" sx={{ py: { xs: 12, md: 18 }, textAlign: "center" }}>
-      <Typography sx={{ fontFamily: fonts.mono, color: "#B26F00", mb: 2 }}>404 resource_not_found</Typography>
+      <Typography sx={{ fontFamily: fonts.mono, color: "text.secondary", mb: 2 }}>404 resource_not_found</Typography>
       <Typography variant="h2" sx={{ fontSize: { xs: 34, md: 46 }, mb: 2 }}>
         This page doesn’t exist
       </Typography>

@@ -4,6 +4,11 @@ import Account from "./Account";
 import App from "./App";
 import GuestStatus from "./GuestStatus";
 import { focusFirstErrorOnSubmit } from "./ui";
+import "@fontsource/schibsted-grotesk/600.css";
+import "@fontsource/hanken-grotesk/400.css";
+import "@fontsource/hanken-grotesk/500.css";
+import "@fontsource/hanken-grotesk/600.css";
+import "@fontsource/hanken-grotesk/700.css";
 import "./styles.css";
 
 // One bundle, three areas, all served by Caddy from the same build: the hosted checkout

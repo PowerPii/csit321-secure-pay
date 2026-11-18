@@ -5,34 +5,36 @@ import {
   Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Drawer, IconButton, InputBase, List, ListItemButton, ListItemText, Paper, Stack, Typography,
   useMediaQuery, useTheme,
 } from "@mui/material";
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import { CAN, useSignOut, useStaff } from "../auth";
 import { minSec, useIdleSignOut } from "../idle";
-import { BrandMark, SrOnly, visuallyHidden } from "./ui";
+import { SrOnly, visuallyHidden } from "./ui";
+import { Wordmark } from "./Wordmark";
 
 const SIDEBAR = 232;
 
-const NAV: { to: string; label: string; page: keyof typeof CAN }[] = [
-  { to: "/overview", label: "Overview", page: "payments" },
-  { to: "/payments", label: "Payments", page: "payments" },
-  { to: "/reviews", label: "Fraud review", page: "reviews" },
-  { to: "/alerts", label: "Fraud alerts", page: "alerts" },
-  { to: "/insights", label: "Fraud insights", page: "insights" },
-  { to: "/reports", label: "Fraud reports", page: "reports" },
-  { to: "/search", label: "History search", page: "search" },
-  { to: "/blocklist", label: "Block list", page: "blocklist" },
-  { to: "/rules", label: "Fraud rules", page: "rules" },
-  { to: "/merchants", label: "Merchants", page: "merchants" },
-  { to: "/api-keys", label: "API keys", page: "keys" },
-  { to: "/webhooks", label: "Webhooks", page: "webhooks" },
-  { to: "/accounts", label: "Accounts", page: "accounts" },
-  { to: "/limits", label: "Limits", page: "limits" },
-  { to: "/audit", label: "Audit log", page: "audit" },
-  { to: "/security", label: "Security alerts", page: "security" },
-  { to: "/integrity", label: "Integrity and keys", page: "integrity" },
+// Grouped so a long menu scans in three short lists (rebrand, 19 Nov 2026).
+const NAV: { to: string; label: string; page: keyof typeof CAN; group: "Payments" | "Fraud" | "Admin" }[] = [
+  { to: "/overview", label: "Overview", page: "payments", group: "Payments" },
+  { to: "/payments", label: "Payments", page: "payments", group: "Payments" },
+  { to: "/search", label: "History search", page: "search", group: "Payments" },
+  { to: "/merchants", label: "Merchants", page: "merchants", group: "Payments" },
+  { to: "/api-keys", label: "API keys", page: "keys", group: "Payments" },
+  { to: "/webhooks", label: "Webhooks", page: "webhooks", group: "Payments" },
+  { to: "/reviews", label: "Fraud review", page: "reviews", group: "Fraud" },
+  { to: "/alerts", label: "Fraud alerts", page: "alerts", group: "Fraud" },
+  { to: "/insights", label: "Fraud insights", page: "insights", group: "Fraud" },
+  { to: "/reports", label: "Fraud reports", page: "reports", group: "Fraud" },
+  { to: "/blocklist", label: "Block list", page: "blocklist", group: "Fraud" },
+  { to: "/rules", label: "Fraud rules", page: "rules", group: "Fraud" },
+  { to: "/accounts", label: "Accounts", page: "accounts", group: "Admin" },
+  { to: "/limits", label: "Limits", page: "limits", group: "Admin" },
+  { to: "/audit", label: "Audit log", page: "audit", group: "Admin" },
+  { to: "/security", label: "Security alerts", page: "security", group: "Admin" },
+  { to: "/integrity", label: "Integrity and keys", page: "integrity", group: "Admin" },
 ];
 
 /** NFR-PER-03: a new fraud alert shows on the dashboard within 10 seconds (polled every 5). */
@@ -76,35 +78,40 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const unread = useUnreadAlerts(CAN.alerts.includes(staff.role));
   const security = useOpenSecurityAlerts(CAN.security.includes(staff.role));
   return (
-    <Stack component="aside" aria-label="Sidebar" sx={{ width: SIDEBAR, height: "100%", bgcolor: "#F3F0EA", p: 2.5, boxSizing: "border-box" }}>
-      <Stack direction="row" alignItems="center" spacing={1.2}>
-        <BrandMark />
-        <Typography variant="h6" component="p" fontWeight={700}>SecurePay</Typography>
-      </Stack>
+    <Stack component="aside" aria-label="Sidebar" sx={{ width: SIDEBAR, height: "100%", bgcolor: "#ECEFF4", p: 2.5, boxSizing: "border-box" }}>
+      <Wordmark />
       <Stack direction="row" alignItems="center" spacing={1} mt={0.5} mb={3}>
         <Typography variant="body2" color="text.secondary">Dashboard</Typography>
         <Box component="span" title="Simulated payments: no real money moves"
-          sx={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".04em", textTransform: "uppercase",
-            bgcolor: "secondary.main", color: "secondary.contrastText", borderRadius: 999, px: 1, py: 0.2 }}>
+          sx={{ fontSize: 11, fontWeight: 600, letterSpacing: ".02em",
+            border: "1px solid", borderColor: "secondary.main", color: "text.primary", borderRadius: 999, px: 1, py: 0.1 }}>
           Test mode
         </Box>
       </Stack>
       <List component="nav" aria-label="Main" disablePadding sx={{ flexGrow: 1 }}>
-        {NAV.filter((n) => CAN[n.page].includes(staff.role)).map((n) => {
+        {NAV.filter((n) => CAN[n.page].includes(staff.role)).map((n, i, shown) => {
           const active = location.pathname.startsWith(n.to);
+          const groupStart = i === 0 || shown[i - 1].group !== n.group;
           return (
+            <Fragment key={n.to}>
+            {groupStart && (
+              <Typography component="p" variant="caption"
+                sx={{ display: "block", color: "text.secondary", fontWeight: 600, fontSize: 12.5, px: 2, mt: i === 0 ? 0 : 2, mb: 0.5 }}>
+                {n.group}
+              </Typography>
+            )}
             <ListItemButton
-              key={n.to}
               component={Link}
               to={n.to}
               onClick={onNavigate}
               selected={active}
-              sx={{ borderRadius: 1.5, mb: 0.5, "&.Mui-selected": { bgcolor: "#E6E1D8", fontWeight: 600 } }}
+              sx={{ borderRadius: 1.5, mb: 0.25, py: 0.6, "&.Mui-selected": { bgcolor: "#DCE2EA", fontWeight: 600 } }}
             >
               <ListItemText primary={n.label} primaryTypographyProps={{ fontWeight: active ? 600 : 400 }} />
               {n.page === "alerts" && unread > 0 && <><Count n={unread} /><SrOnly>, {unread} unread</SrOnly></>}
               {n.page === "security" && security > 0 && <><Count n={security} /><SrOnly>, {security} open</SrOnly></>}
             </ListItemButton>
+            </Fragment>
           );
         })}
       </List>
@@ -233,11 +240,11 @@ export default function Layout() {
       <Box component="a" href="#main"
         onClick={(e: { preventDefault: () => void }) => { e.preventDefault(); mainRef.current?.focus(); }}
         sx={{ ...visuallyHidden, "&:focus": { clip: "auto", width: "auto", height: "auto", margin: 0, zIndex: 2000,
-          top: 8, left: 8, px: 2, py: 1, bgcolor: "#0F2240", color: "#fff", borderRadius: 1, fontWeight: 600 } }}>
+          top: 8, left: 8, px: 2, py: 1, bgcolor: "#13243F", color: "#fff", borderRadius: 1, fontWeight: 600 } }}>
         Skip to content
       </Box>
       {wide ? (
-        <Box sx={{ width: SIDEBAR, flexShrink: 0, bgcolor: "#F3F0EA" }}>
+        <Box sx={{ width: SIDEBAR, flexShrink: 0, bgcolor: "#ECEFF4" }}>
           <Box sx={{ position: "sticky", top: 0, height: "100vh" }}>
             <Sidebar />
           </Box>
@@ -258,7 +265,7 @@ export default function Layout() {
           {!wide && (
             <IconButton aria-label="Open menu" onClick={() => setOpen(true)} edge="start">
               <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M3 6h18M3 12h18M3 18h18" stroke="#0F2240" strokeWidth="2" strokeLinecap="round" />
+                <path d="M3 6h18M3 12h18M3 18h18" stroke="#13243F" strokeWidth="2" strokeLinecap="round" />
               </svg>
             </IconButton>
           )}

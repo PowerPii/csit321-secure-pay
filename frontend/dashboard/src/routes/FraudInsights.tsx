@@ -51,8 +51,8 @@ const RANGES = [
 const FLOW: OutcomeKey[] = ["allowed", "verify", "blocked", "not_screened"];
 const FLAGS: OutcomeKey[] = ["blocked", "verify"];
 const SCORED: OutcomeKey[] = ["allowed", "verify", "blocked"];
-const VERIFY_LINE = "#6B4A00";
-const BLOCK_LINE = "#0F2240";
+const VERIFY_LINE = "#6E5420";
+const BLOCK_LINE = "#13243F";
 
 const featureLabel = (f: string) => FEATURE_LABELS[f] ?? f.replace(/_/g, " ");
 const pct = (n: number, d: number) => (d ? `${((n / d) * 100).toFixed(1)}%` : "–");
@@ -103,8 +103,8 @@ export default function FraudInsightsPage() {
         <Stack direction="row" gap={1} flexWrap="wrap" role="group" aria-label="Time range">
           {RANGES.map((r) => (
             <Chip key={r.key} clickable label={r.label} onClick={() => set({ range: r.key })} aria-pressed={range === r.key}
-              sx={{ fontWeight: 600, bgcolor: range === r.key ? "#0F2240" : "#EEEAE2", color: range === r.key ? "#fff" : "#0F2240",
-                border: "1px solid #D8D2C6", "&:hover": { bgcolor: range === r.key ? "#1B3358" : "#E3DED3" } }} />
+              sx={{ fontWeight: 600, bgcolor: range === r.key ? "#13243F" : "#E8ECF2", color: range === r.key ? "#fff" : "#13243F",
+                border: "1px solid #C9D1DC", "&:hover": { bgcolor: range === r.key ? "#1D3459" : "#D6DDE6" } }} />
           ))}
         </Stack>
         <TextField select label="Merchant" sx={{ minWidth: 220 }} SelectProps={{ displayEmpty: true }} InputLabelProps={{ shrink: true }}
@@ -209,8 +209,8 @@ function Insights({ d, onOpenCase }: { d: FraudInsights; onOpenCase: (id: string
         >
           <SegmentedBar ariaLabel="Share of payments by the stage that decided them" parts={[
             { label: "Allowed", value: d.decided_by.allowed, color: OUTCOME_COLORS.allowed },
-            { label: "Lists and rules", value: d.decided_by.rules, color: "#0F2240" },
-            { label: "Model", value: d.decided_by.model, color: "#F5A524" },
+            { label: "Lists and rules", value: d.decided_by.rules, color: "#13243F" },
+            { label: "Model", value: d.decided_by.model, color: "#B08A3E" },
             ...(d.decided_by.unavailable ? [{ label: "Unavailable", value: d.decided_by.unavailable, color: OUTCOME_COLORS.not_screened }] : []),
           ]} />
           <Typography variant="body2" color="text.secondary" mt={2}>

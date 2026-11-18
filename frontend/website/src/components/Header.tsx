@@ -10,7 +10,7 @@ import { Logo } from "./Logo";
 
 export function DisclaimerBar() {
   return (
-    <Box sx={{ bgcolor: brand.saffron, color: brand.inkDeep, fontSize: 13.5, textAlign: "center", py: 0.75, px: 2, fontWeight: 500 }}>
+    <Box component="aside" aria-label="Project disclaimer" sx={{ bgcolor: brand.navy, color: "#EEF1F6", fontSize: 13.5, textAlign: "center", py: 0.75, px: 2, fontWeight: 500 }}>
       University final-year project (CSIT321). SecurePay is not a licensed payment provider and processes no real payments.{" "}
       <Box component={RouterLink} to="/about#disclaimer" sx={{ color: "inherit", fontWeight: 700 }}>
         Read more
@@ -37,7 +37,7 @@ export function Header() {
       position="sticky"
       elevation={0}
       sx={{
-        bgcolor: scrolled ? "rgba(250,248,244,0.86)" : brand.paper,
+        bgcolor: scrolled ? "rgba(220,226,234,0.86)" : brand.slate,
         backdropFilter: scrolled ? "saturate(180%) blur(12px)" : undefined,
         color: "text.primary",
         borderBottom: `1px solid ${scrolled ? brand.line : "transparent"}`,
@@ -82,7 +82,7 @@ export function Header() {
         </Toolbar>
       </Container>
 
-      <Drawer anchor="right" open={open} onClose={() => setOpen(false)} PaperProps={{ sx: { width: "min(86vw, 340px)", bgcolor: brand.paper } }}>
+      <Drawer anchor="right" open={open} onClose={() => setOpen(false)} PaperProps={{ sx: { width: "min(86vw, 340px)", bgcolor: brand.slate } }}>
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: 2, py: 1.5 }}>
           <Logo />
           <IconButton onClick={() => setOpen(false)} aria-label="Close menu">
