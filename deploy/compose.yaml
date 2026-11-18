@@ -14,7 +14,7 @@ x-django: &django
 
 services:
   db:
-    image: postgres:17
+    image: postgres:17.12-trixie@sha256:0d938e975177bef9f1f61f3f9dbcf2e0aa0a139568f66d3415ed8892eb97f6ac
     restart: unless-stopped
     environment:
       POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
@@ -161,7 +161,7 @@ services:
     networks: [data, merchant, edge]
 
   caddy:
-    image: caddy:2
+    image: caddy:2.11.9@sha256:4851e54a46b206517c574821bb5cc67f170d2156041e9fbc4c9193b45e84a75b
     restart: unless-stopped
     ports: ["80:80", "443:443"]
     volumes:
@@ -198,7 +198,7 @@ services:
         aliases: [gateway.localhost]
 
   mailpit:
-    image: axllent/mailpit
+    image: axllent/mailpit:v1.34.0@sha256:23a2ef85bc50853ab3093645d1d64679afd8887e89da5e48a88940c172591a4e
     restart: unless-stopped
     networks: [gateway, edge]
 

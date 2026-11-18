@@ -5,10 +5,10 @@ from rest_framework.exceptions import UnsupportedMediaType
 from rest_framework.parsers import JSONParser
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
 
 from apps.common.errors import invalid
+from apps.common.throttling import AnonRateThrottle
 
 
 def body_or_empty(request) -> dict:

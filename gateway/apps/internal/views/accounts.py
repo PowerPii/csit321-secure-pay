@@ -8,10 +8,10 @@ from typing import ClassVar
 
 from rest_framework import status
 from rest_framework.response import Response
-from rest_framework.throttling import AnonRateThrottle, ScopedRateThrottle
 
 from apps.accounts import reset
 from apps.common.errors import invalid
+from apps.common.throttling import AnonRateThrottle, ScopedRateThrottle
 from apps.common.views import body_or_empty
 from apps.internal.views.auth import _SignInStep
 from apps.merchants import registration

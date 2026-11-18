@@ -1,0 +1,4 @@
+# What tests/integration needs (pytest, httpx). Locked with hashes in requirements.lock:
+#   uv pip compile requirements.in --universal --python-version 3.12 --generate-hashes -o requirements.lock
+pytest
+httpx

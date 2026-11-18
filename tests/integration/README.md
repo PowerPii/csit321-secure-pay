@@ -6,7 +6,7 @@ Demo stories S1-S6 (`docs/MVP-SCOPE.md` section 2), the emailed receipt and gues
 # the stack, set up as in the main README (quick start steps 1 to 4)
 docker compose -f deploy/compose.yaml up -d --build
 # a Python 3.12 environment with the two test dependencies
-python3 -m venv .venv-it && .venv-it/bin/pip install pytest httpx
+python3 -m venv .venv-it && .venv-it/bin/pip install --require-hashes -r tests/integration/requirements.lock
 .venv-it/bin/pytest tests/integration -q        # about 2 minutes
 ```
 

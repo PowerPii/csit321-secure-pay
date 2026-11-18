@@ -402,9 +402,17 @@ bash ~/csit321-secure-pay/deploy/auto-deploy.sh <commit>    # one commit on main
 ```
 
 A hand run is your own sign-off: run the checks for that commit first (CI, or locally while
-Actions minutes are used up). Images are rebuilt on the server, so a deploy can pick up a newer
-`python:3.12-slim` or a newer package within the version ranges in `pyproject.toml`; the
-revision check proves the code, not every dependency.
+Actions minutes are used up). Images are rebuilt on the server from exact versions: base
+images by tag and digest (Dockerfiles, compose files), Python packages from each service's
+`requirements.lock` (hashes checked) and front-end packages from `package-lock.json` (`npm ci`).
+So the same commit builds the same software every time, and the revision check covers the
+dependencies too.
+
+Updating a dependency is a normal pull request: for a Python package, edit `pyproject.toml` and
+regenerate the two lock files with the commands at the top of `requirements.lock`; for a base
+image, change the tag and its digest together (the digest is on the image's Docker Hub tag
+page); for a front-end package, `npm install <name>@<version>` (each app's `.npmrc` saves the
+exact version). Run the checks as for any change.
 
 Migrations run when the gateway, simulator and shop start. The integration tests are not part
 of a deploy because they make payments; run them by hand when a change touches the payment flow

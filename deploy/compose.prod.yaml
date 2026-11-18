@@ -30,7 +30,7 @@ x-internal-ca: &internal-ca /caddy-ca/root.crt
 
 services:
   db:
-    image: postgres:17
+    image: postgres:17.12-trixie@sha256:0d938e975177bef9f1f61f3f9dbcf2e0aa0a139568f66d3415ed8892eb97f6ac
     restart: unless-stopped
     logging: *logging
     environment:
@@ -218,7 +218,7 @@ services:
         aliases: ["gateway.${DOMAIN}"]
 
   mailpit:
-    image: axllent/mailpit
+    image: axllent/mailpit:v1.34.0@sha256:23a2ef85bc50853ab3093645d1d64679afd8887e89da5e48a88940c172591a4e
     restart: unless-stopped
     logging: *logging
     networks: [gateway]
@@ -228,7 +228,7 @@ services:
   #   docker compose -f deploy/compose.prod.yaml run --rm integration-tests
   # The tests make payments, so run them on a fresh stack or accept the extra test orders.
   integration-tests:
-    image: python:3.12-slim
+    image: python:3.12.16-slim-trixie@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b
     profiles: [tests]
     working_dir: /repo
     environment:
@@ -245,7 +245,7 @@ services:
       - -c
       - |
         cat /etc/ssl/certs/ca-certificates.crt /caddy-ca/root.crt > /tmp/ca.pem
-        pip install -q --root-user-action=ignore pytest httpx
+        pip install -q --root-user-action=ignore --require-hashes -r tests/integration/requirements.lock
         exec python -m pytest -p no:cacheprovider tests/integration -q "$$@"
       - pytest
     volumes:
