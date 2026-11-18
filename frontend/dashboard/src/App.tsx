@@ -8,7 +8,7 @@ import { ApiError } from "./api/client";
 import { RequireStaff, RoleGate } from "./auth";
 import Layout from "./components/Layout";
 import {
-  Accounts, ApiKeys, AuditLog, Blocklist, FraudRules, HistorySearchPage, LimitsPage, CaseDetail, ForgotPassword, FraudAlerts, FraudReports, Merchants, Overview, PaymentDetail, PaymentsList, Register, ResetPassword,
+  Accounts, ApiKeys, AuditLog, Blocklist, FraudRules, HistorySearchPage, LimitsPage, CaseDetail, ForgotPassword, FraudAlerts, FraudInsights, FraudReports, Merchants, Overview, PaymentDetail, PaymentsList, Register, ResetPassword,
   IntegrityPage, ReviewQueue, SecurityAlerts, SignIn, Totp, TwoStep, VerifyEmail,
 } from "./routes";
 import { theme } from "./theme";
@@ -57,6 +57,7 @@ export default function App() {
               <Route path="/reviews" element={<RoleGate page="reviews"><ReviewQueue /></RoleGate>} />
               <Route path="/reviews/:caseId" element={<RoleGate page="reviews"><CaseDetail /></RoleGate>} />
               <Route path="/alerts" element={<RoleGate page="alerts"><FraudAlerts /></RoleGate>} />
+              <Route path="/insights" element={<RoleGate page="insights"><FraudInsights /></RoleGate>} />
               <Route path="/reports" element={<RoleGate page="reports"><FraudReports /></RoleGate>} />
               <Route path="/search" element={<RoleGate page="search"><HistorySearchPage /></RoleGate>} />
               <Route path="/blocklist" element={<RoleGate page="blocklist"><Blocklist /></RoleGate>} />

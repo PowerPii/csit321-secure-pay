@@ -4,6 +4,7 @@
 #   bash deploy/demo.sh seed    # once, on a fresh stack (fallback laptop, brand-new server)
 #   bash deploy/demo.sh reset   # the morning of a demo, and again an hour before
 #   bash deploy/demo.sh preflight   # an hour before, after reset: is everything ready?
+#   bash deploy/demo.sh traffic [--minutes 90]   # real payments for the Fraud insights charts
 #
 # On the server (deploy/.env has DOMAIN=) it uses compose.prod.yaml, otherwise the local
 # compose.yaml; set COMPOSE_FILE_PATH to choose another file.
@@ -19,6 +20,11 @@
 # preflight: the demo-day checklist (docs/DEMO-DAY.md): deploy freeze, watchdog, smoke check
 #        from outside, one real test payment through the shop with a fresh card (S1), then
 #        demo_check. Ends with READY or NOT READY (exit code 1).
+# traffic: about 55 real payments (3 minutes) through the gateway (ordinary, declined, step-up, block
+#        list, card testing) so the dashboard's Fraud insights charts have something to show
+#        (tests/integration/demo_traffic.py). Nothing is written to the database directly.
+#        --minutes N spreads them over N minutes. Run it at least an hour before the demo
+#        and before `reset` (reset empties the inbox of the step-up code emails it sends).
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
@@ -135,9 +141,29 @@ preflight() {
   return 1
 }
 
+traffic() {
+  local ca
+  echo "== Demo traffic for the Fraud insights charts (real payments, about 55)"
+  if [ "$domain" != localhost ]; then
+    "${P[@]}" run --rm -T integration-tests sh -c '
+      cat /etc/ssl/certs/ca-certificates.crt /caddy-ca/root.crt > /tmp/ca.pem
+      pip install -q --root-user-action=ignore pytest httpx
+      exec python tests/integration/demo_traffic.py "$@"' traffic "$@" </dev/null
+  elif [ -x .venv-it/bin/python ]; then
+    ca="$(mktemp)"
+    "${P[@]}" cp caddy:/ca/root.crt "$ca" >/dev/null && \
+      CADDY_ROOT_CA="$ca" .venv-it/bin/python tests/integration/demo_traffic.py "$@"
+  else
+    echo "Make the test environment once (tests/integration/README.md):"
+    echo "  python3 -m venv .venv-it && .venv-it/bin/pip install pytest httpx"
+    return 1
+  fi
+}
+
 case "${1:-}" in
   seed) seed ;;
   reset) shift; reset "$@" ;;
   preflight) shift; preflight "$@" ;;
-  *) echo "usage: bash deploy/demo.sh seed | reset [--merchant mer_...] | preflight [--merchant mer_...]"; exit 2 ;;
+  traffic) shift; traffic "$@" ;;
+  *) echo "usage: bash deploy/demo.sh seed | reset [--merchant mer_...] | preflight [--merchant mer_...] | traffic [--minutes N]"; exit 2 ;;
 esac

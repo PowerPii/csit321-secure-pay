@@ -442,6 +442,16 @@ run one command:
 bash deploy/demo.sh reset
 ```
 
+For the dashboard's Fraud insights charts, run real traffic first (about 55 payments: ordinary,
+declined, step-up, block list, a card-testing burst; nothing is written to the database
+directly). `--minutes 90` spreads them so "Last 24 hours" shows several hours; run it on a few
+days before the demo to fill "Last 7 days". It must finish before `reset`, which empties the
+inbox of the step-up code emails it sends:
+
+```bash
+nohup bash deploy/demo.sh traffic --minutes 90 > traffic.log 2>&1 &
+```
+
 Then, an hour before, `bash deploy/demo.sh preflight`: deploy freeze, watchdog, smoke check,
 one real test payment through the shop with a fresh card, and `demo_check`; it ends with
 **READY** or **NOT READY** and what failed.
