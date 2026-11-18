@@ -16,6 +16,7 @@ from apps.internal.views import (
     reviews,
     rules,
     security,
+    webhooks,
 )
 from apps.reconciliation.views import SimulatorNotificationView
 
@@ -42,6 +43,11 @@ urlpatterns = [
     path("merchant/api-key/revoke", merchant.OwnApiKeyRevokeView.as_view(),
          name="own-api-key-revoke"),
     path("merchant/webhook", merchant.OwnWebhookView.as_view(), name="own-webhook"),
+    path("webhooks", webhooks.WebhookListView.as_view(), name="webhook-log"),
+    path("webhooks/<str:event_id>", webhooks.WebhookDetailView.as_view(),
+         name="webhook-detail"),
+    path("webhooks/<str:event_id>/resend", webhooks.WebhookResendView.as_view(),
+         name="webhook-resend"),
     path("overview", overview.OverviewView.as_view(), name="staff-overview"),
     path("payments", payments.PaymentListView.as_view(), name="staff-payments"),
     path("payments/<str:payment_id>", payments.PaymentDetailView.as_view(),

@@ -44,6 +44,10 @@ class OutboxEvent(models.Model):
     attempt_count = models.PositiveSmallIntegerField(default=0)
     next_attempt_at = models.DateTimeField(null=True, blank=True)
     first_failed_at = models.DateTimeField(null=True, blank=True)  # starts the 72 h window
+    # A manual resend (webhook log) starts a fresh retry schedule: attempts made
+    # before it do not count towards WEBHOOK_RETRY_DELAYS_SECONDS.
+    schedule_base = models.PositiveSmallIntegerField(default=0)
+    resend_count = models.PositiveSmallIntegerField(default=0)
     delivered_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField()  # when the status change was committed
 
@@ -69,9 +73,12 @@ class OutboxEvent(models.Model):
 class WebhookAttempt(models.Model):
     """One delivery attempt of an event (API-CONTRACT.md section 7 "Recording", FR-TXN-07).
 
-    Stores time, attempt number, HTTP status or error class, and duration. Never the
-    response body.
+    Stores time, attempt number, HTTP status or error class, and duration, plus the first
+    RESPONSE_EXCERPT_CHARS characters of the reply so the merchant can see why their endpoint
+    refused it in the webhook log (control characters removed; never the request body).
     """
+
+    RESPONSE_EXCERPT_CHARS = 300
 
     event = models.ForeignKey(OutboxEvent, on_delete=models.CASCADE, related_name="attempts")
     attempt_number = models.PositiveSmallIntegerField()
@@ -80,6 +87,8 @@ class WebhookAttempt(models.Model):
     http_status = models.PositiveSmallIntegerField(null=True, blank=True)
     error = models.CharField(max_length=64, blank=True)  # e.g. timeout, blocked_address
     succeeded = models.BooleanField(default=False)
+    response_excerpt = models.CharField(max_length=300, blank=True)
+    manual = models.BooleanField(default=False)  # the first attempt after a manual resend
 
     class Meta:
         ordering = ["event", "attempt_number"]

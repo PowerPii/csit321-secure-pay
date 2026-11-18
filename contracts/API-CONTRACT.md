@@ -156,7 +156,7 @@ Envelope (`schemas/event.schema.json`): `id`, `object: "event"`, `type`, `create
 
 The signature timestamp is set when each attempt is sent, not when the event was created. Otherwise every retry after the first five minutes would fail the merchant's replay check.
 
-**Success.** Any `2xx` within **10 seconds**. The response body is ignored.
+**Success.** Any `2xx` within **10 seconds**. The response body does not affect the outcome.
 
 **Failure.** Anything else: timeout, connection or TLS error, a redirect, or any non-2xx status. All failures are retried the same way.
 
@@ -170,9 +170,11 @@ The signature timestamp is set when each attempt is sent, not when the event was
 
 That is 14 attempts in all: the first, 12 retries by about 63 h 51 min, and a final attempt at the 72-hour mark. In tests the worker reads the schedule from settings and runs on an accelerated clock, so nobody waits three days.
 
-**After the window.** The delivery is marked `undelivered`, kept (never deleted) and shown on the dashboard (UC-25). The merchant can still query the status. Manual replay from the dashboard is a later Should item, not part of the MVP; a replay keeps the original event `id`.
+**After the window.** The delivery is marked `undelivered`, kept (never deleted) and shown on the dashboard (UC-25). The merchant can still query the status. It can be sent again by hand from the dashboard's webhook log (see Resend below); a resend keeps the original event `id`.
 
-**Recording.** Each attempt stores its time, attempt number, HTTP status or error class, and duration (FR-TXN-07). Response bodies are not stored.
+**Recording.** Each attempt stores its time, attempt number, HTTP status or error class, and duration (FR-TXN-07), plus the first 300 characters of the response body as one printable line, so the merchant can see why their endpoint refused it. The dashboard's webhook log shows the attempts to the merchant's operators and to administrators.
+
+**Resend.** From the webhook log an operator or administrator can send a delivered or undelivered event again (at most 5 times per event). It keeps its event ID, sequence and payload, so an endpoint that already processed it drops the repeat (see Merchant side below); the retry schedule and the 72-hour window start again from the next attempt. An event still being retried cannot be resent. Each resend is written to the audit log.
 
 **Merchant side (the demo store does this, FR-SIM-06).** Verify the signature over the raw bytes before parsing; reject a timestamp more than 300 seconds off; keep seen event IDs for **at least 7 days** (longer than the 72-hour window plus room for a manual replay); ignore lower sequences; reply 2xx quickly and do slow work afterwards; confirm with `GET /v1/payments/{id}` before shipping.
 
