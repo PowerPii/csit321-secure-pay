@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # One front-end app's CI checks (.github/workflows/ci.yml, job `frontend`): clean install,
-# type check, tests (JUnit for the test report), the website's build, and the audit.
+# type check, lint (checkout and dashboard), tests (JUnit for the test report), the website's build, and the audit.
 # Usage: bash .github/ci-frontend.sh checkout|dashboard|website
 set -euo pipefail
 app="$1"
@@ -11,6 +11,7 @@ if [ "$app" = website ]; then
   npm test
   npm run build
 else
+  npm run lint
   npm test -- --passWithNoTests --reporter=default --reporter=junit --outputFile.junit="junit-$app.xml"
 fi
 # Audit what ships to the browser. Build tools (vite and its file matchers) never reach the
