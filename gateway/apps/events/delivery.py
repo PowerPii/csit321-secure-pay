@@ -143,20 +143,20 @@ def send(event: OutboxEvent, attempt_number: int) -> Result:
     deadline = started + limit
     try:
         with httpx.Client(timeout=limit, verify=settings.WEBHOOK_CA_BUNDLE or True,
-                          follow_redirects=False, transport=TRANSPORT) as client:
-            with client.stream("POST", target, content=body, headers=headers,
-                               extensions=extensions) as response:
-                status = response.status_code
-                raw = bytearray()
-                # Raw bytes, not decoded: a compressed reply cannot grow past the limit. (A
-                # reply already in memory, as in tests, is read as it is.)
-                chunks = ([response.content] if response.is_stream_consumed
-                          else response.iter_raw())
-                for chunk in chunks:
-                    raw += chunk
-                    if len(raw) >= REPLY_READ_BYTES or time.monotonic() > deadline:
-                        break
-                encoding = response.encoding or "utf-8"
+                          follow_redirects=False, transport=TRANSPORT) as client, \
+                client.stream("POST", target, content=body, headers=headers,
+                              extensions=extensions) as response:
+            status = response.status_code
+            raw = bytearray()
+            # Raw bytes, not decoded: a compressed reply cannot grow past the limit. (A
+            # reply already in memory, as in tests, is read as it is.)
+            chunks = ([response.content] if response.is_stream_consumed
+                      else response.iter_raw())
+            for chunk in chunks:
+                raw += chunk
+                if len(raw) >= REPLY_READ_BYTES or time.monotonic() > deadline:
+                    break
+            encoding = response.encoding or "utf-8"
     except httpx.TimeoutException:
         return Result(False, error="timeout", duration_ms=elapsed())
     except httpx.HTTPError as exc:
