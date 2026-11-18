@@ -266,3 +266,49 @@ def test_delivery_failure_never_changes_the_payment(hooked_shop, receiver):
     delivery.deliver_due()
     after = Payment.objects.get(pk=event.payment_id)
     assert (after.status, after.sequence) == (before.status, before.sequence)
+
+
+def test_a_huge_reply_is_read_only_as_far_as_the_log_needs(hooked_shop, receiver, monkeypatch):
+    sent = []
+
+    def endless():
+        while True:  # a reply that never ends
+            sent.append(1)
+            yield b"x" * 1024
+
+    monkeypatch.setattr(delivery, "TRANSPORT", httpx.MockTransport(
+        lambda request: httpx.Response(200, content=endless())))
+    make_event(hooked_shop)
+    assert delivery.deliver_due() == 1
+    attempt = WebhookAttempt.objects.get()
+    assert attempt.succeeded and attempt.http_status == 200
+    assert len(sent) <= delivery.REPLY_READ_BYTES // 1024 + 1
+    assert len(attempt.response_excerpt) <= WebhookAttempt.RESPONSE_EXCERPT_CHARS
+
+
+def test_a_reply_that_trickles_in_past_the_timeout_is_a_failed_attempt(hooked_shop, monkeypatch,
+                                                                       settings):
+    import time as _time
+
+    settings.GATEWAY_RULES = {**settings.GATEWAY_RULES, "WEBHOOK_TIMEOUT_SECONDS": 1}
+    settings.WEBHOOK_ALLOWED_PRIVATE_HOSTS = frozenset({"shop.example"})
+    chunks = []
+
+    def slow():
+        # each byte arrives within the per-read timeout, but the whole reply never finishes
+        for _ in range(50):
+            _time.sleep(0.1)
+            chunks.append(1)
+            yield b"."
+
+    monkeypatch.setattr(delivery, "TRANSPORT", httpx.MockTransport(
+        lambda request: httpx.Response(200, content=slow())))
+    event = make_event(hooked_shop)
+    started = _time.monotonic()
+    delivery.deliver_due()
+    assert _time.monotonic() - started < 2.5
+    assert len(chunks) < 20
+    attempt = WebhookAttempt.objects.get()
+    assert not attempt.succeeded and attempt.error == "timeout"
+    event.refresh_from_db()
+    assert event.status == "pending" and event.attempt_count == 1  # a retry is scheduled
