@@ -5,9 +5,11 @@
 set -euo pipefail
 svc="$1"
 cd "$(dirname "$0")/../$svc"
-python -m venv "../.venv-$svc"
+python -m venv --clear "../.venv-$svc"
 # shellcheck disable=SC1090
 . "../.venv-$svc/bin/activate"
+# A new venv gets the pip bundled with Python, which can be old enough for pip-audit to flag.
+python -m pip install -q --upgrade pip
 pip install -q -e ".[dev]" pip-audit bandit
 ruff check .
 python manage.py check
