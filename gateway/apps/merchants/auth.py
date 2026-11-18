@@ -3,8 +3,9 @@ import re
 from datetime import timedelta
 
 from django.utils import timezone
-from rest_framework import authentication, exceptions, permissions, throttling
+from rest_framework import authentication, exceptions, permissions
 
+from apps.common import throttling
 from apps.merchants.models import API_KEY_BODY_LENGTH, API_KEY_PREFIX, ApiKey, digest_api_key
 
 KEY_PATTERN = re.compile(rf"^{API_KEY_PREFIX}[0-9A-Za-z]{{{API_KEY_BODY_LENGTH}}}$")

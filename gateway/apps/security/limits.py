@@ -18,6 +18,7 @@ from django.core.cache import cache
 
 from apps.audit.models import AuditEvent
 from apps.audit.models import record as audit
+from apps.common.throttling import counter_lock
 
 CACHE_KEY = "security:gateway-limits"
 CACHE_SECONDS = 5
@@ -80,12 +81,15 @@ def record_violation(request, *, source: str, scope: str, merchant_id: str = "",
               target_id=source[:32], request_id=getattr(request, "request_id", ""),
               details={"path": request.path[:200], "retry_after": round(wait or 0)})
     key = f"security:rl-count:{scope}:{source}"
-    cache.add(key, 0, window)
-    try:
-        count = cache.incr(key)
-    except ValueError:  # expired between add and incr
-        cache.set(key, 1, window)
-        count = 1
+    # The database cache's incr is a read then a write; the lock keeps parallel violations
+    # from the same source from counting as one.
+    with counter_lock(key):
+        cache.add(key, 0, window)
+        try:
+            count = cache.incr(key)
+        except ValueError:  # expired between add and incr
+            cache.set(key, 1, window)
+            count = 1
     if count >= rules["RATE_LIMIT_ALERT_VIOLATIONS"]:
         what = "API key" if scope == "api_key" else "IP address"
         raise_alert(AlertKind.RATE_LIMIT_EXCEEDED, severity=Severity.MEDIUM,
