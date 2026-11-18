@@ -136,14 +136,15 @@ def test_branded_email_carries_the_securepay_mark_inline(settings):
 
 
 def test_brand_kit_is_the_same_everywhere():
-    """Sprint 12 branding kit: one mark and one colour set (frontend/brand) on every surface."""
+    """Slate rebrand (19 Nov 2026): one wordmark, one s. mark and one colour set
+    (frontend/brand) on every surface."""
     import json
-    import re
     from pathlib import Path
 
     import pytest
 
     from apps.common import branded_email
+    from apps.guest import receipts
 
     root = Path(__file__).resolve().parents[3]
     brand = root / "frontend" / "brand"
@@ -153,22 +154,28 @@ def test_brand_kit_is_the_same_everywhere():
     for app in ("checkout", "dashboard", "website"):
         favicon = (root / "frontend" / app / "public" / "favicon.svg").read_text().strip()
         assert favicon == mark, f"frontend/{app}/public/favicon.svg differs from the brand mark"
-    brand_tsx = (root / "frontend" / "checkout" / "src" / "Brand.tsx").read_text()
-    for shape in re.findall(r' d="([^"]+)"', mark):
-        assert shape in brand_tsx, "Brand.tsx draws a different mark"
 
     tokens = json.loads((brand / "tokens.json").read_text())
-    assert (branded_email.NAVY, branded_email.INK, branded_email.SAFFRON, branded_email.MUTED,
-            branded_email.LINE, branded_email.PAPER) == (
-        tokens["navy"], tokens["ink"], tokens["saffron"], tokens["muted"], tokens["line"],
-        tokens["paper"])
+    assert (branded_email.NAVY, branded_email.INK, branded_email.BRASS,
+            branded_email.BRASS_LIGHT, branded_email.MUTED, branded_email.LINE,
+            branded_email.SLATE, branded_email.MIST) == (
+        tokens["navy"], tokens["ink"], tokens["brass"], tokens["brassLight"], tokens["muted"],
+        tokens["line"], tokens["slate"], tokens["mist"])
+    assert (receipts.NAVY, receipts.INK, receipts.BRASS, receipts.BRASS_LIGHT) == (
+        tokens["navy"], tokens["ink"], tokens["brass"], tokens["brassLight"])
     website = (root / "frontend" / "website" / "src" / "theme.ts").read_text()
     dashboard = (root / "frontend" / "dashboard" / "src" / "theme.ts").read_text()
     checkout = (root / "frontend" / "checkout" / "src" / "styles.css").read_text()
-    for name in ("navy", "ink", "saffron", "paper", "line", "muted", "allow", "verify", "block"):
+    for name in ("navy", "ink", "brass", "brassLight", "slate", "mist", "line", "muted",
+                 "allow", "verify", "block"):
         assert tokens[name] in website, f"website theme lacks {name} {tokens[name]}"
-    for name in ("navy", "ink", "saffron"):
+    for name in ("navy", "ink", "brass", "slate"):
         assert tokens[name] in dashboard and tokens[name] in checkout, name
+    # The wordmark: lowercase name and a brass full stop, the same in every app.
+    for path in ("frontend/checkout/src/Brand.tsx", "frontend/website/src/components/Logo.tsx",
+                 "frontend/dashboard/src/components/Wordmark.tsx"):
+        source = (root / path).read_text()
+        assert ">securepay<" in source and "." in source, f"{path} lacks the wordmark"
 
 
 def test_email_headline_preview_total_and_button_label():

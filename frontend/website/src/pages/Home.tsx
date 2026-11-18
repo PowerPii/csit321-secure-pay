@@ -1,12 +1,6 @@
-import { Box, Button, Card, CardContent, Container, Stack, Typography } from "@mui/material";
+import { Box, Button, Container, Stack, Typography } from "@mui/material";
 import Grid from "@mui/material/Grid2";
 import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
-import ShoppingCartCheckoutRoundedIcon from "@mui/icons-material/ShoppingCartCheckoutRounded";
-import LockPersonRoundedIcon from "@mui/icons-material/LockPersonRounded";
-import RadarRoundedIcon from "@mui/icons-material/RadarRounded";
-import WebhookRoundedIcon from "@mui/icons-material/WebhookRounded";
-import ReplayRoundedIcon from "@mui/icons-material/ReplayRounded";
-import DashboardRoundedIcon from "@mui/icons-material/DashboardRounded";
 import { Link as RouterLink } from "react-router-dom";
 import { CodeBlock } from "../components/CodeBlock";
 import { CtaBand } from "../components/CtaBand";
@@ -16,41 +10,35 @@ import { StatusChip } from "../components/StatusChip";
 import { usePageTitle } from "../components/usePageTitle";
 import { MEASURED, RULES, SCREENS, SHOP_URL, TEAM } from "../content/site";
 import { CREATE_PAYMENT } from "../content/snippets";
-import { brand, fonts } from "../theme";
+import { brand, fonts, shadows } from "../theme";
 
 const PILLARS = [
   {
-    icon: <ShoppingCartCheckoutRoundedIcon />,
     title: "Hosted checkout",
     text: "The store sends the customer to our payment page. The amount is set by the store's server when it creates the payment, so it can't be edited in the browser.",
     to: "/product#checkout",
   },
   {
-    icon: <LockPersonRoundedIcon />,
     title: "Card vault",
     text: "Card details are encrypted with AES-256-GCM in a separate vault database and deleted once the payment is submitted. The store only gets a token.",
     to: "/product#vault",
   },
   {
-    icon: <RadarRoundedIcon />,
     title: "Fraud screening",
     text: "Each payment goes through rules, a gradient-boosted model and a policy before the bank is asked. The result is allow, verify or block.",
     to: "/product#fraud",
   },
   {
-    icon: <WebhookRoundedIcon />,
     title: "Signed webhooks",
     text: "Each status change and its event are saved in one database transaction. Events are signed with HMAC-SHA256 and retried for 72 hours.",
     to: "/product#webhooks",
   },
   {
-    icon: <ReplayRoundedIcon />,
     title: "Safe retries",
     text: "Every POST takes an idempotency key, and every bank call has an operation ID saved before it is sent. A lost reply is checked again, not charged twice.",
     to: "/product#reliability",
   },
   {
-    icon: <DashboardRoundedIcon />,
     title: "Staff dashboard",
     text: "Operators capture, cancel and refund. Analysts work a review queue that shows why each payment was flagged.",
     to: "/product#dashboard",
@@ -77,120 +65,76 @@ export default function Home() {
   return (
     <>
       {/* Hero */}
-      <Box
-        sx={{
-          position: "relative",
-          overflow: "hidden",
-          bgcolor: brand.inkDeep,
-          color: "#fff",
-          pt: { xs: 7, md: 11 },
-          pb: { xs: 9, md: 13 },
-          backgroundImage: `radial-gradient(900px 500px at 90% 10%, rgba(245,165,36,0.20), transparent 60%), radial-gradient(700px 500px at 0% 100%, rgba(127,179,255,0.16), transparent 60%), linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px)`,
-          backgroundSize: "auto, auto, 44px 44px, 44px 44px",
-        }}
-      >
+      <Box sx={{ pt: { xs: 6, md: 10 }, pb: { xs: 9, md: 12 } }}>
         <Container maxWidth="lg">
-          <Grid container spacing={{ xs: 7, md: 6 }} alignItems="center">
+          <Grid container spacing={{ xs: 8, md: 8 }} alignItems="center">
             <Grid size={{ xs: 12, md: 6 }}>
-              <Box
-                sx={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 1,
-                  px: 1.5,
-                  py: 0.5,
-                  mb: 3,
-                  borderRadius: 999,
-                  border: "1px solid rgba(255,255,255,0.18)",
-                  bgcolor: "rgba(255,255,255,0.05)",
-                  fontSize: 13.5,
-                  color: "rgba(255,255,255,0.85)",
-                }}
-              >
-                <Box component="span" sx={{ width: 7, height: 7, borderRadius: "50%", bgcolor: brand.saffron }} />
-                Final-year project · simulated payments only
-              </Box>
-              <Typography variant="h1" sx={{ fontSize: { xs: 40, sm: 50, md: 58 }, mb: 3 }}>
-                A payment gateway that screens for fraud{" "}
-                <Box component="span" sx={{ color: brand.saffron }}>
-                  before
-                </Box>{" "}
-                the bank is asked.
+              <Typography sx={{ color: "text.secondary", fontWeight: 500, fontSize: 15, mb: 2.5 }}>
+                Final-year project, simulated payments only
               </Typography>
-              <Typography sx={{ fontSize: { xs: 18, md: 20 }, color: "rgba(255,255,255,0.75)", lineHeight: 1.6, maxWidth: 540, mb: 4 }}>
-                SecurePay is our CSIT321 final-year project. It takes Singapore dollar card payments through a hosted checkout, scores each one for fraud,
-                and sends it to a bank simulator we wrote ourselves. It is running now, with a demo store you can buy from using test cards.
+              <Typography variant="h1" sx={{ fontSize: { xs: 40, sm: 50, md: 58 }, mb: 3, color: brand.navy, maxWidth: "14ch" }}>
+                Every payment gets a reason before it gets a yes.
+              </Typography>
+              <Typography sx={{ fontSize: { xs: 18, md: 19 }, color: "text.secondary", lineHeight: 1.6, maxWidth: 540, mb: 4 }}>
+                SecurePay is our CSIT321 final-year project. It takes Singapore dollar card payments through a hosted checkout, screens each one
+                with rules, a model and a policy, and only then asks a bank simulator we wrote ourselves. It is running now, with a demo store you can
+                buy from using test cards.
               </Typography>
               <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-                <Button href={SHOP_URL} target="_blank" rel="noopener" variant="contained" color="secondary" size="large" endIcon={<ArrowForwardRoundedIcon />}>
+                <Button href={SHOP_URL} target="_blank" rel="noopener" variant="contained" size="large" endIcon={<ArrowForwardRoundedIcon />}>
                   Try the demo store
                 </Button>
-                <Button component={RouterLink} to="/developers" size="large" sx={{ color: "#fff", border: "1px solid rgba(255,255,255,0.3)" }}>
+                <Button component={RouterLink} to="/developers" variant="contained" color="secondary" size="large">
                   Read the API docs
                 </Button>
               </Stack>
             </Grid>
             <Grid size={{ xs: 12, md: 6 }}>
-              <Screenshot
-                shot={SCREENS.checkout}
-                url="SecurePay checkout · test mode"
-                caption="The hosted checkout, paying the demo store Volt & Co. with test card 4242 4242 4242 4242."
-                dark
-              />
+              <HeroCheckout />
             </Grid>
           </Grid>
         </Container>
       </Box>
 
-      {/* Built with */}
-      <Box sx={{ borderBottom: `1px solid ${brand.line}`, bgcolor: "#fff", py: 3.5 }}>
-        <Container maxWidth="lg">
-          <Stack direction={{ xs: "column", md: "row" }} spacing={{ xs: 2, md: 5 }} alignItems={{ md: "center" }}>
-            <Typography sx={{ color: "text.secondary", fontSize: 14, fontWeight: 500, flexShrink: 0 }}>Built on open tools</Typography>
-            <Box sx={{ display: "flex", flexWrap: "wrap", columnGap: { xs: 3, md: 5 }, rowGap: 1.5 }}>
-              {["Django", "PostgreSQL", "React", "TypeScript", "scikit-learn", "Docker"].map((t) => (
-                <Typography key={t} sx={{ fontFamily: fonts.heading, fontWeight: 600, fontSize: { xs: 17, md: 20 }, color: "#8A8F99" }}>
-                  {t}
-                </Typography>
+      {/* Parts */}
+      <Section tone="white">
+        <Grid container spacing={{ xs: 5, md: 8 }}>
+          <Grid size={{ xs: 12, md: 4 }}>
+            <SectionHeading
+              overline="What it does"
+              title="Six parts, all built and running"
+              lead="Screening runs before the bank is asked, so a blocked attempt never reaches the bank."
+            />
+          </Grid>
+          <Grid size={{ xs: 12, md: 8 }}>
+            <Box component="ul" sx={{ listStyle: "none", m: 0, p: 0, display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, columnGap: 5 }}>
+              {PILLARS.map((p) => (
+                <Box component="li" key={p.title} sx={{ borderTop: `1px solid ${brand.line}`, py: 3 }}>
+                  <Box
+                    component={RouterLink}
+                    to={p.to}
+                    sx={{
+                      color: brand.navy,
+                      textDecoration: "none",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 0.75,
+                      mb: 1,
+                      "& svg": { transition: "transform .2s" },
+                      "&:hover svg": { transform: "translateX(3px)" },
+                      "&:hover": { textDecoration: "underline", textUnderlineOffset: 4 },
+                    }}
+                  >
+                    <Typography component="span" variant="h5" sx={{ fontSize: 19 }}>
+                      {p.title}
+                    </Typography>
+                    <ArrowForwardRoundedIcon sx={{ fontSize: 18 }} />
+                  </Box>
+                  <Typography sx={{ color: "text.secondary", lineHeight: 1.6 }}>{p.text}</Typography>
+                </Box>
               ))}
             </Box>
-          </Stack>
-        </Container>
-      </Box>
-
-      {/* Pillars */}
-      <Section>
-        <SectionHeading
-          overline="What it does"
-          title="Six parts, all built and running"
-          lead="Screening runs before the bank is asked, so a blocked attempt never reaches the bank. Each part below links to the details."
-        />
-        <Grid container spacing={2.5}>
-          {PILLARS.map((p) => (
-            <Grid key={p.title} size={{ xs: 12, sm: 6, md: 4 }}>
-              <Card
-                component={RouterLink}
-                to={p.to}
-                sx={{
-                  height: "100%",
-                  textDecoration: "none",
-                  display: "block",
-                  transition: "transform .2s, box-shadow .2s, border-color .2s",
-                  "&:hover": { transform: "translateY(-3px)", boxShadow: "0 20px 40px -24px rgba(15,34,64,0.35)", borderColor: "#CFC7B8" },
-                }}
-              >
-                <CardContent sx={{ p: 3.5 }}>
-                  <Box sx={{ width: 44, height: 44, borderRadius: 2.5, display: "grid", placeItems: "center", bgcolor: brand.ink, color: brand.saffron, mb: 2.5 }}>
-                    {p.icon}
-                  </Box>
-                  <Typography variant="h5" sx={{ fontSize: 20, mb: 1 }}>
-                    {p.title}
-                  </Typography>
-                  <Typography sx={{ color: "text.secondary", lineHeight: 1.6 }}>{p.text}</Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
+          </Grid>
         </Grid>
       </Section>
 
@@ -204,7 +148,7 @@ export default function Home() {
               title="Rules, then a model, then a policy"
               lead={`Rules check the block list, bursts of attempts and amount limits. A HistGradientBoosting model, trained on the public IEEE-CIS fraud dataset, scores the payment and the card's recent history. The policy turns that score into one action, and the reasons are saved for the analyst.`}
             />
-            <Button component={RouterLink} to="/product#fraud" sx={{ color: brand.saffron, px: 0 }} endIcon={<ArrowForwardRoundedIcon />}>
+            <Button component={RouterLink} to="/product#fraud" sx={{ color: "#fff", px: 0 }} endIcon={<ArrowForwardRoundedIcon />}>
               How screening works
             </Button>
           </Grid>
@@ -231,7 +175,7 @@ export default function Home() {
                 "OpenAPI 3.1 contract and JSON Schemas in the repo",
               ].map((t) => (
                 <Box key={t} sx={{ display: "flex", gap: 1.5, alignItems: "flex-start" }}>
-                  <Box sx={{ mt: "9px", width: 6, height: 6, borderRadius: "50%", bgcolor: brand.saffron, flexShrink: 0 }} />
+                  <Box sx={{ mt: "9px", width: 6, height: 6, borderRadius: "50%", bgcolor: brand.brass, flexShrink: 0 }} />
                   <Typography sx={{ color: "text.secondary" }}>{t}</Typography>
                 </Box>
               ))}
@@ -252,8 +196,8 @@ export default function Home() {
         <Grid container spacing={2.5}>
           {STATS.map((s) => (
             <Grid key={s.label} size={{ xs: 6, md: 3 }}>
-              <Box sx={{ borderTop: `2px solid ${brand.ink}`, pt: 2.5 }}>
-                <Typography sx={{ fontFamily: fonts.heading, fontWeight: 700, fontSize: { xs: 34, md: 48 }, letterSpacing: "-0.03em", lineHeight: 1 }}>
+              <Box sx={{ borderTop: `1px solid ${brand.navy}`, pt: 2.5 }}>
+                <Typography sx={{ fontFamily: fonts.heading, fontWeight: 600, fontSize: { xs: 34, md: 48 }, letterSpacing: "-0.035em", lineHeight: 1, color: brand.navy }}>
                   {s.value}
                 </Typography>
                 <Typography sx={{ color: "text.secondary", mt: 1.25, fontSize: 15, lineHeight: 1.5 }}>{s.label}</Typography>
@@ -272,8 +216,8 @@ export default function Home() {
         <Grid container spacing={2}>
           {STEPS.map((s) => (
             <Grid key={s.n} size={{ xs: 12, sm: 6, md: 12 / 5 }}>
-              <Box sx={{ height: "100%", p: 3, borderRadius: 4, bgcolor: brand.paper, border: `1px solid ${brand.line}` }}>
-                <Typography sx={{ fontFamily: fonts.mono, color: "#B26F00", fontSize: 14, mb: 2 }}>{s.n}</Typography>
+              <Box sx={{ height: "100%", p: 3, borderRadius: "14px", bgcolor: brand.mist }}>
+                <Typography sx={{ fontFamily: fonts.heading, fontWeight: 600, color: brand.navy, fontSize: 15, mb: 2, fontVariantNumeric: "tabular-nums" }}>{s.n}</Typography>
                 <Typography variant="h6" sx={{ mb: 1, fontSize: 18 }}>
                   {s.title}
                 </Typography>
@@ -338,8 +282,8 @@ export default function Home() {
 
 function PipelineDiagram() {
   const stage = (title: string, sub: string, extra?: React.ReactNode) => (
-    <Box sx={{ flex: 1, p: 2.5, borderRadius: 3, bgcolor: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)", minWidth: 0 }}>
-      <Typography sx={{ fontFamily: fonts.mono, fontSize: 12, color: brand.saffron, mb: 0.75 }}>{sub}</Typography>
+    <Box sx={{ flex: 1, p: 2.5, borderRadius: 3, bgcolor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.10)", minWidth: 0 }}>
+      <Typography sx={{ fontSize: 13, color: "rgba(255,255,255,0.62)", mb: 0.75 }}>{sub}</Typography>
       <Typography sx={{ fontWeight: 600, mb: extra ? 1.5 : 0 }}>{title}</Typography>
       {extra}
     </Box>
@@ -354,19 +298,19 @@ function PipelineDiagram() {
       <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems="stretch">
         {stage(
           "Rules",
-          "01 · deterministic",
+          "Step 1, fixed checks",
           <Typography sx={{ fontSize: 13.5, color: "rgba(255,255,255,0.6)", lineHeight: 1.5 }}>Blocklisted card, bursts of attempts, amount limits</Typography>,
         )}
         {arrow}
         {stage(
           "Model",
-          "02 · gradient boosting",
+          "Step 2, gradient boosting",
           <Typography sx={{ fontSize: 13.5, color: "rgba(255,255,255,0.6)", lineHeight: 1.5 }}>Scores the payment and its card&apos;s recent activity</Typography>,
         )}
         {arrow}
         {stage(
           "Policy",
-          "03 · versioned",
+          "Step 3, versioned",
           <Typography sx={{ fontSize: 13.5, color: "rgba(255,255,255,0.6)", lineHeight: 1.5 }}>Turns the score into one action, with reasons</Typography>,
         )}
       </Stack>
@@ -376,7 +320,7 @@ function PipelineDiagram() {
           { tone: "verify" as const, label: "verify", text: `${RULES.verificationCodeDigits}-digit email code, ${RULES.verificationAttempts} tries` },
           { tone: "block" as const, label: "block", text: "Stopped. The bank is never asked" },
         ].map((d) => (
-          <Box key={d.label} sx={{ p: 2, borderRadius: 3, bgcolor: "rgba(255,255,255,0.03)", border: "1px dashed rgba(255,255,255,0.16)" }}>
+          <Box key={d.label} sx={{ p: 2, borderRadius: 3, bgcolor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.10)" }}>
             <StatusChip tone={d.tone} dark>
               {d.label}
             </StatusChip>
@@ -384,9 +328,85 @@ function PipelineDiagram() {
           </Box>
         ))}
       </Box>
-      <Typography sx={{ fontSize: 13, color: "rgba(255,255,255,0.5)", mt: 2 }}>
+      <Typography sx={{ fontSize: 13, color: "rgba(255,255,255,0.62)", mt: 2 }}>
         If screening has no answer within {RULES.screeningTimeout}, the payment is blocked with the reason <code>screening_unavailable</code> rather than let through.
       </Typography>
+    </Box>
+  );
+}
+
+/** A small, built-in picture of the checkout, with the screening result chip. Not a screenshot, so it never goes stale. */
+function HeroCheckout() {
+  const field = { height: 44, border: "1px solid #7D8898", borderRadius: "8px", display: "flex", alignItems: "center", px: 1.5, fontSize: 15 } as const;
+  return (
+    <Box sx={{ position: "relative", maxWidth: 440, mx: { xs: "auto", md: 0 }, ml: { md: "auto" } }}>
+      <Box
+        role="img"
+        aria-label="SecurePay checkout for the demo store Volt & Co.: S$34.80, test card 4242 4242 4242 4242, and a Pay button"
+        sx={{ bgcolor: "#fff", borderRadius: "16px", boxShadow: shadows.float, p: { xs: 2.5, sm: 3.5 }, display: "grid", gap: 2 }}
+      >
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, fontWeight: 600 }}>
+            <Box sx={{ width: 30, height: 30, borderRadius: "8px", bgcolor: brand.navy, color: "#fff", display: "grid", placeItems: "center", fontSize: 12 }}>VC</Box>
+            Volt &amp; Co.
+          </Box>
+          <Box sx={{ fontSize: 11.5, fontWeight: 600, letterSpacing: "0.04em", border: `1px solid ${brand.brass}`, color: brand.navy, borderRadius: 999, px: 1, py: 0.25 }}>
+            Test mode
+          </Box>
+        </Box>
+        <Box>
+          <Typography sx={{ color: "text.secondary", fontSize: 14 }}>Total to pay</Typography>
+          <Typography sx={{ fontFamily: fonts.heading, fontWeight: 600, fontSize: 38, letterSpacing: "-0.03em", lineHeight: 1.1, color: brand.navy }}>
+            S$34.80
+          </Typography>
+        </Box>
+        <Box sx={{ display: "grid", gap: 0.75, fontSize: 14, color: "text.secondary", borderTop: `1px solid ${brand.line}`, pt: 1.5 }}>
+          <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+            <span>Wireless mouse</span>
+            <span>29.90</span>
+          </Box>
+          <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+            <span>Standard delivery</span>
+            <span>4.90</span>
+          </Box>
+        </Box>
+        <Box sx={{ ...field, borderColor: brand.brass, boxShadow: "0 0 0 3px rgba(176,138,62,0.3)", fontVariantNumeric: "tabular-nums" }}>4242 4242 4242 4242</Box>
+        <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1.5 }}>
+          <Box sx={field}>12 / 29</Box>
+          <Box sx={field}>123</Box>
+        </Box>
+        <Box sx={{ height: 48, borderRadius: "9px", bgcolor: brand.navy, color: "#fff", display: "grid", placeItems: "center", fontWeight: 600 }}>Pay S$34.80</Box>
+        <Typography sx={{ fontSize: 13, color: "text.secondary", textAlign: "center" }}>The shop never sees your card number.</Typography>
+      </Box>
+      <Box
+        aria-hidden
+        sx={{
+          position: "absolute",
+          left: { xs: 12, sm: -20 },
+          bottom: -18,
+          display: "flex",
+          alignItems: "center",
+          gap: 1,
+          bgcolor: "#fff",
+          borderRadius: 999,
+          pl: 1,
+          pr: 1.75,
+          py: 0.9,
+          boxShadow: shadows.float,
+          fontWeight: 600,
+          fontSize: 14,
+          color: brand.ink,
+          whiteSpace: "nowrap",
+        }}
+      >
+        <Box sx={{ width: 20, height: 20, borderRadius: "50%", bgcolor: brand.brass, display: "grid", placeItems: "center" }}>
+          <Box sx={{ width: 8, height: 4.5, borderLeft: "2px solid #fff", borderBottom: "2px solid #fff", transform: "rotate(-45deg) translate(1px,-1px)" }} />
+        </Box>
+        Allowed
+        <Box component="span" sx={{ fontWeight: 500, color: "text.secondary", fontVariantNumeric: "tabular-nums" }}>
+          screened in 21 ms
+        </Box>
+      </Box>
     </Box>
   );
 }

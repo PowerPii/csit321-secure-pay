@@ -82,14 +82,14 @@ export default function Pricing() {
                   height: "100%",
                   display: "flex",
                   flexDirection: "column",
-                  ...(p.highlight ? { bgcolor: brand.ink, color: "#fff", borderColor: brand.ink } : {}),
+                  ...(p.highlight ? { bgcolor: brand.navy, color: "#fff", borderColor: brand.navy } : {}),
                 }}
               >
                 <CardContent sx={{ p: 4, display: "flex", flexDirection: "column", flex: 1 }}>
                   <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
-                    <Typography variant="h5">{p.name}</Typography>
+                    <Typography variant="h5" component="h2">{p.name}</Typography>
                     {p.highlight && (
-                      <Box sx={{ bgcolor: brand.saffron, color: brand.inkDeep, px: 1.25, py: 0.25, borderRadius: 999, fontSize: 12.5, fontWeight: 700 }}>
+                      <Box sx={{ bgcolor: brand.brassLight, color: brand.ink, px: 1.25, py: 0.25, borderRadius: 999, fontSize: 12.5, fontWeight: 700 }}>
                         Available now
                       </Box>
                     )}
@@ -101,7 +101,7 @@ export default function Pricing() {
                   <Stack spacing={1.25} sx={{ mb: 4, flex: 1 }}>
                     {p.features.map((f) => (
                       <Box key={f} sx={{ display: "flex", gap: 1.25 }}>
-                        <CheckRoundedIcon sx={{ fontSize: 20, color: p.highlight ? brand.saffron : brand.allow }} />
+                        <CheckRoundedIcon sx={{ fontSize: 20, color: p.highlight ? brand.brassLight : brand.allow }} />
                         <Typography sx={{ fontSize: 15 }}>{f}</Typography>
                       </Box>
                     ))}
@@ -140,7 +140,7 @@ export default function Pricing() {
                 <Typography sx={{ fontWeight: 600, mb: 0.5 }}>Successful payments a month: {count.toLocaleString("en-SG")}</Typography>
                 <Slider value={count} min={10} max={10000} step={10} onChange={(_, v) => setCount(v as number)} aria-label="Payments a month" sx={{ mb: 3 }} />
                 <Box
-                  sx={{ p: 3, borderRadius: 3, bgcolor: brand.paper, display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 1 }}
+                  sx={{ p: 3, borderRadius: 3, bgcolor: brand.slate, display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 1 }}
                 >
                   <Typography sx={{ color: "text.secondary" }}>Illustrative monthly fees</Typography>
                   <Typography sx={{ fontFamily: fonts.heading, fontWeight: 700, fontSize: 32 }}>{fmt(fees)}</Typography>

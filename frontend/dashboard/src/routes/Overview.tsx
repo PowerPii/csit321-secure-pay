@@ -20,11 +20,11 @@ export interface Overview {
   recent: PaymentRow[];
 }
 
-const COLOURS = { approved: "#1F9D63", declined: "#8792A8", blocked: "#D9434B" } as const;
+const COLOURS = { approved: "#1F9D63", declined: "#8792A8", blocked: "#C2333B" } as const;
 const MIX = [
   { key: "allow", label: "Allowed", colour: "#1F9D63" },
   { key: "verify", label: "Verification code", colour: "#D98A0B" },
-  { key: "block", label: "Blocked", colour: "#D9434B" },
+  { key: "block", label: "Blocked", colour: "#C2333B" },
   { key: "not_screened", label: "Not screened", colour: "#8792A8" },
 ] as const;
 
@@ -41,8 +41,8 @@ function DailyChart({ daily }: { daily: Overview["daily"] }) {
       aria-label="Payments per day for the last 14 days, split into approved, declined and blocked">
       {ticks.map((t) => (
         <g key={t}>
-          <line x1={pad.l} x2={W - pad.r} y1={y(t)} y2={y(t)} stroke="#E6E1D8" />
-          <text x={pad.l - 6} y={y(t) + 4} textAnchor="end" fontSize="11" fill="#5B6475">{t}</text>
+          <line x1={pad.l} x2={W - pad.r} y1={y(t)} y2={y(t)} stroke="#E1E6ED" />
+          <text x={pad.l - 6} y={y(t) + 4} textAnchor="end" fontSize="11" fill="#4A5568">{t}</text>
         </g>
       ))}
       {daily.map((d, i) => {
@@ -59,7 +59,7 @@ function DailyChart({ daily }: { daily: Overview["daily"] }) {
               return <rect key={k} x={x} y={top} width={bar} height={Math.max(0, bottom - top - 1)} rx="2" fill={COLOURS[k]} />;
             })}
             {(daily.length - 1 - i) % 2 === 0 && (
-              <text x={x + bar / 2} y={H - 8} textAnchor="middle" fontSize="11" fill="#5B6475">{label(d.date)}</text>
+              <text x={x + bar / 2} y={H - 8} textAnchor="middle" fontSize="11" fill="#4A5568">{label(d.date)}</text>
             )}
           </g>
         );
@@ -106,7 +106,7 @@ function ScreeningMix({ mix }: { mix: Overview["screening_7d"] }) {
   const total = MIX.reduce((s, m) => s + mix[m.key], 0);
   return (
     <>
-      <Box sx={{ display: "flex", height: 14, borderRadius: 7, overflow: "hidden", bgcolor: "#EEEAE2", mt: 1 }}
+      <Box sx={{ display: "flex", height: 14, borderRadius: 7, overflow: "hidden", bgcolor: "#E8ECF2", mt: 1 }}
         role="img" aria-label={MIX.map((m) => `${m.label} ${mix[m.key]}`).join(", ")}>
         {total > 0 && MIX.map((m) => mix[m.key] > 0 && (
           <Box key={m.key} sx={{ width: `${(100 * mix[m.key]) / total}%`, bgcolor: m.colour }} />

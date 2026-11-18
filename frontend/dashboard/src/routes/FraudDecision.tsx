@@ -45,7 +45,7 @@ function ModelFactors({ factors, baseScore }: { factors: ExplanationFactor[]; ba
                   {up ? ", raised the risk" : ", lowered the risk"}
                 </Box>
               </Typography>
-              <Box aria-hidden="true" sx={{ height: 8, bgcolor: "#EEEAE2", borderRadius: 1 }}>
+              <Box aria-hidden="true" sx={{ height: 8, bgcolor: "#E8ECF2", borderRadius: 1 }}>
                 <Box sx={{ height: 8, width: `${Math.max(4, (Math.abs(effect) / max) * 100)}%`, bgcolor: up ? RAISES : LOWERS, borderRadius: 1 }} />
               </Box>
               <Typography variant="caption" textAlign="right" sx={{ fontVariantNumeric: "tabular-nums", color: up ? RAISES : LOWERS }}>
@@ -81,7 +81,7 @@ function Why({ explanation }: { explanation: Explanation }) {
   return (
     <Box mb={1}>
       <Typography fontWeight={600} variant="body2" mb={0.5}>Why</Typography>
-      <Typography variant="body2" sx={{ fontWeight: 600, bgcolor: "#F6F3EE", borderRadius: 1, px: 1.25, py: 1 }}>
+      <Typography variant="body2" sx={{ fontWeight: 600, bgcolor: "#F2F4F8", borderRadius: 1, px: 1.25, py: 1 }}>
         {explanation.headline.charAt(0).toUpperCase() + explanation.headline.slice(1)}
       </Typography>
       {rules.length > 0 && (

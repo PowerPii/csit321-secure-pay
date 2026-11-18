@@ -11,18 +11,17 @@ export function CtaBand({
   lead?: string;
 }) {
   return (
-    <Box sx={{ bgcolor: brand.paper, py: { xs: 8, md: 10 } }}>
+    <Box sx={{ bgcolor: brand.slate, py: { xs: 8, md: 10 } }}>
       <Container maxWidth="lg">
         <Box
           sx={{
             position: "relative",
             overflow: "hidden",
-            borderRadius: 5,
+            borderRadius: "18px",
             px: { xs: 3, md: 8 },
             py: { xs: 6, md: 8 },
-            bgcolor: brand.ink,
+            bgcolor: brand.navy,
             color: "#fff",
-            backgroundImage: `radial-gradient(600px 300px at 100% 100%, rgba(245,165,36,0.35), transparent 60%)`,
           }}
         >
           <Typography variant="h2" sx={{ fontSize: { xs: 30, md: 42 }, maxWidth: 640, mb: 2 }}>

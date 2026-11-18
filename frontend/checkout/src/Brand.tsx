@@ -1,19 +1,18 @@
-/** The SecurePay mark, name and test-mode pill shown in the top bar of every customer page. */
-export function BrandMark({ size = 26 }: { size?: number }) {
+/** The securepay. wordmark and the test-mode pill shown in the top bar of every customer page
+ * (Slate rebrand: a lowercase name with a brass full stop, no separate symbol). */
+export function Wordmark() {
   return (
-    <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden="true" focusable="false">
-      <rect width="64" height="64" rx="14" fill="#0F2240" />
-      <path d="M32 12 48 18v12c0 11-7 19-16 22-9-3-16-11-16-22V18z" fill="none" stroke="#F5A524" strokeWidth="4" strokeLinejoin="round" />
-      <path d="m25 32 5 5 9-10" fill="none" stroke="#fff" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
+    <span className="wordmark">
+      <span>securepay</span>
+      <span className="wordmark-dot">.</span>
+    </span>
   );
 }
 
 export function Brand() {
   return (
     <span className="brand">
-      <BrandMark />
-      <span>SecurePay</span>
+      <Wordmark />
       <span className="testmode" title="Simulated payments: no real money moves">Test mode</span>
     </span>
   );

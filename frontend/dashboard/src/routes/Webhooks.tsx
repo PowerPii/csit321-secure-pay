@@ -133,8 +133,8 @@ function EventDialog({ id, onClose }: { id: string | null; onClose: () => void }
             <Box component="details" sx={{ mb: 2, "& summary": { cursor: "pointer", fontWeight: 600, fontSize: 14 } }}>
               <summary>Payload sent (same on every attempt, signed afresh each time)</summary>
               <Box component="pre" tabIndex={0} aria-label="Event payload"
-                sx={{ mt: 1, p: 1.5, bgcolor: "#F7F5F0", borderRadius: 1, fontSize: 12, overflowX: "auto", maxHeight: 260,
-                  "&:focus-visible": { outline: "2px solid #0F2240" } }}>
+                sx={{ mt: 1, p: 1.5, bgcolor: "#F4F6F9", borderRadius: 1, fontSize: 12, overflowX: "auto", maxHeight: 260,
+                  "&:focus-visible": { outline: "2px solid #13243F" } }}>
                 {JSON.stringify(e.payload, null, 2)}
               </Box>
             </Box>
@@ -226,7 +226,7 @@ export function WebhookLog() {
           {STATUSES.map((t) => (
             <Chip key={t.key || "all"} clickable label={`${t.label}${countFor(t.key)}`} onClick={() => set({ status: t.key })}
               aria-pressed={status === t.key}
-              sx={{ fontWeight: 600, bgcolor: status === t.key ? "#0F2240" : "#EEEAE2", color: status === t.key ? "#fff" : "#0F2240",
+              sx={{ fontWeight: 600, bgcolor: status === t.key ? "#13243F" : "#E8ECF2", color: status === t.key ? "#fff" : "#13243F",
                 border: "1px solid #8a8a8a" }} />
           ))}
         </Stack>

@@ -162,7 +162,7 @@ export default function Product() {
       >
         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 4 }}>
           {FEATURES.map((f) => (
-            <Button key={f.id} href={`#${f.id}`} size="small" sx={{ color: "#fff", border: "1px solid rgba(255,255,255,0.25)", px: 2 }}>
+            <Button key={f.id} href={`#${f.id}`} size="small" sx={{ color: brand.navy, bgcolor: "#fff", border: `1px solid ${brand.line}`, px: 2 }}>
               {f.overline}
             </Button>
           ))}
@@ -185,9 +185,9 @@ export default function Product() {
             </Grid>
             <Grid size={{ xs: 12, md: 5 }}>
               <Box sx={{ position: { md: "sticky" }, top: 100 }}>
-                <Card sx={{ bgcolor: i % 2 ? brand.paper : "#fff" }}>
+                <Card sx={{ bgcolor: i % 2 ? brand.slate : "#fff" }}>
                   <CardContent sx={{ p: 3.5 }}>
-                    <Typography sx={{ fontFamily: fonts.mono, fontSize: 12.5, color: "text.secondary", mb: 2 }}>at a glance</Typography>
+                    <Typography sx={{ fontWeight: 600, fontSize: 14, color: "text.secondary", mb: 2 }}>At a glance</Typography>
                     {f.facts.map((x, k) => (
                       <Box key={x.k} sx={{ display: "flex", justifyContent: "space-between", gap: 2, py: 1.5, borderTop: k ? `1px solid ${brand.line}` : "none" }}>
                         <Typography sx={{ color: "text.secondary" }}>{x.k}</Typography>
@@ -222,7 +222,7 @@ export default function Product() {
             </Grid>
           ))}
         </Grid>
-        <Button component={RouterLink} to="/about" sx={{ color: brand.saffron, mt: 4, px: 0 }}>
+        <Button component={RouterLink} to="/about" sx={{ color: "#fff", mt: 4, px: 0 }}>
           About the project and its timeline →
         </Button>
       </Section>
