@@ -58,7 +58,14 @@ M-USE-02:
     figures: 0 axe violations on 17 live scans (shop home, cart, checkout errors, card form, card form errors, guest status, account sign-in, invalid link at 1280 and 320 px; dashboard sign-in); keyboard reaches Pay and an empty submit focuses the first error at both widths
     evidence: /mnt/project-files/fyp/10-accessibility/live-after-2026-11-18.json
     notes: "Live dashboard pages behind sign-in covered by the local run above (same build)."
-M-USE-03: []
+M-USE-03:
+  - date: 2026-11-18
+    by: Claude (tests/browsers/demo-script.mjs on Fifa's MacBook) and Fifa (by hand)
+    environment: live server; macOS 27.0 with Google Chrome 157.0.8103.78, Playwright Chromium 153 and WebKit 26.6 (Safari 27.0 engine); Firefox (current release) on macOS; Safari on Fifa's iPhone
+    result: pass
+    figures: "Script: scenes 1 to 5 pass in Chrome, Chromium and WebKit at 1280x800, scenes 2 and 3 at iPhone 15 and Pixel 7 sizes (scene 4 blocked the card on attempt 3; scene 5 approved by reconciliation after 41 s). By hand: all scenes in Firefox, scenes 6 and 7 in Chrome, scenes 2, 3 and the dashboard overview on the iPhone: all fine."
+    evidence: /mnt/project-files/fyp/10-accessibility/browsers-2026-11-18.json and browsers-2026-11-18-scene4.json (Fifa's fyp folder)
+    notes: "Playwright's own Firefox build does not start on macOS 27, so Firefox was run by hand. Scene 8 is a slide. Abandoned code pages in the script runs raised a 'card data self-check failed' alert that cleared once those sessions ended; the check now skips payments still waiting for a code."
 M-USE-04: []
 M-AUD-01: []
 M-MNT-01: []

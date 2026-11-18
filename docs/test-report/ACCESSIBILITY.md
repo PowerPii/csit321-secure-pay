@@ -89,7 +89,8 @@ technical detail; all pass.
 - **No session with a screen-reader user.** Names, roles, live regions and focus were
   checked in the accessibility tree; a short run with NVDA or VoiceOver before the demo
   would confirm how it sounds.
-- **Chromium only.** Firefox and a real phone browser are NFR-USE-03 (M-USE-03), still to run.
+- **Scans in Chromium.** The axe scans ran in Chromium; the demo script itself was then run in
+  Chrome, Firefox, WebKit and on an iPhone for NFR-USE-03 (M-USE-03, 18 Nov 2026, all pass).
 - **Small text in the overview chart on phones.** The 14-day chart scales down with the
   screen, so its axis labels are small at 360 px. The same numbers are in the legend, the
   tiles and the screen-reader table.

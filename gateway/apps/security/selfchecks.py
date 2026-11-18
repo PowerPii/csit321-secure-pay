@@ -49,11 +49,19 @@ def https_enforced():
 
 def no_card_data_after_submission():
     from apps.payments.models import Payment
+    from apps.payments.states import PaymentStatus
     from apps.vault import service as vault
 
     now = timezone.now()
-    tokens = list(Payment.objects.filter(submitted_at__gte=now - timedelta(days=7))
-                  .exclude(card_token="").values_list("card_token", flat=True))  # nosec B106
+    # A payment waiting for its verification code keeps the card until the code is entered
+    # or the checkout session ends (FR-CHK-18); the expired-card count below catches any
+    # that outstay the session.
+    waiting = Payment.objects.filter(status=PaymentStatus.VERIFICATION_REQUIRED,
+                                     checkout_expires_at__gt=now)
+    submitted = (Payment.objects.filter(submitted_at__gte=now - timedelta(days=7))
+                 .exclude(pk__in=waiting.values("pk")))
+    tokens = list(submitted.exclude(card_token="")  # nosec B106
+                  .values_list("card_token", flat=True))
     kept = vault.count_kept(tokens)
     stale = vault.count_expired(now - timedelta(minutes=10))
     if kept or stale:
