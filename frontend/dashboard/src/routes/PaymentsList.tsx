@@ -70,7 +70,7 @@ export default function PaymentsList() {
               aria-pressed={!!filters.attention}
             >
               <Typography variant="body2" color="text.secondary">Escalated operations</Typography>
-              <Typography variant="h5" mt={0.5}>{summary.escalated}</Typography>
+              <Typography variant="h5" component="p" mt={0.5}>{summary.escalated}</Typography>
             </Paper>
           )}
         </Stack>

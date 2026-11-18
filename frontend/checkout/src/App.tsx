@@ -2,7 +2,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { getSession, type Session } from "./api";
 import { sessionIdFromPath } from "./format";
-import { Shell } from "./ui";
+import { Shell, useFocusHeadingOnChange } from "./ui";
 import { CardForm } from "./checkout/CardForm";
 import { VerifyCode } from "./checkout/VerifyCode";
 import { Checking, Approved, NotCompleted } from "./checkout/Results";
@@ -22,6 +22,11 @@ type View =
 export default function App({ path = window.location.pathname }: { path?: string }) {
   const sessionId = sessionIdFromPath(path);
   const [view, setView] = useState<View>(sessionId ? { kind: "loading" } : { kind: "missing" });
+  const stepKey = view.kind === "session"
+    ? `${view.checking || view.session.result === "processing" ? "checking" : view.session.result}`
+    : view.kind;
+  // Not on the first card form: only when the payment moves to another step.
+  const panel = useFocusHeadingOnChange(view.kind === "loading" ? "loading" : stepKey === "open" ? "loading" : stepKey);
 
   useEffect(() => {
     if (!sessionId) return;
@@ -82,7 +87,7 @@ export default function App({ path = window.location.pathname }: { path?: string
   return (
     <Shell status={status}>
       <OrderSummary session={session} />
-      <section className="panel-right" aria-live="polite">{body}</section>
+      <section className="panel-right" ref={panel}>{body}</section>
     </Shell>
   );
 }

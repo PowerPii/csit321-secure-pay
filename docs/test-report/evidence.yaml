@@ -162,6 +162,15 @@ NFR-USE-01:
   manual: [M-USE-01]
 
 NFR-USE-02:
+  ci:
+    - checkout: src/A11y.test.tsx::finds no WCAG A or AA issue on the card form, code, approved, declined and being-checked pages
+    - checkout: src/A11y.test.tsx::finds no issue on the guest status check and the account sign-in page
+    - checkout: src/A11y.test.tsx::links each error to its field, moves focus to the first one and stays clean under axe
+    - checkout: src/A11y.test.tsx::lets the customer stop the automatic return after a successful payment (WCAG 2.2.1)
+    - checkout: src/A11y.test.tsx::moves arrow-key focus between the sign-in and register tabs
+    - dashboard: "src/App.test.tsx::shows the overview: today's tiles, the 14-day chart and the latest payments"
+    - dashboard: src/App.test.tsx::lets an operator capture from the payment detail (D4)
+    - dashboard: src/Fraud.test.tsx::shows the unread count in the sidebar and opens the case from an alert
   manual: [M-USE-02]
 
 NFR-USE-03:

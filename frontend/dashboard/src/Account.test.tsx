@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
+import { expectAccessible } from "./a11y.testutil";
 
 type Reply = (init?: RequestInit) => Response;
 const json = (data: unknown, status = 200) =>
@@ -55,6 +56,7 @@ describe("account pages", () => {
     });
     at("/register");
     expect(await screen.findByText("Register your business")).toBeTruthy();
+    await expectAccessible();
     type(/Business name/, "New Shop Pte. Ltd.");
     type(/Registration number/, "202612345K");
     type(/Website/, "https://newshop.sg");
@@ -141,6 +143,7 @@ describe("account pages", () => {
     });
     at("/api-keys");
     fireEvent.click(await screen.findByRole("button", { name: "Generate key" }));
+    await expectAccessible();
     expect((await screen.findByTestId("new-api-key")).textContent).toBe("sp_test_AbCdSECRET");
     expect(screen.getByTestId("new-signing-secret").textContent).toBe("whsec_SECRET");
     expect(screen.queryByRole("button", { name: "Generate key" })).toBeNull();

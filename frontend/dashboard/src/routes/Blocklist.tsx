@@ -8,7 +8,7 @@ import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api, post, query, type BlocklistEntry } from "../api/client";
 import { BlocklistDialog } from "../components/BlocklistDialog";
-import { Badge, ErrorAlert, PageHeader } from "../components/ui";
+import { Badge, ErrorAlert, PageHeader, SrOnly } from "../components/ui";
 import { shortDate, titleCase } from "../format";
 
 export function Blocklist() {
@@ -53,7 +53,7 @@ export function Blocklist() {
       <TableContainer component={Paper} sx={{ borderRadius: 2 }}>
         <Table aria-label="Block list">
           <TableHead>
-            <TableRow><TableCell>Entry</TableCell><TableCell>Reason</TableCell><TableCell>Added</TableCell><TableCell>Status</TableCell><TableCell /></TableRow>
+            <TableRow><TableCell>Entry</TableCell><TableCell>Reason</TableCell><TableCell>Added</TableCell><TableCell>Status</TableCell><TableCell><SrOnly>Actions</SrOnly></TableCell></TableRow>
           </TableHead>
           <TableBody>
             {list.data?.data.map((e) => (

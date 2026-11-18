@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
+import { expectAccessible } from "./a11y.testutil";
 
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
@@ -51,6 +52,7 @@ describe("accounts", () => {
     });
     at("/accounts");
     const ownRow = (await screen.findByText("admin@securepay.sg")).closest("tr")!;
+    await expectAccessible();
     expect(within(ownRow as HTMLElement).queryByRole("button", { name: "Suspend" })).toBeNull();
     const row = screen.getByText("priya@securepay.sg").closest("tr")!;
     fireEvent.click(within(row as HTMLElement).getByRole("button", { name: "Suspend" }));
@@ -92,6 +94,7 @@ describe("limits", () => {
     });
     at("/limits");
     const amount = await screen.findByLabelText("Maximum per payment (SGD)");
+    await expectAccessible();
     fireEvent.change(amount, { target: { value: "20000" } });
     expect((screen.getByRole("button", { name: "Save limits" }) as HTMLButtonElement).disabled).toBe(true); // above the ceiling
     fireEvent.change(amount, { target: { value: "5000" } });

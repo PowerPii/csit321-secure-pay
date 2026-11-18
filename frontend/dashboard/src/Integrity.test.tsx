@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
+import { expectAccessible } from "./a11y.testutil";
 
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
@@ -74,6 +75,7 @@ describe("integrity and keys", () => {
     mockFetch({ ...common, "GET /integrity": () => json(overview()) });
     at("/integrity");
     const checks = await screen.findByRole("table", { name: "Self-checks" });
+    await expectAccessible();
     expect(within(checks).getByText("PCI DSS 4.2.1: strong cryptography in transit")).toBeTruthy();
     expect(within(checks).getByText("Failed")).toBeTruthy();
     expect(screen.getByText(/SP-AAAA-BBBB/)).toBeTruthy();

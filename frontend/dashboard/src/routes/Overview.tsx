@@ -7,7 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import { api, type PaymentRow } from "../api/client";
 import { useStaff } from "../auth";
-import { Badge, ErrorAlert, PageHeader, Section, Tile } from "../components/ui";
+import { Badge, ErrorAlert, PageHeader, Section, Tile, RowAction, visuallyHidden } from "../components/ui";
 import { money, riskLabel, shortDate, statusLabel, statusTone } from "../format";
 
 export interface Overview {
@@ -68,12 +68,31 @@ function DailyChart({ daily }: { daily: Overview["daily"] }) {
   );
 }
 
+/** The chart's numbers as a table for screen-reader users (the chart itself is one image). */
+function DailyTable({ daily }: { daily: Overview["daily"] }) {
+  const day = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString("en-SG", { day: "numeric", month: "short" });
+  return (
+    // In a hidden div: a table ignores width: 1px and would widen the page on phones.
+    <Box sx={visuallyHidden}>
+    <table>
+      <caption>Payments per day, last 14 days</caption>
+      <thead><tr><th scope="col">Day</th><th scope="col">Approved</th><th scope="col">Declined</th><th scope="col">Blocked</th><th scope="col">Volume</th></tr></thead>
+      <tbody>
+        {daily.map((d) => (
+          <tr key={d.date}><th scope="row">{day(d.date)}</th><td>{d.approved}</td><td>{d.declined}</td><td>{d.blocked}</td><td>{money(d.volume)}</td></tr>
+        ))}
+      </tbody>
+    </table>
+    </Box>
+  );
+}
+
 function Legend({ items }: { items: { label: string; colour: string; value?: number }[] }) {
   return (
     <Stack direction="row" flexWrap="wrap" gap={2} mt={1}>
       {items.map((it) => (
         <Stack key={it.label} direction="row" alignItems="center" gap={0.8}>
-          <Box sx={{ width: 10, height: 10, borderRadius: 0.5, bgcolor: it.colour }} />
+          <Box aria-hidden="true" sx={{ width: 10, height: 10, borderRadius: 0.5, bgcolor: it.colour }} />
           <Typography variant="body2" color="text.secondary">
             {it.label}{it.value !== undefined && <> · <strong>{it.value}</strong></>}
           </Typography>
@@ -121,9 +140,10 @@ export default function OverviewPage() {
             <Tile label="Asked for a code" value={d.today.verification_asked} />
             <Tile label="Blocked today" value={d.today.blocked} />
           </Stack>
-          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", lg: "2fr 1fr" }, gap: 2.5 }}>
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: "2fr 1fr" }, gap: 2.5 }}>
             <Section title="Last 14 days">
               <DailyChart daily={d.daily} />
+              <DailyTable daily={d.daily} />
               <Legend items={[
                 { label: "Approved", colour: COLOURS.approved },
                 { label: "Declined by the bank", colour: COLOURS.declined },
@@ -153,7 +173,7 @@ export default function OverviewPage() {
                   <TableBody>
                     {d.recent.map((p) => (
                       <TableRow key={p.id} hover sx={{ cursor: "pointer" }} onClick={() => navigate(`/payments/${p.id}`)}>
-                        <TableCell>{p.reference}</TableCell>
+                        <TableCell><RowAction onClick={() => navigate(`/payments/${p.id}`)}>{p.reference}</RowAction></TableCell>
                         <TableCell sx={{ whiteSpace: "nowrap" }}>{shortDate(p.created_at)}</TableCell>
                         {allMerchants && <TableCell>{p.merchant.name}</TableCell>}
                         <TableCell align="right">{money(p.amount)}</TableCell>

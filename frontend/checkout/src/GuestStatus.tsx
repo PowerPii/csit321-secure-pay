@@ -3,7 +3,7 @@
 // read-only view of that one payment for 15 minutes. The receipt link (?ref=SP-...) only
 // fills in the reference. No order contents and no fraud reasons are ever shown here.
 import { useEffect, useState, type FormEvent } from "react";
-import { Field, Row, Shell } from "./ui";
+import { Field, Row, Shell, useFocusHeadingOnChange } from "./ui";
 import { brandName, countdown, formatDate, hasReceipt, money } from "./format";
 import { getGuestPayment, GuestApiError, requestCode, signOut, verifyCode, type GuestPayment } from "./guestApi";
 
@@ -26,6 +26,7 @@ export default function GuestStatus({ search = window.location.search }: { searc
   const [step, setStep] = useState<Step>({ kind: "loading" });
   const [reference, setReference] = useState(referenceFromSearch(search));
   const [email, setEmail] = useState("");
+  const panel = useFocusHeadingOnChange(step.kind === "loading" ? "find" : step.kind);
 
   useEffect(() => {
     // A view unlocked in the last 15 minutes is still on this browser's cookie.
@@ -76,7 +77,7 @@ export default function GuestStatus({ search = window.location.search }: { searc
 
   return (
     <Shell status="Payment status">
-      <section className="panel-right only status-page" aria-live="polite">{body}</section>
+      <section className="panel-right only status-page" ref={panel}>{body}</section>
     </Shell>
   );
 }
@@ -208,7 +209,7 @@ function CodeForm({ step, reference, email, onEdit, onResent, onView, onLocked }
         </p>
       </div>
       {notice && <p className="muted small" role="status">{notice}</p>}
-      <p className="step-label">Step 2 · Enter the 6-digit code</p>
+      <h1 className="step-label">Step 2 · Enter the 6-digit code</h1>
       <Field label="Code from the email" error={error} id="code">
         <input id="code" className="code-input" inputMode="numeric" autoComplete="one-time-code"
           placeholder="123456" maxLength={6} value={code}

@@ -9,6 +9,7 @@ Tables 4.4.1.1 to 4.4.9.1) against its acceptance criterion.
 | `evidence.yaml` | For each requirement: the CI tests, the integration (stack) tests and the manual checks that verify it | Whoever adds or renames a test |
 | `MANUAL-TESTS.md` | Step-by-step procedures for the 19 checks that need the live server, a browser or people | The test lead (Noppawut) |
 | `manual-results.yaml` | Results of those checks, newest last | Whoever runs a check |
+| `ACCESSIBILITY.md` | The accessibility and mobile pass (NFR-USE-01, NFR-USE-02): what was found, fixed and measured | Whoever re-runs `tests/a11y/scan.mjs` |
 | `TEST-REPORT.md` | The generated report: status per requirement and all evidence | Generated, never by hand |
 
 ## Getting the report
@@ -23,6 +24,7 @@ Locally, after running the suites with JUnit output:
 (cd gateway && pytest --junitxml=../reports/junit-gateway.xml)
 (cd merchant && pytest --junitxml=../reports/junit-merchant.xml)
 (cd frontend/checkout && npx vitest run --reporter=junit --outputFile.junit=../../reports/junit-checkout.xml)
+(cd frontend/dashboard && npx vitest run --reporter=junit --outputFile.junit=../../reports/junit-dashboard.xml)
 pip install pyyaml
 python tests/report/build_report.py --junit reports --out docs/test-report/TEST-REPORT.md
 ```

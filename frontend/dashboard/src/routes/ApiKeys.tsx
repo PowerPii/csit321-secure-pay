@@ -9,7 +9,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, post, type OwnMerchant } from "../api/client";
-import { Badge, ErrorAlert, PageHeader, Section } from "../components/ui";
+import { Badge, ErrorAlert, PageHeader, Section, SrOnly } from "../components/ui";
 import { longDate, titleCase } from "../format";
 
 function Secret({ label, value, testId }: { label: string; value: string; testId: string }) {
@@ -113,7 +113,7 @@ export default function ApiKeys() {
       {created && (
         <Paper sx={{ p: 2.5, borderRadius: 2, mb: 2, border: "2px solid #333" }}>
           <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1}>
-            <Typography variant="h6">New key created: copy the secret now</Typography>
+            <Typography variant="h6" component="h2">New key created: copy the secret now</Typography>
             <Badge label="Shown once" />
           </Stack>
           <Typography variant="body2" color="text.secondary" mb={2}>
@@ -127,7 +127,7 @@ export default function ApiKeys() {
       <TableContainer component={Paper} sx={{ borderRadius: 2, mb: 2 }}>
         <Table aria-label="API keys">
           <TableHead>
-            <TableRow><TableCell>Key</TableCell><TableCell>Created</TableCell><TableCell>Last used</TableCell><TableCell>Status</TableCell><TableCell /></TableRow>
+            <TableRow><TableCell>Key</TableCell><TableCell>Created</TableCell><TableCell>Last used</TableCell><TableCell>Status</TableCell><TableCell><SrOnly>Actions</SrOnly></TableCell></TableRow>
           </TableHead>
           <TableBody>
             {m?.api_key ? (

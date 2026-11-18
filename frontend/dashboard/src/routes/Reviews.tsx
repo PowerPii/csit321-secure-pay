@@ -11,7 +11,7 @@ import { api, post, query, type CaseList, type CaseDetail as Detail, type LinkCo
 import { useStaff } from "../auth";
 import { BlocklistDialog } from "../components/BlocklistDialog";
 import { Pagination } from "../components/Pagination";
-import { Badge, ErrorAlert, PageHeader, Row, ScoreBar } from "../components/ui";
+import { Badge, ErrorAlert, PageHeader, Row, ScoreBar, RowAction } from "../components/ui";
 import {
   cardLabel, CASE_DECISION_LABELS, FINDING_LABELS, longDate, money, reasonLabel, shortDate, STATUS_LABELS,
 } from "../format";
@@ -55,7 +55,7 @@ export function ReviewQueue() {
       <PageHeader title="Fraud review queue" subtitle="Flagged payments across all merchants, highest score first" />
       <Stack direction="row" gap={1} mb={2} flexWrap="wrap">
         {TABS.map((t) => (
-          <Chip key={t.key} clickable onClick={() => set("tab", t.key)}
+          <Chip key={t.key} clickable onClick={() => set("tab", t.key)} aria-pressed={filters.tab === t.key}
             label={`${t.label}${data ? ` (${data.counts[t.key]})` : ""}`}
             sx={{ fontWeight: 600, bgcolor: filters.tab === t.key ? "#333" : "#e6e6e6",
               color: filters.tab === t.key ? "#fff" : "#333", border: "1px solid #8a8a8a" }} />
@@ -84,7 +84,7 @@ export function ReviewQueue() {
       </Box>
       <ErrorAlert error={list.error} />
       <Box sx={{ display: "grid", gap: 2.5, alignItems: "start",
-        gridTemplateColumns: { xs: "1fr", lg: selected ? "minmax(0, 1.5fr) minmax(0, 1fr)" : "1fr" } }}>
+        gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: selected ? "minmax(0, 1.5fr) minmax(0, 1fr)" : "1fr" } }}>
         <Box minWidth={0}>
           <TableContainer component={Paper} sx={{ borderRadius: 2 }}>
             <Table aria-label="Flagged payments">
@@ -99,7 +99,7 @@ export function ReviewQueue() {
                   <TableRow key={c.id} hover selected={c.id === selected} sx={{ cursor: "pointer" }} onClick={() => open(c.id)}>
                     <TableCell><ScoreBar score={c.score} /></TableCell>
                     <TableCell sx={{ whiteSpace: "nowrap" }}>
-                      {c.payment.reference}
+                      <RowAction onClick={() => open(c.id)} label={`Open case for ${c.payment.reference}`}>{c.payment.reference}</RowAction>
                       <Typography variant="caption" color="text.secondary" display="block">{shortDate(c.occurred_at)}</Typography>
                     </TableCell>
                     <TableCell>{c.merchant.name}</TableCell>
@@ -164,7 +164,7 @@ function CasePanel({ caseId, compact = false, onClose }: { caseId: string; compa
   return (
     <Stack gap={1.5}>
       <Stack direction="row" justifyContent="space-between" alignItems="center">
-        <Typography variant="h6">Case · {c.payment.reference}</Typography>
+        <Typography variant="h6" component="h2">Case · {c.payment.reference}</Typography>
         {onClose && <Button size="small" onClick={onClose} aria-label="Close case">Close</Button>}
       </Stack>
       <Stack direction="row" gap={1} flexWrap="wrap">

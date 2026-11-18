@@ -2,6 +2,7 @@
 // form and on the account sign-up form. The version is GATEWAY_RULES["PRIVACY_NOTICE_VERSION"]
 // on the gateway, which records it with the consent.
 import type { ReactNode } from "react";
+import { errorId, invalidProps } from "./ui";
 
 export const PRIVACY_NOTICE_VERSION = "2026-11-16";
 
@@ -27,7 +28,8 @@ export function PrivacyNotice() {
   );
 }
 
-export function ConsentBox({ checked, onChange, error, children }: {
+export function ConsentBox({ id, checked, onChange, error, children }: {
+  id: string;
   checked: boolean;
   onChange: (v: boolean) => void;
   error?: string;
@@ -36,10 +38,11 @@ export function ConsentBox({ checked, onChange, error, children }: {
   return (
     <div className={`field${error ? " has-error" : ""}`}>
       <label className="check consent">
-        <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+        <input type="checkbox" id={id} checked={checked} onChange={(e) => onChange(e.target.checked)}
+          {...invalidProps(id, error)} />
         <span>{children}</span>
       </label>
-      {error && <span className="error" role="alert">{error}</span>}
+      {error && <span className="error" id={errorId(id)} role="alert">{error}</span>}
       <PrivacyNotice />
     </div>
   );
