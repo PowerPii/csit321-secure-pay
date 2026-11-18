@@ -38,6 +38,7 @@ class Result:
     http_status: int | None = None
     error: str = ""  # error class when there is no 2xx: timeout, blocked_address, ...
     duration_ms: int = 0
+    excerpt: str = ""  # start of the response body, for the merchant's webhook log
 
 
 class EndpointRefused(Exception):
@@ -65,6 +66,14 @@ def check_endpoint(url: str) -> None:
     for address in addresses:
         if not ipaddress.ip_address(address.split("%", 1)[0]).is_global:
             raise EndpointRefused("blocked_address")
+
+
+def excerpt(text: str) -> str:
+    """The start of a reply body as one printable line, for the webhook log."""
+    cleaned = "".join(ch if ch.isprintable() else " " for ch in text[:2000])
+    cleaned = " ".join(cleaned.split())
+    limit = WebhookAttempt.RESPONSE_EXCERPT_CHARS
+    return cleaned if len(cleaned) <= limit else cleaned[:limit - 1] + "\u2026"
 
 
 def body_bytes(event: OutboxEvent) -> bytes:
@@ -105,7 +114,11 @@ def send(event: OutboxEvent, attempt_number: int) -> Result:
     except httpx.HTTPError as exc:
         return Result(False, error=type(exc).__name__[:64], duration_ms=elapsed())
     ok = 200 <= response.status_code < 300
-    return Result(ok, http_status=response.status_code, duration_ms=elapsed())
+    try:
+        reply = excerpt(response.text)
+    except (UnicodeError, LookupError):
+        reply = ""
+    return Result(ok, http_status=response.status_code, duration_ms=elapsed(), excerpt=reply)
 
 
 def next_attempt_after_failure(event: OutboxEvent, now: datetime) -> datetime | None:
@@ -120,7 +133,7 @@ def next_attempt_after_failure(event: OutboxEvent, now: datetime) -> datetime | 
     if now >= window_end:
         return None
     delays = rules["WEBHOOK_RETRY_DELAYS_SECONDS"]
-    retries_done = event.attempt_count - 1
+    retries_done = event.attempt_count - event.schedule_base - 1
     if retries_done >= len(delays):
         return window_end
     delay = delays[retries_done] * _random.uniform(0.9, 1.1)
@@ -158,7 +171,8 @@ def deliver(event_id: int) -> OutboxEvent:
         WebhookAttempt.objects.create(
             event=event, attempt_number=attempt_number, started_at=started_at,
             duration_ms=result.duration_ms, http_status=result.http_status,
-            error=result.error, succeeded=result.ok)
+            error=result.error, succeeded=result.ok, response_excerpt=result.excerpt,
+            manual=event.resend_count > 0 and attempt_number == event.schedule_base + 1)
         event.attempt_count = attempt_number
         if result.ok:
             event.status = OutboxEvent.Status.DELIVERED
@@ -187,3 +201,46 @@ def deliver_due(limit: int | None = None) -> int:
             # Leave it leased; it becomes due again when the lease runs out.
             logger.exception("Webhook delivery crashed for event %s", event_id)
     return len(ids)
+
+
+class ResendRefused(Exception):
+    """The event cannot be sent again now. `code` is the API error code."""
+
+    def __init__(self, code: str, message: str):
+        super().__init__(message)
+        self.code = code
+        self.message = message
+
+
+def requeue(event_id: int, now: datetime | None = None) -> tuple[OutboxEvent, str]:
+    """Put a delivered or undelivered event back in the queue for the worker (webhook log).
+
+    The event keeps its ID, sequence and payload, so a merchant that already processed it
+    drops the repeat by event ID (contract section 7, "Duplicates"); each attempt is signed
+    afresh as usual. The retry schedule and the 72-hour window start again from the next
+    attempt. A pending event is already queued and is refused, so the worker never sends the
+    same event twice at once. Returns the event and its status before the resend.
+    Call inside a transaction.
+    """
+    now = now or timezone.now()
+    event = (OutboxEvent.objects.select_for_update(of=("self",))
+             .select_related("merchant").get(pk=event_id))
+    if event.status == OutboxEvent.Status.PENDING:
+        raise ResendRefused("already_queued",
+                            "This event is already waiting for its next attempt.")
+    merchant = event.merchant
+    if not merchant.webhook_url or not merchant.webhook_url_approved:
+        raise ResendRefused("no_approved_endpoint",
+                            "There is no approved webhook address to send it to.")
+    if event.resend_count >= settings.GATEWAY_RULES["WEBHOOK_MAX_MANUAL_RESENDS"]:
+        raise ResendRefused("resend_limit",
+                            "This event has been resent the maximum number of times.")
+    previous = event.status
+    event.status = OutboxEvent.Status.PENDING
+    event.next_attempt_at = now
+    event.first_failed_at = None
+    event.schedule_base = event.attempt_count
+    event.resend_count += 1
+    event.save(update_fields=["status", "next_attempt_at", "first_failed_at", "schedule_base",
+                              "resend_count"])
+    return event, previous

@@ -282,6 +282,10 @@ GATEWAY_RULES = {
     "WEBHOOK_RETRY_DELAYS_SECONDS": (
         60, 300, 900, 1800, 3600, 7200, 14400, 28800, 43200, 43200, 43200, 43200,
     ),
+    # Webhook log "Resend" (18 Nov 2026): how many times one event may be put back in the queue
+    # by hand. Each resend starts a fresh retry schedule, so this caps the traffic one event
+    # can cause.
+    "WEBHOOK_MAX_MANUAL_RESENDS": 5,
     "RECONCILIATION_MAX_CHECKS": 6,
     # Status checks on an unresolved operation, after the timeout (+/-10% jitter); after the
     # last one it is escalated (SIMULATOR-CONTRACT.md S2, confirmed by Fifa 13 Nov 2026).

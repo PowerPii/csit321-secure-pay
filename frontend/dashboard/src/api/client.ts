@@ -177,6 +177,42 @@ export interface Webhook {
   delivered_at: string | null;
 }
 
+/** Webhook delivery log (extends FR-TXN-07): one event and, in the detail, every attempt. */
+export interface WebhookEventRow extends Webhook {
+  payment_id: string;
+  merchant_id: string;
+  merchant_name: string;
+  resends: number;
+  last_attempt_at: string | null;
+  created_at: string;
+}
+
+export interface WebhookAttemptRow {
+  number: number;
+  at: string;
+  http_status: number | null;
+  error: string | null;
+  duration_ms: number;
+  succeeded: boolean;
+  response_excerpt: string | null;
+  manual: boolean;
+}
+
+export interface WebhookEventDetail extends WebhookEventRow {
+  endpoint: string | null;
+  endpoint_approved: boolean;
+  payload: Record<string, unknown>;
+  attempt_log: WebhookAttemptRow[];
+  can_resend: boolean;
+  max_resends: number;
+}
+
+export interface WebhookList extends Page<WebhookEventRow> {
+  counts: Record<"pending" | "delivered" | "undelivered", number>;
+  endpoint: { url: string | null; approved: boolean } | null;
+  event_types: string[];
+}
+
 export interface PaymentDetail {
   id: string;
   reference: string;

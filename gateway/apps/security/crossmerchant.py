@@ -34,6 +34,13 @@ def _owner(view_kwargs: dict) -> tuple[str, str, str] | None:
         owner = (Payment.objects.filter(public_id=payment_id[:32])
                  .values_list("merchant__public_id", flat=True).first())
         return ("payment", payment_id[:32], owner) if owner else None
+    event_id = view_kwargs.get("event_id")
+    if isinstance(event_id, str) and event_id:
+        from apps.events.models import OutboxEvent
+
+        owner = (OutboxEvent.objects.filter(public_id=event_id[:32])
+                 .values_list("merchant__public_id", flat=True).first())
+        return ("event", event_id[:32], owner) if owner else None
     refund_id = view_kwargs.get("refund_id")
     if isinstance(refund_id, str) and refund_id:
         owner = (Refund.objects.filter(public_id=refund_id[:32])
