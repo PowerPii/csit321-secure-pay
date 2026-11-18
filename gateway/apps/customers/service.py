@@ -239,17 +239,16 @@ def sign_in(data, request=None) -> tuple[CustomerAccount, str, CustomerSession]:
     password = password[:256]
     account = (CustomerAccount.objects.filter(email__iexact=email.strip()[:254],
                                               is_active=True).first())
-    if account is None:
+    if account is None or account.is_locked():
+        # Unknown email or locked account: the same reply as a wrong password, and the same
+        # hashing work, so sign-in never tells whether an email has an account (security
+        # self-test SEC-07, Fifa 18 Nov 2026). The message mentions the lockout, and a
+        # password reset still unlocks.
         if _DUMMY_HASH is None:
             _DUMMY_HASH = make_password(secrets.token_urlsafe(16))
-        check_password(password, _DUMMY_HASH)  # same work as a real check
-        _audit("customer.sign_in_failed", None, request)
-        raise invalid_credentials()
-    if account.is_locked():
-        # Same reply as a wrong password: sign-in never tells whether an email has an
-        # account (security self-test SEC-07, Fifa 18 Nov 2026). The message mentions the
-        # lockout, and a password reset still unlocks.
-        check_password(password, _DUMMY_HASH or make_password(secrets.token_urlsafe(16)))
+        check_password(password, _DUMMY_HASH)
+        if account is None:
+            _audit("customer.sign_in_failed", None, request)
         raise invalid_credentials()
     if not check_password(password, account.password):
         _record_failure(account, request)
