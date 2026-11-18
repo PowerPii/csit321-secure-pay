@@ -18,7 +18,7 @@
 //   SHOP=https://shop.<domain> GATEWAY=https://gateway.<domain> node tests/browsers/demo-script.mjs
 //
 // Optional: SITE (marketing site), MAILPIT (default https://mail.<domain>), BROWSERS
-// (default "chromium,firefox,webkit"), PHONES=0 to skip the phone runs, SCENES (e.g. "2,3").
+// (default "chromium,firefox,webkit"; add "chrome" for the installed Google Chrome), PHONES=0 to skip the phone runs, SCENES (e.g. "2,3").
 // Test mode only: every card is a fresh simulator demo number, no real money. One full run
 // makes about 30 test payments on the server. Writes demo-browsers.json; exit code 1 if any
 // step fails.
@@ -142,7 +142,9 @@ const SCENE_FNS = {
 };
 
 async function run(type, label, contextOptions, scenes) {
-  const browser = await pw[type].launch();
+  // "chrome" and "msedge" drive the installed Google Chrome / Edge instead of Playwright's Chromium.
+  const browser = ["chrome", "msedge"].includes(type)
+    ? await pw.chromium.launch({ channel: type }) : await pw[type].launch();
   const version = browser.version();
   for (const n of scenes) {
     const ctx = await browser.newContext({ ignoreHTTPSErrors: true, ...contextOptions });
