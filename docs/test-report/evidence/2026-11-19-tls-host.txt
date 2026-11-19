@@ -1,0 +1,64 @@
+# Run by Fifa on the live server's own shell (securepay@securepay, the Google Cloud VM),
+# 19 Nov 2026 14:21 UTC, bash tests/tls/check-tls.sh securepaysg.me. Copied from the thread.
+# An earlier run from a home network was INVALID (certificates issued by the ISP's filter,
+# CN=singtel.com, and plain HTTP redirected to its block page) and is not recorded.
+# M-ENC-01 TLS check for securepaysg.me, 2026-11-19T14:21:30Z, OpenSSL 3.0.13 30 Jan 2024 (Library: OpenSSL 3.0.13 30 Jan 2024)
+== gateway.securepaysg.me
+      issuer=C = US, O = Let's Encrypt, CN = YE2
+      notAfter=Feb 17 02:28:06 2027 GMT
+ok    gateway.securepaysg.me tls1 refused
+ok    gateway.securepaysg.me tls1_1 refused
+ok    gateway.securepaysg.me tls1_2 offered (ECDHE-ECDSA-AES128-GCM-SHA256)
+ok    gateway.securepaysg.me tls1_3 offered (TLS_AES_128_GCM_SHA256)
+      TLS 1.2 suites accepted: ECDHE-ECDSA-AES256-GCM-SHA384 ECDHE-ECDSA-CHACHA20-POLY1305 ECDHE-ECDSA-AES128-GCM-SHA256
+ok    gateway.securepaysg.me no weak TLS 1.2 suite
+ok    gateway.securepaysg.me http:// -> 308 https://gateway.securepaysg.me/
+ok    gateway.securepaysg.me strict-transport-security: max-age=31536000
+== shop.securepaysg.me
+      issuer=C = US, O = Let's Encrypt, CN = YE1
+      notAfter=Feb 17 02:28:05 2027 GMT
+ok    shop.securepaysg.me tls1 refused
+ok    shop.securepaysg.me tls1_1 refused
+ok    shop.securepaysg.me tls1_2 offered (ECDHE-ECDSA-AES128-GCM-SHA256)
+ok    shop.securepaysg.me tls1_3 offered (TLS_AES_128_GCM_SHA256)
+      TLS 1.2 suites accepted: ECDHE-ECDSA-AES256-GCM-SHA384 ECDHE-ECDSA-CHACHA20-POLY1305 ECDHE-ECDSA-AES128-GCM-SHA256
+ok    shop.securepaysg.me no weak TLS 1.2 suite
+ok    shop.securepaysg.me http:// -> 308 https://shop.securepaysg.me/
+ok    shop.securepaysg.me strict-transport-security: max-age=31536000
+== mail.securepaysg.me
+      issuer=C = US, O = Let's Encrypt, CN = YE2
+      notAfter=Feb 17 02:28:05 2027 GMT
+ok    mail.securepaysg.me tls1 refused
+ok    mail.securepaysg.me tls1_1 refused
+ok    mail.securepaysg.me tls1_2 offered (ECDHE-ECDSA-AES128-GCM-SHA256)
+ok    mail.securepaysg.me tls1_3 offered (TLS_AES_128_GCM_SHA256)
+      TLS 1.2 suites accepted: ECDHE-ECDSA-AES256-GCM-SHA384 ECDHE-ECDSA-CHACHA20-POLY1305 ECDHE-ECDSA-AES128-GCM-SHA256
+ok    mail.securepaysg.me no weak TLS 1.2 suite
+ok    mail.securepaysg.me http:// -> 308 https://mail.securepaysg.me/
+info  mail.securepaysg.me no HSTS header
+== securepaysg.me
+      issuer=C = US, O = Let's Encrypt, CN = YR1
+      notAfter=Feb 17 02:24:04 2027 GMT
+ok    securepaysg.me tls1 refused
+ok    securepaysg.me tls1_1 refused
+ok    securepaysg.me tls1_2 offered (ECDHE-RSA-AES128-GCM-SHA256)
+ok    securepaysg.me tls1_3 offered (TLS_AES_128_GCM_SHA256)
+      TLS 1.2 suites accepted: ECDHE-RSA-AES256-GCM-SHA384 ECDHE-RSA-CHACHA20-POLY1305 ECDHE-RSA-AES128-GCM-SHA256
+ok    securepaysg.me no weak TLS 1.2 suite
+ok    securepaysg.me http:// -> 308 https://securepaysg.me/
+info  securepaysg.me no HSTS header
+== www.securepaysg.me
+      issuer=C = US, O = Let's Encrypt, CN = YR1
+      notAfter=Feb 17 02:25:52 2027 GMT
+ok    www.securepaysg.me tls1 refused
+ok    www.securepaysg.me tls1_1 refused
+ok    www.securepaysg.me tls1_2 offered (ECDHE-RSA-AES128-GCM-SHA256)
+ok    www.securepaysg.me tls1_3 offered (TLS_AES_128_GCM_SHA256)
+      TLS 1.2 suites accepted: ECDHE-RSA-AES256-GCM-SHA384 ECDHE-RSA-CHACHA20-POLY1305 ECDHE-RSA-AES128-GCM-SHA256
+ok    www.securepaysg.me no weak TLS 1.2 suite
+ok    www.securepaysg.me http:// -> 308 https://www.securepaysg.me/
+info  www.securepaysg.me no HSTS header
+== private port
+ok    gateway.securepaysg.me:8443 not reachable from outside
+
+PASS: only TLS 1.2/1.3, no weak suite, HTTP redirects to HTTPS on every name
