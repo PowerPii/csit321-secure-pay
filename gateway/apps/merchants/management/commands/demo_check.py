@@ -109,12 +109,13 @@ class Command(BaseCommand):
         due = OutboundEmail.objects.filter(status=OutboundEmail.Status.PENDING,
                                            next_attempt_at__lt=now - timedelta(minutes=5)
                                            ).count()
-        failed_mail = OutboundEmail.objects.filter(status=OutboundEmail.Status.FAILED,
+        failed_mail = OutboundEmail.objects.filter(status__in=(OutboundEmail.Status.FAILED,
+                                                               OutboundEmail.Status.BOUNCED),
                                                    created_at__gte=day).count()
         if due:
             yield ("FAIL", f"{due} email(s) overdue: the worker or the mail route is down")
         elif failed_mail:
-            yield ("WARN", f"{failed_mail} email(s) failed in the last 24 hours")
+            yield ("WARN", f"{failed_mail} email(s) failed or bounced in the last 24 hours")
         else:
             yield ("PASS", "Email outbox is flowing")
 

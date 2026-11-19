@@ -177,6 +177,7 @@ MATRIX: dict[tuple[str, str], set[str] | str] = {
     ("healthz", "get"): "public",
     ("readyz", "get"): "public",
     ("status.json", "get"): "public",
+    ("webhooks/resend", "post"): "public",  # Resend (Svix) signature
     ("api/schema/", "get"): "public",  # DEBUG only
     # Merchant API (API key)
     ("v1/payments", "post"): {KEY},

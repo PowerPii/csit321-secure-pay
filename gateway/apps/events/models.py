@@ -130,6 +130,9 @@ class OutboundEmail(models.Model):
     class Status(models.TextChoices):
         PENDING = "pending"  # queued, or waiting to retry (attempt_count, last_error)
         SENT = "sent"  # accepted by the route's server: the provider, or the capture inbox
+        # Reported later by the provider (apps.events.mail_events, Resend webhook):
+        DELIVERED = "delivered"  # the recipient's mail server took it
+        BOUNCED = "bounced"  # the recipient's mail server refused it for good
         FAILED = "failed"  # attempts used up or refused for good; kept, body wiped
         DISCARDED = "discarded"  # expired before it could be sent (a code or reset link)
         SUPPRESSED = "suppressed"  # real recipient with no permitted route; never sent
@@ -153,6 +156,9 @@ class OutboundEmail(models.Model):
     discard_after = models.DateTimeField(null=True, blank=True)
     last_error = models.CharField(max_length=64, blank=True)  # error class only
     sent_at = models.DateTimeField(null=True, blank=True)
+    # When the provider's delivery report (delivered, bounced, failed) was applied.
+    delivery_reported_at = models.DateTimeField(null=True, blank=True)
+    bounce_type = models.CharField(max_length=64, blank=True)  # e.g. Permanent/Suppressed
     route = models.CharField(max_length=16, choices=Route.choices, blank=True)
     # Set when a worker claims the row; completion only counts with the same token, so a
     # worker whose lease ran out cannot overwrite another's result.
