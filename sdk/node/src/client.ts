@@ -25,14 +25,21 @@ export interface SecurePayOptions {
    * and `webhooks.constructEvent` uses it by default. Recommended.
    */
   signingSecret?: string;
-  /** Gateway address. Default `https://gateway.securepaysg.me`. */
+  /**
+   * Gateway address. Default `https://gateway.securepaysg.me`. Must be `https://`: the API
+   * key is sent with every request. Plain `http://` is accepted only for a gateway on this
+   * machine (`localhost`, `*.localhost`, `127.0.0.1`, `[::1]`) and only with
+   * `allowInsecureHttp: true`.
+   */
   baseUrl?: string;
-  /** Time limit for one attempt, in milliseconds. Default 30,000. */
+  /** Development only: allow an `http://` `baseUrl` on this machine. Default `false`. */
+  allowInsecureHttp?: boolean;
+  /** Time limit for one attempt, in milliseconds: 1 to 600,000. Default 30,000. */
   timeoutMs?: number;
   /**
    * Extra attempts after a network failure, a timeout, a 429, a 5xx, or a 409
-   * `idempotency_request_in_progress`. Every attempt reuses the same `Idempotency-Key`, so a
-   * retry never charges twice. Default 2.
+   * `idempotency_request_in_progress`: a whole number from 0 to 10. Every attempt reuses the
+   * same `Idempotency-Key`, so a retry never charges twice. Default 2.
    */
   maxRetries?: number;
   /** A fetch implementation. Default: the global `fetch` (Node.js 20.19 or later). */
@@ -43,11 +50,16 @@ export interface SecurePayOptions {
 
 export interface RequestOptions {
   /**
-   * For POST requests. Default: a new UUID v4 per call. Pass your own (for example derived
-   * from your order ID) to make a retry after your own process restarts safe too.
+   * For POST requests: 8 to 255 printable ASCII characters, no spaces. Default: a new UUID v4
+   * for this call only, which is lost if your process stops before the reply arrives.
+   *
+   * Recommended: create one key per operation (one per order for `payments.create`, one per
+   * refund for `refunds.create`), save it with that order or refund in your database
+   * *before* the call, and send the saved key again on every retry, even after a restart.
+   * The gateway keeps a key for 24 hours from its first use and replays the first result.
    */
   idempotencyKey?: string;
-  /** Override `timeoutMs` for this call. */
+  /** Override `timeoutMs` for this call (1 to 600,000 ms). */
   timeoutMs?: number;
   /** Abort the call. */
   signal?: AbortSignal;
@@ -72,6 +84,40 @@ export type WithResponse<T> = T & { readonly lastResponse: ResponseMeta };
 
 const RETRY_STATUSES = new Set([429, 500, 502, 503, 504]);
 const ID_PATTERN = /^[A-Za-z0-9_]+$/;
+/** The gateway's rule for `Idempotency-Key` (API contract section 5). */
+const IDEMPOTENCY_KEY_PATTERN = /^[\x21-\x7E]{8,255}$/;
+const MAX_TIMEOUT_MS = 600_000;
+const MAX_RETRIES = 10;
+const LOOPBACK_HOSTS = /^(localhost|[a-z0-9-]+(\.[a-z0-9-]+)*\.localhost|127(\.\d{1,3}){3}|\[::1\])$/i;
+
+function checkTimeout(value: unknown, what: string): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 1 || value > MAX_TIMEOUT_MS) {
+    throw new RangeError(`${what} must be a number of milliseconds from 1 to ${MAX_TIMEOUT_MS}; got ${String(value)}.`);
+  }
+  return value;
+}
+
+function checkBaseUrl(raw: unknown, allowInsecureHttp: boolean): string {
+  let url: URL;
+  try {
+    url = new URL(String(raw));
+  } catch {
+    throw new SecurePayError(`baseUrl is not a valid URL: ${JSON.stringify(raw)}.`);
+  }
+  if (url.username || url.password) throw new SecurePayError("baseUrl must not contain a user name or password.");
+  if (url.search || url.hash) throw new SecurePayError("baseUrl must not contain a query string or #fragment.");
+  if (url.protocol === "http:") {
+    if (!LOOPBACK_HOSTS.test(url.hostname)) {
+      throw new SecurePayError(`baseUrl must use https:// (the API key is sent with every request); got ${url.origin}.`);
+    }
+    if (!allowInsecureHttp) {
+      throw new SecurePayError(`baseUrl ${url.origin} is plain http. For a local development gateway only, also pass allowInsecureHttp: true.`);
+    }
+  } else if (url.protocol !== "https:") {
+    throw new SecurePayError(`baseUrl must use https://; got ${url.protocol}//.`);
+  }
+  return (url.origin + url.pathname).replace(/\/+$/, "");
+}
 
 function pathId(kind: string, id: string): string {
   if (typeof id !== "string" || !ID_PATTERN.test(id)) {
@@ -153,9 +199,13 @@ export class SecurePay {
     if (!fetchImpl) throw new SecurePayError("No fetch implementation found. Use Node.js 20.19 or later, or pass options.fetch.");
     this.#apiKey = options.apiKey.trim();
     this.#signingSecret = options.signingSecret || undefined;
-    this.#baseUrl = (options.baseUrl ?? DEFAULT_BASE_URL).replace(/\/+$/, "");
-    this.#timeoutMs = options.timeoutMs ?? 30_000;
-    this.#maxRetries = Math.max(0, Math.floor(options.maxRetries ?? 2));
+    this.#baseUrl = checkBaseUrl(options.baseUrl ?? DEFAULT_BASE_URL, options.allowInsecureHttp === true);
+    this.#timeoutMs = checkTimeout(options.timeoutMs ?? 30_000, "timeoutMs");
+    const retries = options.maxRetries ?? 2;
+    if (!Number.isInteger(retries) || retries < 0 || retries > MAX_RETRIES) {
+      throw new RangeError(`maxRetries must be a whole number from 0 to ${MAX_RETRIES}; got ${String(retries)}.`);
+    }
+    this.#maxRetries = retries;
     this.#fetch = fetchImpl;
     this.payments = new Payments(this);
     this.refunds = new Refunds(this);
@@ -172,13 +222,16 @@ export class SecurePay {
     let idempotencyKey: string | null = null;
     let payload: string | undefined;
     if (method === "POST") {
+      if (options.idempotencyKey !== undefined && (typeof options.idempotencyKey !== "string" || !IDEMPOTENCY_KEY_PATTERN.test(options.idempotencyKey))) {
+        throw new TypeError(`idempotencyKey must be 8 to 255 printable ASCII characters without spaces; got ${JSON.stringify(options.idempotencyKey)}.`);
+      }
       idempotencyKey = options.idempotencyKey ?? randomUUID();
       headers["Idempotency-Key"] = idempotencyKey;
       headers["Content-Type"] = "application/json";
       payload = JSON.stringify(body ?? {});
     }
     const url = this.#baseUrl + path;
-    const timeoutMs = options.timeoutMs ?? this.#timeoutMs;
+    const timeoutMs = options.timeoutMs === undefined ? this.#timeoutMs : checkTimeout(options.timeoutMs, "timeoutMs");
 
     for (let attempt = 0; ; attempt++) {
       const last = attempt >= this.#maxRetries;
@@ -197,7 +250,12 @@ export class SecurePay {
           continue;
         }
         const what = timeout.signal.aborted ? `timed out after ${timeoutMs} ms` : "failed";
-        throw new SecurePayConnectionError(`${method} ${path} ${what} (${attempt + 1} attempt${attempt ? "s" : ""}).`, { cause });
+        const keyNote = idempotencyKey ? ` The gateway may have done it: retry with Idempotency-Key ${idempotencyKey}.` : "";
+        throw new SecurePayConnectionError(`${method} ${path} ${what} (${attempt + 1} attempt${attempt ? "s" : ""}).${keyNote}`, {
+          cause,
+          idempotencyKey,
+          attempts: attempt + 1,
+        });
       } finally {
         clearTimeout(timer);
       }
@@ -212,8 +270,8 @@ export class SecurePay {
       }
 
       const requestId = response.headers.get("securepay-request-id");
-      const verified = this.#checkReply(response, text, requestId);
-      if (!response.ok) throw this.#apiError(response, parsed, requestId);
+      const verified = this.#checkReply(response, text, requestId, idempotencyKey);
+      if (!response.ok) throw this.#apiError(response, parsed, requestId, idempotencyKey);
       if (!parsed || typeof parsed !== "object") {
         throw new SecurePayAPIError({
           message: `The gateway sent a reply that is not JSON (HTTP ${response.status}).`,
@@ -222,6 +280,7 @@ export class SecurePay {
           code: "invalid_response",
           requestId,
           body: text,
+          idempotencyKey,
         });
       }
       return withMeta(parsed as T, {
@@ -235,19 +294,22 @@ export class SecurePay {
   }
 
   /** Checks the reply's signature when a signing secret is set. 401 replies are never signed. */
-  #checkReply(response: Response, text: string, requestId: string | null): boolean {
+  #checkReply(response: Response, text: string, requestId: string | null, idempotencyKey: string | null): boolean {
     if (!this.#signingSecret) return false;
     const header = response.headers.get(SIGNATURE_HEADER);
     // Unsigned 5xx replies can come from the proxy in front of the gateway (for example while it restarts).
     if (!header && (response.status === 401 || response.status >= 500)) return false;
     const result = checkSignature(text, header, this.#signingSecret);
     if (!result.ok) {
-      throw new SecurePaySignatureError(`Reply to request ${requestId ?? "(no request ID)"} failed the signature check: ${REASONS[result.reason]}`);
+      throw new SecurePaySignatureError(`Reply to request ${requestId ?? "(no request ID)"} failed the signature check: ${REASONS[result.reason]}`, {
+        idempotencyKey,
+        outcomeUnknown: true,
+      });
     }
     return true;
   }
 
-  #apiError(response: Response, parsed: unknown, requestId: string | null): SecurePayAPIError {
+  #apiError(response: Response, parsed: unknown, requestId: string | null, idempotencyKey: string | null): SecurePayAPIError {
     const err = errorBody(parsed);
     return new SecurePayAPIError({
       message: err?.message ?? `HTTP ${response.status} from the gateway.`,
@@ -258,6 +320,7 @@ export class SecurePay {
       requestId: err?.request_id ?? requestId,
       retryAfter: retryAfterSeconds(response.headers),
       body: parsed,
+      idempotencyKey,
     });
   }
 }

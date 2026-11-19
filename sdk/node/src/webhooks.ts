@@ -3,7 +3,7 @@ import { checkSignature, REASONS, type Payload } from "./signature.js";
 import type { SecurePayEvent } from "./types.js";
 
 export interface ConstructEventOptions {
-  /** Allowed clock difference in seconds. Default 300 (5 minutes). */
+  /** Allowed clock difference in seconds: 1 to 3,600. Default 300 (5 minutes). */
   toleranceSeconds?: number;
   /** Current time in unix seconds, for tests. */
   now?: number;

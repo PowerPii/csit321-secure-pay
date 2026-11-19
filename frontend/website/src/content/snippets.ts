@@ -28,14 +28,21 @@ const securepay = new SecurePay({
   signingSecret: process.env.SECUREPAY_SIGNING_SECRET, // also checks every reply's signature
 });
 
-const payment = await securepay.payments.create({
-  amount: 4290, // cents, SGD
-  currency: "SGD",
-  order_reference: "order_1042",
-  return_url: "https://shop.example/orders/1042",
-});
-// The SDK adds the Idempotency-Key and retries safely with it.
-// Send the customer to payment.checkout_url`,
+// 1. Save one key with the order BEFORE calling the gateway.
+//    (order.payment_key = randomUUID() from "node:crypto", in the same row as the order)
+// 2. Send that saved key on this call and on every retry, even after a restart.
+const payment = await securepay.payments.create(
+  {
+    amount: 4290, // cents, SGD
+    currency: "SGD",
+    order_reference: "order_1042",
+    return_url: "https://shop.example/orders/1042",
+  },
+  { idempotencyKey: order.payment_key },
+);
+// 3. Save payment.id with the order, then send the customer to payment.checkout_url.
+// If the call throws with err.outcomeUnknown, call it again with the same saved key:
+// within 24 hours you get the original payment back, never a second one.`,
   },
   {
     label: "Node.js",
@@ -45,7 +52,8 @@ const res = await fetch("${API_BASE}/payments", {
   method: "POST",
   headers: {
     Authorization: \`Bearer \${process.env.SECUREPAY_API_KEY}\`,
-    "Idempotency-Key": randomUUID(), // reuse only when retrying this order
+    // Saved with the order before this call (randomUUID()); reuse it on every retry.
+    "Idempotency-Key": order.paymentKey,
     "Content-Type": "application/json",
   },
   body: JSON.stringify({
@@ -57,7 +65,7 @@ const res = await fetch("${API_BASE}/payments", {
 });
 
 const payment = await res.json();
-// Send the customer to payment.checkout_url`,
+// Save payment.id with the order, then send the customer to payment.checkout_url`,
   },
   {
     label: "Python",
@@ -67,7 +75,8 @@ res = requests.post(
     "${API_BASE}/payments",
     headers={
         "Authorization": f"Bearer {os.environ['SECUREPAY_API_KEY']}",
-        "Idempotency-Key": str(uuid.uuid4()),  # reuse only when retrying
+        # saved with the order before this call (str(uuid.uuid4())); reuse on retries
+        "Idempotency-Key": order.payment_key,
     },
     json={
         "amount": 4290,  # cents, SGD
@@ -186,10 +195,11 @@ curl -X POST ${API_BASE}/payments/pay_4fJ8.../capture \\
   -H "Authorization: Bearer sp_test_..." \\
   -H "Idempotency-Key: $(uuidgen)" -d '{}'
 
-# then refund part of it
+# then refund part of it: each refund is its own operation with its own key,
+# saved with your refund record before the call and reused only to retry that refund
 curl -X POST ${API_BASE}/payments/pay_4fJ8.../refunds \\
   -H "Authorization: Bearer sp_test_..." \\
-  -H "Idempotency-Key: $(uuidgen)" -d '{ "amount": 690, "reason": "item returned" }'`,
+  -H "Idempotency-Key: $REFUND_KEY" -d '{ "amount": 690, "reason": "item returned" }'`,
   },
 ];
 
@@ -202,7 +212,8 @@ export const SDK_INSTALL: Snippet[] = [
 export const SDK_USAGE: Snippet[] = [
   {
     label: "Payments",
-    code: `import { SecurePay, SecurePayAPIError } from "${SDK_PACKAGE}";
+    code: `import { randomUUID } from "node:crypto";
+import { SecurePay, SecurePayAPIError, SecurePayError } from "${SDK_PACKAGE}";
 
 const securepay = new SecurePay({
   apiKey: process.env.SECUREPAY_API_KEY,             // sp_test_...
@@ -213,15 +224,19 @@ const securepay = new SecurePay({
 const payment = await securepay.payments.retrieve("pay_4fJ8kQ2mZx7RtL9vNc3bH1sD");
 
 if (payment.status === "authorised") {
-  await securepay.payments.capture(payment.id);                  // all of it
-  // or: await securepay.payments.capture(payment.id, { amount: 3000 });
+  await securepay.payments.capture(payment.id, {}, { idempotencyKey: order.capture_key }); // all of it
+  // or: capture(payment.id, { amount: 3000 }, { idempotencyKey: order.capture_key })
 }
 
+// One saved key per refund: two partial refunds are two keys.
+const refund = await db.refunds.insert({ order_id: order.id, amount: 1500, key: randomUUID() });
 try {
-  await securepay.refunds.create(payment.id, { amount: 1500, reason: "One item returned" });
+  await securepay.refunds.create(payment.id, { amount: refund.amount, reason: "One item returned" }, { idempotencyKey: refund.key });
 } catch (err) {
   if (err instanceof SecurePayAPIError && err.code === "refund_exceeds_refundable") {
     // more than is left to refund
+  } else if (err instanceof SecurePayError && err.outcomeUnknown) {
+    // no usable reply: retry later with refund.key (err.idempotencyKey), or check refunds.list first
   } else throw err;
 }`,
   },

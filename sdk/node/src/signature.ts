@@ -4,6 +4,15 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 export const SIGNATURE_HEADER = "SecurePay-Signature";
 /** Default allowed clock difference, in seconds (the gateway's webhook rule: 5 minutes). */
 export const DEFAULT_TOLERANCE_SECONDS = 300;
+/** Largest allowed `toleranceSeconds` (1 hour). A larger window makes replays easier. */
+export const MAX_TOLERANCE_SECONDS = 3600;
+
+function checkTolerance(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 1 || value > MAX_TOLERANCE_SECONDS) {
+    throw new RangeError(`toleranceSeconds must be a number of seconds from 1 to ${MAX_TOLERANCE_SECONDS}; got ${String(value)}.`);
+  }
+  return value;
+}
 
 export type Payload = string | Uint8Array;
 
@@ -51,9 +60,10 @@ export function checkSignature(
     else if (key === "v1" && /^[0-9a-f]{64}$/.test(value)) given.push(value);
   }
   if (timestamp === null || given.length === 0) return { ok: false, reason: "malformed_header" };
-  const tolerance = options.toleranceSeconds ?? DEFAULT_TOLERANCE_SECONDS;
+  const tolerance = checkTolerance(options.toleranceSeconds ?? DEFAULT_TOLERANCE_SECONDS);
   const now = options.now ?? Math.floor(Date.now() / 1000);
-  if (tolerance > 0 && Math.abs(now - timestamp) > tolerance) return { ok: false, reason: "timestamp_out_of_range" };
+  if (!Number.isFinite(now)) throw new RangeError(`now must be a unix time in seconds; got ${String(now)}.`);
+  if (Math.abs(now - timestamp) > tolerance) return { ok: false, reason: "timestamp_out_of_range" };
   const expected = Buffer.from(computeSignature(bytes, secret, timestamp), "hex");
   const match = given.some((g) => timingSafeEqual(expected, Buffer.from(g, "hex")));
   return match ? { ok: true, timestamp } : { ok: false, reason: "no_match" };
