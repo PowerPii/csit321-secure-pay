@@ -11,3 +11,4 @@ FROM caddy:2
 COPY --from=frontend /src/frontend/checkout/dist /srv/checkout
 COPY --from=frontend /src/frontend/dashboard/dist /srv/dashboard
 COPY deploy/Caddyfile.prod /etc/caddy/Caddyfile
+COPY deploy/caddy/old-domain.caddy.tmpl /etc/caddy/old-domain.caddy.tmpl
