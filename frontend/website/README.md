@@ -21,7 +21,7 @@ npm run build    # type-check and build to dist/
 
 `vercel.json` rewrites every path to `index.html` so routes like `/pricing` work on reload, and adds basic security headers.
 
-Optional environment variable: `VITE_CONTACT_EMAIL`. When set, the contact form opens the visitor's email app addressed to it. When unset, the form points visitors to GitHub issues instead.
+Optional environment variable: `VITE_CONTACT_EMAIL`. When set, the contact form opens the visitor's email app addressed to it. When unset, the form says nothing was sent and points visitors to the developer guide and status page (the repository is private, so a GitHub issue link would 404 for them).
 
 Optional environment variable: `VITE_GATEWAY_URL` (default `https://gateway.securepaysg.me`). The developer docs use it for the base URL in code samples and the sign-up and dashboard links. Set it in Vercel when the server moves, then redeploy.
 

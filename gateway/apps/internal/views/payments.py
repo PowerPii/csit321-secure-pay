@@ -5,6 +5,7 @@ every merchant read-only (FR-ADM-06), and each detail view they open is audited.
 cancel and refund go through the same service functions as the merchant API, so the rules,
 row locks, outbox events and audit entries are identical (actor type "staff").
 """
+import re
 from datetime import datetime, time, timedelta
 
 from django.db.models import IntegerField, OuterRef, Q, Subquery, Sum
@@ -82,6 +83,14 @@ def filter_payments(payments, params, staff: StaffAccount):
     if query:
         match = (Q(reference__iexact=query) | Q(public_id=query)
                  | Q(order_reference__icontains=query))
+        # The reference on the customer's receipt finds the payment however it is typed
+        # ("sp 7kq4 m2xd"), and a refund receipt's RF-... reference finds its payment:
+        # one public reference from receipt to dashboard (completion audit, 19 Nov 2026).
+        reference = public_reference(query)
+        if reference and reference.startswith("SP-"):
+            match |= Q(reference=reference)
+        elif reference:
+            match |= Q(pk__in=Refund.objects.filter(reference=reference).values("payment_id"))
         if "@" in query:
             match |= Q(customer_email__iexact=query)
         payments = payments.filter(match)
@@ -93,6 +102,16 @@ def filter_payments(payments, params, staff: StaffAccount):
     if params.get("attention") == "escalated":
         payments = payments.filter(pk__in=_escalated_ops().values("payment_id"))
     return payments
+
+
+_REFERENCE_NOISE = re.compile(r"[\s\-_.]+")
+_REFERENCE = re.compile(r"(SP|RF)([0-9A-Z]{4})([0-9A-Z]{4})")
+
+
+def public_reference(raw: str) -> str | None:
+    """'sp 7kq4 m2xd' -> 'SP-7KQ4-M2XD', 'rf-abcd-2345' -> 'RF-ABCD-2345'; else None."""
+    match = _REFERENCE.fullmatch(_REFERENCE_NOISE.sub("", raw).upper())
+    return f"{match[1]}-{match[2]}-{match[3]}" if match else None
 
 
 def summary(staff: StaffAccount) -> dict:

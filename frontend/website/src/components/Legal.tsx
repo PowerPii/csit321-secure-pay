@@ -83,10 +83,17 @@ const LEGAL_TEXT = {
   "& code": { fontSize: "0.9em", bgcolor: brand.mist, px: 0.5, borderRadius: "4px" },
 };
 
-/** A table that scrolls sideways on a phone instead of widening the page. */
-export function LegalTable({ head, rows }: { head: string[]; rows: ReactNode[][] }) {
+/** A table that scrolls sideways on a phone instead of widening the page. The scroll area is
+ *  focusable and named, so a keyboard user can scroll it with the arrow keys (WCAG 2.1.1,
+ *  axe scrollable-region-focusable). */
+export function LegalTable({ head, rows, label }: { head: string[]; rows: ReactNode[][]; label?: string }) {
   return (
-    <Box sx={{ overflowX: "auto", mb: 2 }}>
+    <Box
+      role="region"
+      aria-label={label ?? `Table: ${head.join(", ")}`}
+      tabIndex={0}
+      sx={{ overflowX: "auto", mb: 2, "&:focus-visible": { outline: `2px solid ${brand.brass}`, outlineOffset: 2 } }}
+    >
       <table>
         <thead>
           <tr>

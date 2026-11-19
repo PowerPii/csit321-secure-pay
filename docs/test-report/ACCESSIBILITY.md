@@ -84,6 +84,25 @@ technical detail; all pass.
 | Guest status locked: "…locked for 15 minutes. Try again after HH:MM, or contact the shop" | ✓ | ✓ | ✓ | ✓ |
 | Form errors, e.g. "Enter the expiry date as MM / YY." | ✓ | ✓ | ✓ | ✓ |
 
+## Public website (19 November 2026, completion audit)
+
+The 19 November audit's Chrome sweep of 12 public pages and the fallback route at 1280 and
+320 px found four routes with issues. Fixed and re-scanned with axe-core 4.10 in Chromium at
+both widths against a local build of the website (`vite preview`, live gateway status data):
+
+| Route | Finding | Fix | After |
+| --- | --- | --- | --- |
+| /developers/api/explorer | 22 (desktop) / 18 (phone) colour-contrast: Redoc's 2xx response text and tabs in `brand.allow` (3.2:1) | Redoc `success` colour set to the darker #146C44 used by the status chips | 0 |
+| /status, /privacy, /terms | link-in-text-block: links told apart by colour alone | Site-wide link default is underlined; only link lists (header, footer, "on this page") underline on hover | 0 |
+| /privacy (phone) | 4 scrollable tables not reachable by keyboard | Each table's scroll area is a named, focusable region | 0 |
+| Fallback (404) | No H1 | The heading is the page's H1; a "Contact the team" button was added | H1 present |
+| /status (found in the re-scan with live data) | 450 aria-prohibited-attr on the uptime bars' tooltips; heading order | Tooltips describe instead of label; component names are H2 | 0 |
+
+The explorer still has Redoc's own heading-order best-practice findings (it renders its
+operation headings as h5); they are outside WCAG A/AA. Every CI run now also walks the public
+site in `frontend/website/src/journey.test.tsx` (axe WCAG 2.2 A/AA without colour contrast,
+which jsdom cannot compute). People testing is scripted in `FIRST-TIME-USER-SESSION.md`.
+
 ## What this does not cover
 
 - **No session with a screen-reader user.** Names, roles, live regions and focus were

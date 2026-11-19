@@ -103,7 +103,7 @@ export default function PaymentsList() {
             {(merchants.data?.data ?? []).map((m) => <MenuItem key={m.id} value={m.id}>{m.name}</MenuItem>)}
           </TextField>
         )}
-        <TextField label="Search" placeholder="Reference or order #" defaultValue={filters.q} key={filters.q}
+        <TextField label="Search" placeholder="SP- or RF- reference, order # or email" defaultValue={filters.q} key={filters.q}
           onKeyDown={(e) => { if (e.key === "Enter") set("q", (e.target as HTMLInputElement).value.trim()); }}
           onBlur={(e) => { if (e.target.value.trim() !== filters.q) set("q", e.target.value.trim()); }} />
       </Box>

@@ -168,7 +168,9 @@ def test_gateway_down_then_retry_reuses_the_idempotency_key(client, gateway):
     r = place_order(client)
     order = Order.objects.get()
     assert r["Location"] == f"/orders/{order.number}"
-    assert b"couldn&#x27;t start the payment" in client.get(r["Location"]).content
+    page = client.get(r["Location"]).content
+    assert b"couldn&#x27;t reach SecurePay to start your payment" in page
+    assert b"you won&#x27;t pay twice" in page and b"Continue to payment" in page
     key = order.latest_attempt.idempotency_key
     gateway.mode = "normal"
     r = client.post(f"/orders/{order.number}/pay")

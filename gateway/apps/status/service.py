@@ -178,10 +178,14 @@ def _current(cid, latest, now, problems) -> str:
 
 
 def overall(states: dict[str, str]) -> str:
+    """The page's headline. "unknown" (some part has no recent check and none is down) is
+    kept apart from "operational": a missing measurement is not a passing one."""
     if "outage" in (states["api"], states["database"]):
         return "major_outage"
     if "outage" in states.values():
         return "partial_outage"
+    if "unknown" in states.values():
+        return "unknown"
     return "operational"
 
 
@@ -242,6 +246,8 @@ def build_status(now: datetime | None = None) -> dict:
     return {
         "status": overall(states),
         "updated_at": rfc3339(now),
+        # When the worker last checked every part; the page shows it as "Last checked".
+        "checked_at": rfc3339(latest[0]) if latest else None,
         "notice": notice(),
         "time_zone": settings.DASHBOARD_TIME_ZONE,
         "check_every_minutes": int(SAMPLE_EVERY.total_seconds() // 60),
@@ -261,6 +267,7 @@ def database_down_status(now: datetime | None = None) -> dict:
     return {
         "status": "major_outage",
         "updated_at": rfc3339(now),
+        "checked_at": None,
         "notice": notice(),
         "time_zone": settings.DASHBOARD_TIME_ZONE,
         "check_every_minutes": int(SAMPLE_EVERY.total_seconds() // 60),

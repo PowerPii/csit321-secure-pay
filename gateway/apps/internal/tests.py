@@ -315,6 +315,29 @@ def test_refund_rows_hold_no_card_data(operator, shop, fake_sim):
     assert "4242424242424242" not in str(detail)
 
 
+def test_the_receipt_reference_finds_the_payment_however_it_is_typed(operator, other_shop,
+                                                                     shop, fake_sim):
+    """One public reference from receipt to dashboard (completion audit, 19 Nov 2026): the
+    SP- reference as a customer reads it out, and a refund receipt's RF- reference."""
+    payment = pay(shop)
+    pay(shop, order_reference="ORD-2")
+    theirs = pay(other_shop)
+
+    def get(q):
+        return [r["id"] for r in operator.get("/internal/payments", {"q": q}).json()["data"]]
+
+    ref = payment.reference  # SP-XXXX-XXXX
+    for typed in (ref, ref.lower(), ref.replace("-", " "), ref.replace("-", ""), f" {ref} "):
+        assert get(typed) == [payment.public_id], typed
+    post(operator, f"/internal/payments/{payment.public_id}/capture")
+    post(operator, f"/internal/payments/{payment.public_id}/refunds", {"amount": 500})
+    refund = Refund.objects.get()
+    assert get(refund.reference) == [payment.public_id]
+    assert get(refund.reference.lower().replace("-", "")) == [payment.public_id]
+    # Scope still applies: another merchant's reference finds nothing for this operator.
+    assert get(theirs.reference) == []
+
+
 # --- Overview (demo-day polish) -------------------------------------------------------------
 
 def test_overview_counts_today_and_is_scoped_to_the_operators_merchant(operator, admin, shop,

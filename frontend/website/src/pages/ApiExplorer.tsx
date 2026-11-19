@@ -46,7 +46,9 @@ const REDOC_OPTIONS = {
   theme: {
     colors: {
       primary: { main: brand.navy },
-      success: { main: brand.allow },
+      // Darker than brand.allow: Redoc writes 2xx response text in this colour on a light tint,
+      // and brand.allow there is 3.2:1 (axe color-contrast, completion audit 19 Nov 2026).
+      success: { main: "#146C44" },
       warning: { main: brand.verify },
       error: { main: brand.block },
       text: { primary: brand.ink, secondary: brand.muted },

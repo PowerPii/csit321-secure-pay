@@ -29,6 +29,14 @@ class PublicStatusView(APIView):
     throttle_classes: ClassVar = [AnonRateThrottle]
     schema = None
 
+    def check_throttles(self, request):
+        # The rate limit's counter lives in the database. If that cannot be read, answer
+        # anyway: this page exists to say the database is down (completion audit, 19 Nov 2026).
+        try:
+            super().check_throttles(request)
+        except DatabaseError:
+            logger.warning("Status page: rate limit counter not readable")
+
     def get(self, request):
         try:
             data = cache.get(CACHE_KEY)

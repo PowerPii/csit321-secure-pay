@@ -62,7 +62,9 @@ def test_overall_status():
     assert service.overall(up) == "operational"
     assert service.overall({**up, "shop": "outage"}) == "partial_outage"
     assert service.overall({**up, "database": "outage"}) == "major_outage"
-    assert service.overall({**up, "network": "unknown"}) == "operational"
+    # No recent check is not the same as a passing one (completion audit, 19 Nov 2026).
+    assert service.overall({**up, "network": "unknown"}) == "unknown"
+    assert service.overall({**up, "network": "unknown", "shop": "outage"}) == "partial_outage"
 
 
 @pytest.mark.django_db(databases=["default", "vault"])
@@ -111,6 +113,7 @@ def test_status_json(client, settings):
     assert "public" in response["Cache-Control"]
     data = response.json()
     assert data["status"] == "operational"
+    assert data["checked_at"] is not None
     assert data["notice"] == "Planned upgrade on Saturday 10 pm SGT."
     assert [c["id"] for c in data["components"]] == service.IDS
     network = next(c for c in data["components"] if c["id"] == "network")
@@ -144,5 +147,28 @@ def test_status_json_when_the_database_cannot_be_read(client, monkeypatch):
 
     monkeypatch.setattr(service, "build_status", broken)
     data = client.get("/status.json").json()
+    assert data["status"] == "major_outage"
+    assert {c["id"]: c["status"] for c in data["components"]}["database"] == "outage"
+
+
+@pytest.mark.django_db(databases=["default", "vault"])
+def test_status_json_when_the_rate_limit_counter_cannot_be_read(client, monkeypatch):
+    """The rate limit counts in the database too; losing it must still give the degraded
+    answer, not a 500 (completion audit, 19 Nov 2026)."""
+    from django.db import DatabaseError
+
+    from apps.common import throttling
+
+    def broken(self, request, view):
+        raise DatabaseError("down")
+
+    def no_cache(*args, **kwargs):
+        raise DatabaseError("down")
+
+    monkeypatch.setattr(throttling.SimpleRateThrottle, "allow_request", broken)
+    monkeypatch.setattr("apps.status.views.cache.get", no_cache)
+    response = client.get("/status.json")
+    assert response.status_code == 200
+    data = response.json()
     assert data["status"] == "major_outage"
     assert {c["id"]: c["status"] for c in data["components"]}["database"] == "outage"

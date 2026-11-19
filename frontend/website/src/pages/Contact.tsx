@@ -1,11 +1,11 @@
 import { Alert, Box, Button, Card, CardContent, Link, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import Grid from "@mui/material/Grid2";
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
-import GitHubIcon from "@mui/icons-material/GitHub";
 import { useState, type FormEvent } from "react";
+import { Link as RouterLink } from "react-router-dom";
 import { PageHero, Section } from "../components/Section";
 import { usePageTitle } from "../components/usePageTitle";
-import { CONTACT_EMAIL, REPO_URL } from "../content/site";
+import { CONTACT_EMAIL } from "../content/site";
 import { brand } from "../theme";
 
 const TOPICS = ["Ask for a live demo", "Question about the project", "Developer or API question", "Report a security issue", "Privacy or personal data request", "Something else"];
@@ -54,14 +54,20 @@ export default function Contact() {
                           If it didn’t, write to <Link href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</Link>.
                         </>
                       ) : (
-                        "This form doesn’t send messages yet. The quickest way to reach the team is an issue on our GitHub repository."
+                        "This form isn’t connected to an inbox yet, so nothing was sent. The developer guide and the status page answer most questions about the live demo."
                       )}
                     </Typography>
                     <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} justifyContent="center">
                       {!CONTACT_EMAIL && (
-                        <Button href={`${REPO_URL}/issues/new`} target="_blank" rel="noopener" variant="contained" startIcon={<GitHubIcon />}>
-                          Open a GitHub issue
-                        </Button>
+                        <>
+                          {/* Public destinations only: the source repository is private, so an issue link 404s for visitors. */}
+                          <Button component={RouterLink} to="/developers" variant="contained">
+                            Read the developer guide
+                          </Button>
+                          <Button component={RouterLink} to="/status" variant="outlined">
+                            Check the status page
+                          </Button>
+                        </>
                       )}
                       <Button onClick={() => setSent(false)}>Back to the form</Button>
                     </Stack>
@@ -135,7 +141,7 @@ export default function Contact() {
             <Box sx={{ p: 3, borderRadius: 4, bgcolor: "#fff", border: `1px solid ${brand.line}` }}>
               <Typography sx={{ fontWeight: 600, mb: 1 }}>Found a security problem?</Typography>
               <Typography sx={{ color: "text.secondary", fontSize: 15, lineHeight: 1.6 }}>
-                Choose “Report a security issue” above, and please keep exploit details out of public GitHub issues.
+                Choose “Report a security issue” above, and please keep exploit details out of anything public.
               </Typography>
             </Box>
           </Grid>

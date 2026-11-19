@@ -73,7 +73,12 @@ export const theme = createTheme({
     MuiChip: { styleOverrides: { root: { fontWeight: 600 } } },
     // Card titles sit under a section's h2, so they are h3 in the outline whatever their size.
     MuiTypography: { defaultProps: { variantMapping: { h4: "h3", h5: "h3", h6: "h3" } } },
-    MuiLink: { defaultProps: { underline: "hover" } },
+    // Links inside text are underlined so colour is not the only cue (WCAG 1.4.1, axe
+    // link-in-text-block). Lists of links (header, footer, "on this page") opt into "hover".
+    MuiLink: {
+      defaultProps: { underline: "always" },
+      styleOverrides: { root: { textUnderlineOffset: "0.18em", textDecorationThickness: "1px" } },
+    },
     MuiTableCell: { styleOverrides: { root: { borderColor: brand.line } } },
     // Wide tables scroll sideways on phones; focusable so the keyboard can scroll them too.
     MuiTableContainer: { defaultProps: { tabIndex: 0 } as object },

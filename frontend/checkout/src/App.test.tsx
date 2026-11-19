@@ -125,6 +125,25 @@ describe("checkout page", () => {
     expect(cardCall.body).toEqual({ number: "4242424242424242", expiry_month: 12, expiry_year: 2030, cvc: "123", privacy_consent: true });
   });
 
+  it("never reads a lost pay reply as a failure to try again", async () => {
+    mockFetch({
+      "/card": () => json(session({ card: { brand: "visa", last4: "4242" } })),
+      "/submit": () => { throw new TypeError("connection reset"); },
+      [SID]: () => json(session({ card: { brand: "visa", last4: "4242" } })),
+    });
+    render(<App path={`/pay/${SID}`} />);
+    fireEvent.change(await screen.findByLabelText("Card number"), { target: { value: "4242 4242 4242 4242" } });
+    fireEvent.change(screen.getByLabelText("Expiry"), { target: { value: "1230" } });
+    fireEvent.change(screen.getByLabelText("CVV"), { target: { value: "123" } });
+    fireEvent.change(screen.getByLabelText("Name on card"), { target: { value: "Tan Wei Ming" } });
+    fireEvent.click(screen.getByRole("checkbox", { name: /I agree that SecurePay uses my details/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Pay S$ 89.90" }));
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("it may still go through");
+    expect(alert.textContent).toContain("won't charge you twice");
+    expect(alert.textContent).not.toMatch(/try again/i);
+  });
+
   it("explains a decline in plain words (C7)", async () => {
     mockFetch({ [SID]: () => json(session({ status: "declined", result: "declined", reference: "SP-AAAA-BBBB" })) });
     render(<App path={`/pay/${SID}`} />);
@@ -135,7 +154,14 @@ describe("checkout page", () => {
   it("asks the customer not to pay again when the bank did not answer", async () => {
     mockFetch({ [SID]: () => json(session({ status: "unresolved", result: "pending", reference: "SP-AAAA-BBBB" })) });
     render(<App path={`/pay/${SID}`} />);
-    expect(await screen.findByText("We're confirming your payment")).toBeTruthy();
+    expect(await screen.findByText("We're checking your payment")).toBeTruthy();
+    expect(document.body.textContent).toContain("Please don't pay again");
+    // The receipt's reference and status page, never a "try again" or a new payment.
+    expect(screen.getByText("Payment reference SP-AAAA-BBBB")).toBeTruthy();
+    expect(screen.getByRole("link", { name: /check this payment's status/i }).getAttribute("href"))
+      .toBe("/guest/status?ref=SP-AAAA-BBBB");
+    expect(screen.queryByRole("link", { name: /try (again|another card)/i })).toBeNull();
+    expect(document.body.textContent).not.toMatch(/try again/i);
   });
 
   it("shows the result once reconciliation settles a pending payment", async () => {
@@ -152,7 +178,7 @@ describe("checkout page", () => {
         },
       });
       render(<App path={`/pay/${SID}`} />);
-      expect(await screen.findByText("We're confirming your payment")).toBeTruthy();
+      expect(await screen.findByText("We're checking your payment")).toBeTruthy();
       await vi.advanceTimersByTimeAsync(10_000);
       expect(await screen.findByText("Payment successful")).toBeTruthy();
     } finally {

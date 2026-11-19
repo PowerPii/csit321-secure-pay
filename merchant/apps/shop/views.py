@@ -242,8 +242,12 @@ def _go_to_checkout(request, order: Order):
     try:
         attempt = payments.start_payment(order)
     except securepay.GatewayError:
-        messages.error(request, "We couldn't start the payment with SecurePay. Nothing was "
-                                "charged. Please try again in a moment.")
+        # The create may have reached SecurePay with its reply lost. "Continue" reuses the same
+        # attempt and Idempotency-Key, so it finds that payment instead of making a second one.
+        messages.error(request, "We couldn't reach SecurePay to start your payment. Nothing "
+                                "was charged. Use \u201cContinue to payment\u201d below when "
+                                "you're ready; it picks up the same payment, so you won't pay "
+                                "twice.")
         return redirect("shop-order", number=order.number)
     if not attempt.checkout_url:
         return redirect("shop-order", number=order.number)

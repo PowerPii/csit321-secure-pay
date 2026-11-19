@@ -92,7 +92,7 @@ function Detail({ payment }: { payment: PaymentDetail }) {
         <p className="alert" role="status">We are still confirming this payment with the bank. Please don't pay again.</p>
       )}
       <dl className="box">
-        <Row label="Reference">{payment.reference}</Row>
+        <Row label="Payment reference">{payment.reference}</Row>
         <Row label="Order">{payment.order_reference}</Row>
         {payment.card && <Row label="Card">{brandName(payment.card.brand)} •••• {payment.card.last4}</Row>}
         <Row label="Date">{formatDate(payment.created_at)}</Row>
@@ -114,7 +114,8 @@ function Detail({ payment }: { payment: PaymentDetail }) {
   );
 }
 
-const DARK = new Set(["Captured", "Authorised"]);
+// The customer wording from the gateway (apps/payments/labels.py): settled money is dark.
+const DARK = new Set(["Paid", "Refunded", "Partly refunded"]);
 function StatusBadge({ label }: { label: string }) {
   return <span className={`badge${DARK.has(label) ? " dark" : ""}`}>{label}</span>;
 }

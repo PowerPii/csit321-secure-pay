@@ -200,7 +200,7 @@ function CodeForm({ step, reference, email, onEdit, onResent, onView, onLocked }
       <div className="box step">
         <p className="step-label">Step 1 · Find your payment</p>
         <dl>
-          <Row label="Reference">{reference}</Row>
+          <Row label="Payment reference">{reference}</Row>
           <Row label="Email">{email}</Row>
         </dl>
         <p className="muted tiny">
@@ -240,7 +240,7 @@ function PaymentView({ payment, onDone }: { payment: GuestPayment; onDone: () =>
         </p>
       )}
       <dl className="box">
-        <Row label="Reference">{payment.reference}</Row>
+        <Row label="Payment reference">{payment.reference}</Row>
         {payment.card && <Row label="Card">{brandName(payment.card.brand)} •••• {payment.card.last4}</Row>}
         <Row label="Date">{formatDate(payment.created_at)}</Row>
         {payment.refunded_amount ? <Row label="Refunded">{money(payment.refunded_amount)}</Row> : null}

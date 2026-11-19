@@ -57,7 +57,7 @@ describe("axe scan of the customer pages (NFR-USE-02)", () => {
         attempts_remaining: 3, resend_available_at: null } }), "Check your email"],
       [session({ result: "approved", status: "authorised" }), "Payment successful"],
       [session({ result: "declined", status: "declined" }), "Payment declined"],
-      [session({ result: "pending", status: "unresolved" }), "We're confirming your payment"],
+      [session({ result: "pending", status: "unresolved" }), "We're checking your payment"],
     ];
     for (const [s, text] of pages) {
       serve({ [SID]: () => json(s) });
