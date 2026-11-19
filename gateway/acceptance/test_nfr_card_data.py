@@ -107,6 +107,7 @@ def test_nfr_con_02_and_enc_02_no_card_number_anywhere_after_a_full_run(
     browser = APIClient()
     data = keep(submit(big, CARDS["mastercard"], browser)).json()
     assert data["status"] == "verification_required", data
+    emails.send_due()  # the code email goes out through the outbox
     code = re.search(r"verification code is (\d{6})", mail.outbox[-1].body).group(1)
     keep(browser.post(f"/checkout/{big.checkout_session_id}/verify", {"code": code},
                       format="json"))

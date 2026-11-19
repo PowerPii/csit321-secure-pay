@@ -232,6 +232,8 @@ What was checked, and passed:
 | Live server | Headers, TLS versions, exposed paths (`/admin/`, `/api/schema/`, `/.env`, `/.git/`), HTTP to HTTPS, private simulator | Pass: TLS 1.2 and 1.3 only; HSTS, CSP, nosniff, frame protection; nothing sensitive exposed; Mailpit behind basic auth |
 
 Residual risks, unchanged by this pass: the demo inbox (Mailpit) receives every reset link and
-code, so its password protects every customer account; SEC-07b and SEC-08 above; no test by
+code, so its password protects every customer account (fixed 19 Nov 2026 after the Codex
+re-audit: real recipients now go straight to the provider and only made-up demo addresses
+reach Mailpit; codes are no longer in subjects, RUNBOOK.md 13b); SEC-07b and SEC-08 above; no test by
 someone outside the team; no denial-of-service testing; the Google Cloud account, firewall and
 server operating system were not reviewed.

@@ -390,6 +390,25 @@ EMAIL_HOST = env("EMAIL_HOST", "localhost")
 EMAIL_PORT = int(env("EMAIL_PORT", "1025"))
 EMAIL_TIMEOUT = 5
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", "SecurePay <no-reply@securepay.localhost>")
+# Real recipients and made-up demo ones take different routes (apps/common/mail_routing.py).
+# EMAIL_HOST above is the capture inbox (Mailpit). MAIL_PROVIDER_HOST empty = no provider:
+# real-looking addresses are then captured too (MAIL_CAPTURE_REAL=1, laptops and CI) or not
+# sent at all (MAIL_CAPTURE_REAL=0, the servers), so the shared demo inbox never holds them.
+_provider_port = int(env("MAIL_PROVIDER_PORT", "587"))
+MAIL_PROVIDER = {
+    "host": env("MAIL_PROVIDER_HOST", ""),
+    "port": _provider_port,
+    "username": env("MAIL_PROVIDER_USERNAME", ""),
+    "password": secret("mail_provider_password", ""),
+    # 465/2465 are implicit TLS; 587/2587/25 upgrade with STARTTLS. Never plain text.
+    "use_ssl": _provider_port in (465, 2465),
+    "use_tls": _provider_port not in (465, 2465),
+}
+MAIL_CAPTURE_REAL = env("MAIL_CAPTURE_REAL", "1") == "1"
+MAIL_REAL_RECIPIENTS = env("MAIL_REAL_RECIPIENTS", "")  # optional allowlist (regex)
+MAIL_SYNTHETIC_RECIPIENTS = env("MAIL_SYNTHETIC_RECIPIENTS", "") or (
+    "(?i)@(example\\.(com|org|net)|demoshop\\.sg|securepay\\.sg"
+    "|[a-z0-9.-]+\\.(test|invalid|localhost|example))$")
 
 # NFR-PRI-01: every log line goes through a filter that masks email addresses and phone
 # numbers (apps/common/logmask.py). Django's own loggers keep their defaults otherwise.

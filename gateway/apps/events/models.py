@@ -109,6 +109,9 @@ class OutboundEmail(models.Model):
     guest status reply takes the same time whether or not a code is sent. The body is kept
     only as ciphertext (FIELD_ENCRYPTION_KEY) and is wiped once the email is sent, given up
     or past `discard_after`; a one-time code never stays in the database longer than that.
+    Subjects are stored in plain text, so they never carry a code or a link.
+    `public_id` is the stable message ID across retries (Message-ID and the provider's
+    idempotency key), so a retry after a lost reply is not delivered twice.
     """
 
     class Kind(models.TextChoices):
@@ -119,12 +122,22 @@ class OutboundEmail(models.Model):
         PASSWORD_RESET = "password_reset"  # nosec B105
         EMAIL_VERIFICATION = "email_verification"
         ACCOUNT_NOTICE = "account_notice"
+        # Codex re-audit (19 Nov 2026): every email goes through the outbox, so each one has a
+        # recorded outcome and only the worker (which has outbound network) sends mail.
+        VERIFICATION_CODE = "verification_code"  # checkout code (FR-CHK-06)
+        SECURITY_NOTICE = "security_notice"  # staff lockout / backup code used (FR-ACC-15)
 
     class Status(models.TextChoices):
-        PENDING = "pending"
-        SENT = "sent"
-        FAILED = "failed"  # attempts used up; kept for the record, body wiped
-        DISCARDED = "discarded"  # no longer worth sending (an expired code)
+        PENDING = "pending"  # queued, or waiting to retry (attempt_count, last_error)
+        SENT = "sent"  # accepted by the route's server: the provider, or the capture inbox
+        FAILED = "failed"  # attempts used up or refused for good; kept, body wiped
+        DISCARDED = "discarded"  # expired before it could be sent (a code or reset link)
+        SUPPRESSED = "suppressed"  # real recipient with no permitted route; never sent
+
+    class Route(models.TextChoices):
+        CAPTURE = "capture"  # Mailpit, the demo inbox (made-up addresses only on servers)
+        PROVIDER = "provider"  # the real mail provider (Resend)
+        SUPPRESS = "suppress"  # not sent
 
     public_id = models.CharField(max_length=32, unique=True, editable=False)  # eml_...
     kind = models.CharField(max_length=24, choices=Kind.choices)
@@ -140,6 +153,10 @@ class OutboundEmail(models.Model):
     discard_after = models.DateTimeField(null=True, blank=True)
     last_error = models.CharField(max_length=64, blank=True)  # error class only
     sent_at = models.DateTimeField(null=True, blank=True)
+    route = models.CharField(max_length=16, choices=Route.choices, blank=True)
+    # Set when a worker claims the row; completion only counts with the same token, so a
+    # worker whose lease ran out cannot overwrite another's result.
+    claim_token = models.CharField(max_length=32, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

@@ -64,8 +64,13 @@ services:
       SIMULATOR_URL: https://simulator.securepay.internal:8443
       SIMULATOR_CA_BUNDLE: *internal-ca
       TRUSTED_PROXY_HOPS: "1"
+      # Emails are queued in the outbox and sent by gateway-worker (this container has no
+      # outbound network). Should anything send from here, a real recipient is dropped,
+      # never put in the demo inbox (apps/common/mail_routing.py).
       EMAIL_HOST: mailpit
       EMAIL_PORT: "1025"
+      MAIL_CAPTURE_REAL: "0"
+      MAIL_SYNTHETIC_RECIPIENTS: ${MAIL_RELAY_BLOCKED:-}
       # The bare domain, so the mail provider verifies one name (SPF/DKIM, RUNBOOK.md 13b).
       DEFAULT_FROM_EMAIL: SecurePay <no-reply@${DOMAIN}>
       RISK_MODEL_VERSION: ${RISK_MODEL_VERSION:-}
@@ -104,8 +109,22 @@ services:
       SIMULATOR_CA_BUNDLE: *internal-ca
       # Webhooks: public addresses only, public certificates (system trust store). No
       # WEBHOOK_ALLOWED_PRIVATE_HOSTS: the shop is reached at its public name like any merchant.
+      # Email (RUNBOOK.md 13b, apps/common/mail_routing.py). Made-up demo recipients
+      # (MAIL_RELAY_BLOCKED, default example.com, demoshop.sg, securepay.sg, .test) go to
+      # Mailpit only. Real recipients go straight to the provider (MAIL_RELAY_HOST, e.g.
+      # smtp.resend.com, STARTTLS on 587) if they match MAIL_RELAY_MATCHING (empty = all),
+      # and are never copied into Mailpit. MAIL_RELAY_HOST empty = real recipients are not
+      # sent at all (recorded as suppressed). The deploy/.env names are kept from the old
+      # Mailpit relay, so nothing in deploy/.env has to change.
       EMAIL_HOST: mailpit
       EMAIL_PORT: "1025"
+      MAIL_PROVIDER_HOST: ${MAIL_RELAY_HOST:-}
+      MAIL_PROVIDER_PORT: ${MAIL_RELAY_PORT:-587}
+      MAIL_PROVIDER_USERNAME: ${MAIL_RELAY_USERNAME:-}
+      MAIL_PROVIDER_PASSWORD: ${MAIL_RELAY_PASSWORD:-}
+      MAIL_REAL_RECIPIENTS: ${MAIL_RELAY_MATCHING:-}
+      MAIL_SYNTHETIC_RECIPIENTS: ${MAIL_RELAY_BLOCKED:-}
+      MAIL_CAPTURE_REAL: "0"
       # The bare domain, so the mail provider verifies one name (SPF/DKIM, RUNBOOK.md 13b).
       DEFAULT_FROM_EMAIL: SecurePay <no-reply@${DOMAIN}>
       GUEST_STATUS_URL: https://gateway.${DOMAIN}/guest/status
@@ -127,7 +146,7 @@ services:
       - card_fingerprint_key
       - simulator_api_key
       - simulator_signing_secret
-    # egress: outbound HTTPS to merchants' webhook URLs.
+    # egress: outbound HTTPS to merchants' webhook URLs, and SMTP to the mail provider.
     networks: [data, gateway, egress]
 
   simulator:
@@ -234,28 +253,15 @@ services:
       merchant:
         aliases: ["gateway.${DOMAIN}"]
 
-  # Every email lands here first (the demo inbox at mail.<domain>). With MAIL_RELAY_HOST set
-  # in deploy/.env, Mailpit also passes a copy of each message whose recipient matches
-  # MAIL_RELAY_MATCHING on to a real provider (Resend or Brevo, RUNBOOK.md 13b), so it reaches
-  # a real inbox. MAIL_RELAY_HOST empty = Mailpit only, nothing leaves the server (the
-  # demo-day fallback). Recipients matching MAIL_RELAY_BLOCKED (made-up demo addresses)
-  # are never relayed, so the provider sees no bounces. The apps do not change either way.
+  # The demo inbox at mail.<domain>: capture only. It gets made-up demo addresses only
+  # (on this server real recipients go straight to the provider from gateway-worker, or are
+  # not sent), so its shared password never shows a real person's code or reset link
+  # (Codex re-audit, 19 Nov 2026). It relays nothing and has no outbound network.
   mailpit:
     image: axllent/mailpit:v1.34.0@sha256:23a2ef85bc50853ab3093645d1d64679afd8887e89da5e48a88940c172591a4e
     restart: unless-stopped
     logging: *logging
-    environment:
-      MP_SMTP_RELAY_HOST: ${MAIL_RELAY_HOST:-}
-      MP_SMTP_RELAY_PORT: ${MAIL_RELAY_PORT:-587}
-      MP_SMTP_RELAY_STARTTLS: "true"
-      MP_SMTP_RELAY_AUTH: ${MAIL_RELAY_AUTH:-plain}
-      MP_SMTP_RELAY_USERNAME: ${MAIL_RELAY_USERNAME:-}
-      MP_SMTP_RELAY_PASSWORD: ${MAIL_RELAY_PASSWORD:-}
-      MP_SMTP_RELAY_MATCHING: ${MAIL_RELAY_MATCHING:-}
-      MP_SMTP_RELAY_ALLOWED_RECIPIENTS: ${MAIL_RELAY_MATCHING:-}
-      MP_SMTP_RELAY_BLOCKED_RECIPIENTS: ${MAIL_RELAY_BLOCKED:-(?i)@(example\.(com|org|net)|demoshop\.sg|securepay\.sg|[a-z0-9.-]+\.(test|invalid|localhost))$$}
-    # egress: only for the relay to the mail provider (port 587).
-    networks: [gateway, egress]
+    networks: [gateway]
 
   # tests/integration against this server, from inside it (the simulator's test controls
   # and the demo inbox are private). Never starts with `up`; run it on demand:

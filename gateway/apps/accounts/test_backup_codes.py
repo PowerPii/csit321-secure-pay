@@ -6,6 +6,7 @@ from django_otp.plugins.otp_totp.models import TOTPDevice
 from apps.accounts import backup_codes
 from apps.accounts.models import BackupCode, StaffAccount
 from apps.audit.models import AuditEvent
+from apps.events.emails import send_due
 from conftest import current_totp, make_staff_user
 
 from .tests import PASSWORD, csrf_client, login, totp
@@ -76,6 +77,7 @@ def test_backup_code_signs_in_once_and_emails_the_holder(admin):
     event = AuditEvent.objects.get(action="staff.signed_in", actor_id=admin.public_id)
     assert event.details == {"mfa_setup": False, "method": "backup_code",
                              "backup_codes_left": 9}
+    send_due()  # security notices go through the email outbox
     assert len(mail.outbox) == 1 and "backup code was used" in mail.outbox[0].subject
     assert "9 backup codes left" in mail.outbox[0].body
 

@@ -7,7 +7,7 @@ Local / demo stack:
 
 Public server (sprint 9), step by step in **[`RUNBOOK.md`](RUNBOOK.md)**:
 
-- `compose.prod.yaml`: the same services with production settings (`DJANGO_DEBUG=0`, Django admin off, simulator private, webhooks to public addresses only, capped logs) and an on-demand `integration-tests` service. Mailpit can relay emails to a real provider (`MAIL_RELAY_*` in `.env`, RUNBOOK.md 13b).
+- `compose.prod.yaml`: the same services with production settings (`DJANGO_DEBUG=0`, Django admin off, simulator private, webhooks to public addresses only, capped logs) and an on-demand `integration-tests` service. gateway-worker sends real recipients straight to a mail provider (`MAIL_RELAY_*` in `.env`) and only made-up demo addresses to Mailpit (RUNBOOK.md 13b).
 - `Caddyfile.prod` + `caddy/Dockerfile`: Let's Encrypt for `gateway.`, `shop.` and `mail.<domain>` (`securepaysg.me` on the live server, or sslip.io), Mailpit behind basic auth, 308 redirects from `OLD_DOMAIN`'s names while moving (`caddy/old-domain.caddy.tmpl`), `/admin*` answered with 404, and the private `:8443` sites for the simulator hop; the image carries the checkout and dashboard builds.
 - `prod.env.example`: settings for `deploy/.env` on the server (domain, ACME email, model version, fault controls).
 - `server-setup.sh`: one-time hardening of a fresh Ubuntu 24.04 server (Google Cloud, DigitalOcean or Oracle).

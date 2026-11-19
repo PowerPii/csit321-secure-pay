@@ -121,7 +121,7 @@ def request_code(data: dict, ip: str | None) -> dict:
         locked = lock.locked_until is not None and lock.locked_until > now
         if payment is not None and not locked:
             queue(OutboundEmail.Kind.GUEST_STATUS_CODE, payment, payment.customer_email,
-                  f"{code} is your SecurePay status code",
+                  "Your SecurePay status code",  # never the code itself
                   _code_email(payment, code), discard_after=challenge.expires_at)
     return {"challenge_id": challenge.public_id, "message": MESSAGE,
             "expires_in_seconds": int(ttl.total_seconds())}

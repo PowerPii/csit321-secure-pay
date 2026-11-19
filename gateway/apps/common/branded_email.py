@@ -2,15 +2,16 @@
 
 Each sender (receipts, verification codes, guest status codes, password resets, staff
 notices) writes a plain-text body as before. This backend adds an HTML version in the
-SecurePay look before handing the message to the real backend (SMTP to Mailpit on the
-servers), so the text and HTML can never say different things and no sender changes.
+SecurePay look before handing the message on (Mailpit for made-up demo addresses, the mail
+provider for real ones; apps/common/mail_routing.py), so the text and HTML can never say
+different things and no sender changes.
 
 Formatting rules, all from the text itself:
 - blank lines separate paragraphs;
 - "Label:   value" lines (a colon then two or more spaces) become a two-column table;
 - a line that is only a URL becomes a button;
 - "Items:" followed by indented "name  price" lines becomes an item table;
-- a subject like "123456 is your SecurePay verification code" shows the code in a large box;
+- a first line like "Your SecurePay verification code is 123456" shows the code in a large box;
 - a first paragraph that is one sentence (not a greeting such as "Hello,") is the headline,
   and the first line is also the hidden preview text inbox lists show under the subject;
 - in an item table a "Total" row is bold, above a rule;
@@ -22,6 +23,7 @@ The header shows the securepay. wordmark (frontend/brand, Slate rebrand) as a sm
 sent inside the email itself (multipart/related, cid:), so it shows without loading anything
 from the internet, also in Mailpit.
 """
+import copy
 import re
 from email.mime.image import MIMEImage
 from functools import cache
@@ -32,13 +34,17 @@ from django.conf import settings
 from django.core.mail import EmailMultiAlternatives, get_connection
 from django.core.mail.backends.base import BaseEmailBackend
 
+from apps.common import mail_routing
+
 # Brand colours, the same as frontend/brand/tokens.json (Slate rebrand).
 NAVY, INK, BRASS, BRASS_LIGHT, MUTED, LINE, SLATE, MIST = (
     "#13243F", "#0E1B30", "#B08A3E", "#D2AE63", "#4A5568", "#E1E6ED", "#DCE2EA", "#ECEFF4")
 _FIELD = re.compile(r"^([A-Z][\w ()/'-]{0,30}):\s{2,}(.+)$")
 _URL = re.compile(r"^https?://\S+$")
 _ITEM = re.compile(r"^\s{2,}\S.*\S\s{2,}\S+$")
-_CODE_SUBJECT = re.compile(r"^(\d{4,8}) is your ")
+# "Your SecurePay verification code is 123456": the code is shown in a large box. Codes are
+# never put in the subject, which inbox lists, notifications and the outbox table all show.
+_CODE_LINE = re.compile(r"^Your SecurePay [a-z ]*code is (\d{4,8})$")
 
 LOGO_CID = "securepay-wordmark"
 LOGO_PATH = Path(__file__).resolve().parent / "brand" / "securepay-wordmark-email.png"
@@ -151,7 +157,8 @@ def html_for(subject: str, text: str, logo: bool = False) -> str:
         else:
             blocks.insert(0, [line])
     body = "".join(_paragraph(b) for b in blocks)
-    code = _CODE_SUBJECT.match(subject)
+    first = next((line.strip() for line in text.splitlines() if line.strip()), "")
+    code = _CODE_LINE.match(first)
     if code:
         body = (f'<p style="margin:0 0 18px;text-align:center"><span style="display:inline-block;'
                 f'font-family:Menlo,Consolas,monospace;font-size:30px;font-weight:700;'
@@ -182,21 +189,59 @@ letter-spacing:.5px;border-radius:999px;padding:3px 10px;margin-top:2px">TEST MO
 
 
 class BrandedEmailBackend(BaseEmailBackend):
-    """Adds the HTML version, then sends through EMAIL_INNER_BACKEND."""
+    """Adds the HTML version, then sends each recipient by its route (mail_routing): made-up
+    demo addresses through EMAIL_INNER_BACKEND (Mailpit), real ones straight to the provider.
+    A recipient with no permitted route is dropped, never captured."""
 
     def __init__(self, fail_silently=False, **kwargs):
         super().__init__(fail_silently=fail_silently)
         self.inner = get_connection(settings.EMAIL_INNER_BACKEND, fail_silently=fail_silently,
                                     **kwargs)
+        self.provider = None
+        if mail_routing.provider_configured():
+            p = settings.MAIL_PROVIDER
+            self.provider = get_connection(
+                "django.core.mail.backends.smtp.EmailBackend", fail_silently=fail_silently,
+                host=p["host"], port=p["port"], username=p["username"],
+                password=p["password"], use_tls=p["use_tls"], use_ssl=p["use_ssl"],
+                timeout=settings.EMAIL_TIMEOUT)
 
     def open(self):
         return self.inner.open()
 
     def close(self):
-        return self.inner.close()
+        self.inner.close()
+        if self.provider is not None:
+            self.provider.close()
 
     def send_messages(self, email_messages):
-        return self.inner.send_messages([with_html(m) for m in email_messages])
+        by_route: dict[str, list] = {mail_routing.CAPTURE: [], mail_routing.PROVIDER: []}
+        for message in email_messages:
+            for route, part in split_by_route(message).items():
+                if route in by_route:
+                    by_route[route].append(with_html(part))
+        sent = 0
+        if by_route[mail_routing.CAPTURE]:
+            sent += self.inner.send_messages(by_route[mail_routing.CAPTURE]) or 0
+        if by_route[mail_routing.PROVIDER] and self.provider is not None:
+            sent += self.provider.send_messages(by_route[mail_routing.PROVIDER]) or 0
+        return sent
+
+
+def split_by_route(message) -> dict:
+    """One copy of the message per route, each addressed only to that route's recipients."""
+    routes: dict[str, dict[str, list[str]]] = {}
+    for field in ("to", "cc", "bcc"):
+        for address in getattr(message, field) or []:
+            fields = routes.setdefault(mail_routing.route_for(address),
+                                       {"to": [], "cc": [], "bcc": []})
+            fields[field].append(address)
+    parts = {}
+    for route, fields in routes.items():
+        part = copy.copy(message)
+        part.to, part.cc, part.bcc = fields["to"], fields["cc"], fields["bcc"]
+        parts[route] = part
+    return parts
 
 
 def with_html(message):

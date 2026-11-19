@@ -127,7 +127,8 @@ def trail(payment: Payment, screening, ops: list[Operation], refunds: list[Refun
     for email in OutboundEmail.objects.filter(payment=payment).order_by("created_at", "id"):
         rows.append({"at": email.created_at, "kind": "email", "id": email.public_id,
                      "title": f"Email to customer: {email.get_kind_display()}",
-                     "status": email.status, "request_id": None})
+                     "status": email.status, "request_id": None,
+                     "detail": email_outcome(email)})
     for event in _payment_audit(payment):
         if merchant_view and _hidden_from_merchant(event):
             continue
@@ -202,3 +203,25 @@ def payment_detail(staff: StaffAccount, payment: Payment) -> dict:
         "actions": allowed_actions(staff, payment, ops, data["refundable_amount"]),
     })
     return data
+
+
+def email_outcome(email) -> str:
+    """One line an operator can act on: was the email accepted, still retrying, refused, or
+    never sent? Accepted means the provider (or the demo inbox) took it, not that the customer
+    read it. Never includes the address, subject or body."""
+    from apps.events.models import OutboundEmail as E
+
+    where = {E.Route.PROVIDER: "the mail provider", E.Route.CAPTURE: "the demo inbox"}.get(
+        email.route, "")
+    tries = f"{email.attempt_count} attempt{'s' if email.attempt_count != 1 else ''}"
+    error = f", last error {email.last_error}" if email.last_error else ""
+    if email.status == E.Status.SENT:
+        return f"Accepted by {where or 'the mail server'} ({tries})"
+    if email.status == E.Status.PENDING:
+        return f"Retrying ({tries}{error})" if email.attempt_count else "Queued"
+    if email.status == E.Status.FAILED:
+        return f"Not delivered: gave up ({tries}{error})"
+    if email.status == E.Status.DISCARDED:
+        return (f"Expired before it could be sent ({tries}{error})" if email.attempt_count
+                else "Expired before it could be sent")
+    return "Not sent: no permitted route for this recipient"

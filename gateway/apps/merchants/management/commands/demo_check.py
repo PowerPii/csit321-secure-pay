@@ -112,7 +112,7 @@ class Command(BaseCommand):
         failed_mail = OutboundEmail.objects.filter(status=OutboundEmail.Status.FAILED,
                                                    created_at__gte=day).count()
         if due:
-            yield ("FAIL", f"{due} email(s) overdue: the worker or Mailpit is down")
+            yield ("FAIL", f"{due} email(s) overdue: the worker or the mail route is down")
         elif failed_mail:
             yield ("WARN", f"{failed_mail} email(s) failed in the last 24 hours")
         else:
