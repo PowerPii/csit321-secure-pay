@@ -1,28 +1,111 @@
-# SecurePay: secure online payment gateway with fraud detection
+<p align="center">
+  <img src="frontend/brand/securepay-wordmark.svg" alt="securepay." width="320">
+</p>
 
-CSIT321 final year project (FYP-26-S4-36). A simulated card payment gateway with a hosted checkout, a merchant API with signed webhooks, a staff dashboard, and a rules-then-model fraud screening pipeline trained on IEEE-CIS.
+<p align="center">
+  A card payment gateway with built-in fraud screening, built end to end as a final year project.
+</p>
 
-**Start here:** [`docs/MVP-SCOPE.md`](docs/MVP-SCOPE.md) says what the MVP includes, the six demo stories it must pass, and the sprint order. The full design is in [`docs/architecture/ARCHITECTURE-RECOMMENDATION.md`](docs/architecture/ARCHITECTURE-RECOMMENDATION.md); wireframes are in [Figma](https://www.figma.com/design/RK2NOWzPLfnLbAIqcswi3E).
+<p align="center">
+  <a href="https://csit321-secure-pay.vercel.app/">Website</a> ·
+  <a href="https://gateway.35-213-144-96.sslip.io/dashboard/">Live dashboard</a> ·
+  <a href="https://shop.35-213-144-96.sslip.io/">Demo store</a> ·
+  <a href="contracts/API-CONTRACT.md">API reference</a> ·
+  <a href="docs/DEMO-WALKTHROUGH.md">Demo walkthrough</a>
+</p>
 
-The MVP endpoints are implemented. See `docs/MVP-SCOPE.md` for completed sprints and the remaining roadmap. Local code-structure and validation notes are in `docs/REFACTORING.md`.
+---
 
-| Folder | Trust domain | What |
+SecurePay takes a payment from a merchant's checkout to the bank and back. A merchant creates a payment through a signed REST API, the customer pays on a hosted checkout page, every attempt is screened for fraud before the bank sees it, and the merchant hears about the result through signed webhooks. Staff run the whole thing from a dashboard with two-step sign-in.
+
+The bank is our own processing simulator, so the system can be tested against approvals, declines, lost replies and late replies on demand. No real cards or money are involved: everything runs on test card numbers in Singapore dollars.
+
+This is the CSIT321 final year project of team FYP-26-S4-36 (University of Wollongong, with the Singapore Institute of Management).
+
+<p align="center">
+  <img src="frontend/website/public/screens/checkout.webp" alt="SecurePay hosted checkout with the order summary and a test card entered" width="720">
+</p>
+
+## What it does
+
+**For merchants**
+- REST API (`/v1`) to create, capture, cancel and refund payments, with API keys, signed responses and `Idempotency-Key` on every state change, so a retried request never charges twice.
+- Signed webhooks (HMAC, timestamped) for every status change, retried for up to 72 hours, with a delivery log and a resend button in the dashboard.
+- Self-service sign-up: register, verify the email, get approved by an administrator, then generate keys and submit a webhook address.
+
+**For customers**
+- Hosted checkout under a strict Content Security Policy. Card details go straight into an encrypted vault (AES-256-GCM) and the merchant never sees them.
+- Emailed receipts (with PDF), a guest status check protected by a one-time code, and optional customer accounts with payment history.
+
+**Fraud screening**
+- Each attempt goes through deterministic rules, then a HistGradientBoosting model trained on the IEEE-CIS dataset, then a versioned policy. The outcome is allow, ask for a 6-digit email code, or block.
+- Every decision is stored with its score, reasons, features and model version, and the dashboard explains why a payment was blocked (rule hits and per-feature contributions).
+- Fraud analysts work a review queue across all merchants and record a finding without changing the payment.
+
+**Reliability**
+- State changes and their webhook events are written in the same database transaction (outbox pattern), and a worker delivers them.
+- When the bank's reply is lost, the payment is marked Unresolved and the worker asks the simulator about the same operation ID until it has an answer. Nobody can set an outcome by hand.
+- Refunds reserve their amount under a row lock, so two refunds that together exceed the payment cannot both succeed.
+
+**Staff dashboard**
+- Three roles: merchant operator, fraud analyst and administrator, each seeing only what it should.
+- Password plus authenticator (TOTP) sign-in, backup codes, lockout after 5 failed attempts, 15-minute idle sessions, and an audit log of every sign-in and state change.
+
+## Measured results
+
+| What | Result | Source |
 | --- | --- | --- |
-| `gateway/` | Gateway | Modular Django 5.2 + DRF app. Modules in `gateway/apps/`: accounts, merchants, checkout, vault, payments, refunds, risk, events, reconciliation, audit, internal. Each module's `__init__.py` states what it owns and its key rule. |
-| `gateway/apps/events/management/commands/run_worker.py` | Gateway | The outbox / reconciliation / expiry worker (`python manage.py run_worker`) |
-| `simulator/` | Simulator | Processing simulator: `operations`, `ledger`, `faults` |
-| `merchant/` | Merchant | Demo storefront in Django templates: `shop`, `webhooks` |
-| `frontend/checkout/` | Gateway | Hosted checkout bundle (Vite + React + TS, strict CSP) |
-| `frontend/dashboard/` | Gateway | Merchant / admin / analyst SPA (Vite + React + TS + MUI) |
-| `research/` | Offline | Notebooks, shared feature definitions, training and evaluation; produces model artifacts |
-| `contracts/` | Shared | OpenAPI files, event JSON Schemas, generated TS types |
-| `tests/integration/` | All | Cross-service end-to-end, recovery, concurrency and security tests |
-| `tests/report/`, `tests/load/` | All | Non-functional test report builder; checkout load test (NFR-PER-01) |
-| `deploy/` | VM | Docker Compose, Caddyfile, Postgres init, secrets templates, backups |
-| `docs/` | All | MVP scope, architecture, diagrams |
-| `.github/workflows/ci.yml` | CI | Lint, checks, tests on real Postgres, dependency audits, gitleaks. Runs on pull requests and on `main`, only for the parts a change touches; `ci-ok` is the check to require |
+| Fraud screening latency, as checkout calls it (target p95 200 ms) | p50 16.9 ms, p95 21.6 ms over 1,200 screenings at 20 per second | [`research/evaluation/hgb-fs02-2026-11-13.md`](research/evaluation/hgb-fs02-2026-11-13.md) |
+| Fraud model ROC-AUC on the held-out report days (later in time than training) | 0.738 (average precision 0.099 at a 3.5% fraud rate) | same file |
+| Non-functional requirements covered by the test report | 29 of 29 (URS Section 4.4) | [`docs/test-report/`](docs/test-report/README.md) |
+
+The fraud experiment and its limits are written up in the evaluation file above.
+
+## Architecture
+
+Five services on one Linux VM, each in its own container with its own database credentials, behind Caddy for HTTPS.
+
+```mermaid
+flowchart LR
+  B[Browsers<br/>customers and staff] -->|HTTPS| C[Caddy]
+  C --> M[Demo store<br/>Django]
+  C --> G[Gateway<br/>Django + DRF<br/>checkout, dashboard, API]
+  M -->|signed API calls| G
+  G -->|authorise, capture, refund| S[Bank simulator<br/>Django + DRF]
+  W[Gateway worker<br/>outbox, reconciliation, expiry] -->|signed webhooks| M
+  W -->|status checks| S
+  G --> P[(PostgreSQL 17<br/>one database per service)]
+  W --> P
+  S --> P
+  M --> P
+  G --> E[Mailpit<br/>email]
+```
+
+| Folder | What it is |
+| --- | --- |
+| `gateway/` | Django 5.2 + DRF gateway. Modules in `gateway/apps/` (accounts, merchants, checkout, vault, payments, refunds, risk, events, reconciliation, audit, customers, guest, security). Each module's `__init__.py` says what it owns. The worker is `python manage.py run_worker`. |
+| `simulator/` | The processing simulator: operations, ledger and fault controls |
+| `merchant/` | Volt & Co., the demo store, in Django templates |
+| `frontend/checkout/` | Hosted checkout (Vite + React + TypeScript) |
+| `frontend/dashboard/` | Staff dashboard (Vite + React + TypeScript + MUI) |
+| `frontend/website/` | The public website, deployed on Vercel |
+| `frontend/brand/` | Logo, favicon and colour tokens ([`docs/BRAND.md`](docs/BRAND.md)) |
+| `research/` | Notebooks, shared feature definitions, model training and evaluation |
+| `contracts/` | OpenAPI files, event JSON Schemas, generated TypeScript types |
+| `tests/` | Cross-service integration, load, accessibility, browser tests and the test report builder |
+| `deploy/` | Docker Compose, Caddy, Postgres init, secrets templates, backups and server scripts |
+| `docs/` | Scope, architecture, demo notes and the test report |
+
+The full design is in [`docs/architecture/ARCHITECTURE-RECOMMENDATION.md`](docs/architecture/ARCHITECTURE-RECOMMENDATION.md), and the screens were planned in [Figma](https://www.figma.com/design/RK2NOWzPLfnLbAIqcswi3E).
+
+### Tech stack
+
+Python 3.12, Django 5.2, Django REST Framework, PostgreSQL 17, React with Vite and TypeScript, MUI, scikit-learn, pandas and NumPy, Docker Compose, Caddy, Mailpit. No Redis, Celery, Kafka or Kubernetes.
 
 ## Quick start
+
+You need Docker, Node.js and Python 3.12.
+
 
 ```bash
 # 1. secrets (see deploy/secrets/README.md)
@@ -60,67 +143,11 @@ docker compose -f deploy/compose.yaml exec gateway python manage.py create_staff
 
 Steps 4 and 5 in one go, for the Volt & Co. demo: `bash deploy/demo.sh seed` (merchant, the three staff logins with temporary passwords, the shop's key and secret). Before each demo run `bash deploy/demo.sh reset` (restock, empty inbox, fresh demo cards and emails, health check; `deploy/RUNBOOK.md` section 11a).
 
-Staff dashboard: https://gateway.localhost/dashboard/. Sign-in is a password and a 6-digit authenticator code; five failures (wrong password or wrong code) lock the account for 15 minutes and email the account holder (Mailpit). Sessions end after 15 idle minutes. Merchant operators see their own merchant's payments and capture, cancel and refund them; fraud analysts work the review queue across all merchants; administrators see every merchant read-only, approve merchants (the API key and signing secret are shown once), read the audit log and re-check escalated operations.
-
-Then shop at https://shop.localhost and pay with a test card from `contracts/SIMULATOR-CONTRACT.md` section 5 (4242 4242 4242 4242 approves, 4000 0000 0000 0002 declines, 4000 0000 0000 0119 loses the answer).
-
-Fraud screening (demo stories S2 and S3): an order over S$500, or the email `review@example.com`, asks for a 6-digit code, which arrives in Mailpit at https://mail.localhost; three wrong codes block the payment. Card 4000 0000 0000 0101 or the email `blocked@example.com` is blocked, and so is a sixth attempt on one card within 10 minutes. Screening decisions, with score, reasons, features and versions, are on each payment's page in the dashboard; blocked and verified attempts are in the fraud review queue, where analysts record a finding (confirmed fraud, false positive or inconclusive) without changing the payment.
-
-Fraud model (sprint 7): out of the box the gateway runs the stub model (score 0, the rules decide). To run the trained HistGradientBoosting model, copy its folder `hgb-fs02-2026-11-13` (team folder `02-research/gateway-model/`, or rebuild it with `research/training/train_gateway_model.py`) into `gateway/apps/risk/model_artifacts/`, then `echo RISK_MODEL_VERSION=hgb-fs02-2026-11-13 > deploy/.env` and `docker compose -f deploy/compose.yaml up -d gateway`. A score of 0.11 or more asks for a verification code and 0.22 or more blocks (`model_score_medium` / `model_score_high` in the decision). `docker compose -f deploy/compose.yaml exec gateway python manage.py loadtest_screening` checks the 200 ms p95 target at 20 screenings a second. Details and limits: `gateway/apps/risk/model_artifacts/README.md`, `research/evaluation/hgb-fs02-2026-11-13.md`.
-
-The gateway worker sends the shop a signed webhook for each status change; the shop confirms it with a signed `GET` before marking the order paid. To ship (capture) or cancel an order, as the merchant in demo story S1, sign in to the dashboard as the merchant operator and use Capture or Cancel authorisation on the payment's page, or:
-
-```bash
-docker compose -f deploy/compose.yaml exec merchant python manage.py settle_order capture ORD-1001
-docker compose -f deploy/compose.yaml exec merchant python manage.py settle_order cancel ORD-1002
-```
-
-(or select the payment in the shop's Django admin and use the Capture / Cancel actions).
-
-Refunds (demo story S6): each refund reserves its amount under a lock on the payment, so refunds that together exceed the captured amount cannot both go through, even at the same moment. In the dashboard, use Refund on a captured payment (try the same refund in two tabs at once); or:
-
-```bash
-docker compose -f deploy/compose.yaml exec merchant python manage.py settle_order refund ORD-1001 --amount 500 --reason "One item returned"
-```
-
-Lost answers (demo story S4): pay with 4000 0000 0000 0119 (the bank approves but the answer is lost) or 4000 0000 0000 0127 (the answer comes too late). After 10 seconds the checkout page says "We're confirming your payment" and the payment is Unresolved. The gateway worker then asks the simulator about the same operation ID, 30 seconds later and then at 1, 2, 5, 10 and 20 minutes; the first check finds the approval, the payment becomes Authorised without a second charge, and the page updates itself. Card 4000 0000 0000 0135 loses the request instead: the check finds no record, retires the ID, and the payment ends Declined (`not_processed`). An operation still without an answer after the sixth check is escalated; administrators find it with the "Escalated operations" tile on the dashboard's payments page and use "Re-check with the simulator" on the payment. Nobody can set an outcome by hand.
-
-Receipts and guest status (sprint 8): every authorised payment gets an emailed receipt (Mailpit) with its reference and a link to https://gateway.localhost/guest/status?ref=SP-.... The link only fills in the reference: the guest also enters the email they paid with, receives a 6-digit code, and then sees that one payment, read-only, for 15 minutes. The reply is the same whether or not the details match, and three wrong codes lock the check for 15 minutes.
-
-Accounts (sprint 10): "Forgot your password?" on the dashboard sign-in page emails a reset link (Mailpit) that works once, for 30 minutes; staff confirm the new password with their authenticator code, and every session of the account ends. New merchants register at https://gateway.localhost/dashboard/register (business name, UEN, website, contact, password), verify their email from the link, and wait for an administrator, who is emailed and approves them on the Merchants page. The operator then signs in, generates the API key and webhook signing secret on the API keys page (shown once), and submits a webhook address for the administrator to approve.
-
-Fault controls (sprint 8, SIMULATOR-CONTRACT.md section 8): with `SIM_TEST_CONTROLS=1` (the Compose default; set it to 0 in a demo where nobody should inject faults) the simulator accepts fault rules at `https://simulator.localhost/sim/faults` with the test-control key in `deploy/secrets/simulator_test_control_key`, which the gateway never holds. For example, lose the reply to the next capture and also send two signed notifications 12 seconds later:
-
-```bash
-KEY=$(cat deploy/secrets/simulator_test_control_key)
-curl -s https://simulator.localhost/sim/faults -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
-  -d '{"match": {"operation_type": "capture"}, "action": "drop_response", "remaining": 1}'
-curl -s https://simulator.localhost/sim/faults -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
-  -d '{"match": {"operation_type": "capture"}, "action": "notify", "delay_ms": 12000, "copies": 2, "remaining": 1}'
-curl -s -X DELETE https://simulator.localhost/sim/faults -H "Authorization: Bearer $KEY"   # clear all rules
-```
-
-Automated cross-service tests for S1-S6, receipts, guest status and fault controls: `tests/integration/README.md`.
-
-Non-functional test report for M6 (URS Section 4.4, all 29 requirements): every CI run builds it from the test results and the manual checks; see `docs/test-report/README.md`. Acceptance tests at the URS's own numbers are in `gateway/acceptance/`; the checkout load test is `tests/load/checkout_load.py`.
-
-Public server (one VM, sslip.io names, Let's Encrypt): [`deploy/RUNBOOK.md`](deploy/RUNBOOK.md).
+Then shop at https://shop.localhost and pay with test card 4242 4242 4242 4242 (approves). 4000 0000 0000 0002 declines and 4000 0000 0000 0119 loses the bank's answer. The [demo walkthrough](docs/DEMO-WALKTHROUGH.md) goes through every story: fraud checks, lost answers, refunds, guest status and fault injection.
 
 For day-to-day work on one service, see that service's README (venv + `runserver`).
 
-## Rules that shape the code
-
-- Services talk only over authenticated HTTPS APIs; each has its own database and credentials.
-- Only `contracts/` and `research/features/` are shared. The payment state machine is **not** shared between gateway and simulator.
-- Card data lives only in `gateway/apps/vault`, on its own DB role. Logs, audit events, outbox payloads, idempotency fingerprints and screening features must never contain it (enforce with tests).
-- No Redis, Celery, Kafka or Kubernetes.
-- Python 3.12 everywhere; scikit-learn pinned to the same version in `gateway/` and `research/`.
-
-## Business rules
-
-The section 11 decisions (SGD only, S$0.50 to S$10,000, 24 h idempotency, 7-day authorisation expiry, 10-minute verification code, 500 ms screening timeout, and so on) live in one place: `GATEWAY_RULES` in `gateway/config/settings.py`. Open points still to confirm are listed at the end of `docs/MVP-SCOPE.md`.
-
-## Running checks locally
+## Testing
 
 ```bash
 cd gateway && python3.12 -m venv .venv && . .venv/bin/activate && pip install -e ".[dev]"
@@ -128,4 +155,33 @@ DJANGO_DEBUG=1 python manage.py check && ruff check . && pytest
 cd ../frontend/dashboard && npm install && npx tsc --noEmit && npm test
 ```
 
-See [`CONTRIBUTING.md`](CONTRIBUTING.md) for branches and pull requests.
+- Cross-service tests for demo stories S1-S6, receipts, guest status and fault controls: [`tests/integration/README.md`](tests/integration/README.md).
+- Acceptance tests numbered after the URS are in `gateway/acceptance/`; the checkout load test is `tests/load/checkout_load.py`.
+- The non-functional test report (all 29 requirements in URS Section 4.4) is built from the test results and manual checks: [`docs/test-report/README.md`](docs/test-report/README.md). Security and accessibility results are in the same folder.
+- CI (`.github/workflows/ci.yml`) runs lint, type checks, tests on real PostgreSQL, dependency audits and gitleaks, only for the parts a change touches. `ci-ok` is the check to require.
+
+## Deployment
+
+The public demo runs on one VM with sslip.io names and Let's Encrypt certificates. Setup, updates, backups and recovery are in [`deploy/RUNBOOK.md`](deploy/RUNBOOK.md); the checklist for a live demo is [`docs/DEMO-DAY.md`](docs/DEMO-DAY.md).
+
+## Engineering rules
+
+- Services talk only over authenticated HTTPS APIs; each has its own database and credentials.
+- Only `contracts/` and `research/features/` are shared. The payment state machine is **not** shared between gateway and simulator.
+- Card data lives only in `gateway/apps/vault`, on its own database role. Logs, audit events, outbox payloads, idempotency fingerprints and screening features must never contain it, and tests enforce this.
+- Business numbers (SGD only, S$0.50 to S$10,000, 24 h idempotency, 7-day authorisation expiry, 10-minute verification code, 500 ms screening timeout, and so on) live in one place: `GATEWAY_RULES` in `gateway/config/settings.py`.
+- Python 3.12 everywhere; scikit-learn is pinned to the same version in `gateway/` and `research/`.
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for branches, pull requests and review rules, and [`docs/MVP-SCOPE.md`](docs/MVP-SCOPE.md) for scope and the six demo stories.
+
+## Team
+
+| Name | Role |
+| --- | --- |
+| Yeoh Liu Ying | Project leader and documentation lead |
+| Muhammad Adeeb | System designer and simulator developer |
+| Chirawatana Janyaporn | Lead back-end developer |
+| Chew Jun Han | Front-end developer |
+| Kamolmongkolsuk Noppawut | Fraud experiment, security and test lead |
+
+SecurePay is a student project for learning and demonstration. It is not a licensed payment service and must not be used with real card data.
