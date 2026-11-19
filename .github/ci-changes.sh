@@ -2,7 +2,7 @@
 # Decides which parts of CI a change needs (.github/workflows/ci.yml, job `changes`).
 # Writes to $GITHUB_OUTPUT:
 #   python=   the Python services to test, e.g. "gateway merchant" (empty: none)
-#   frontend= the front-end apps to test, e.g. "checkout website" (empty: none)
+#   frontend= the front-end apps (and the Node.js SDK, "sdk") to test, e.g. "checkout sdk" (empty: none)
 #   deploy=   true when the public server's config or the Caddy image's inputs changed
 # Everything runs for a manual run, a first push, a history it cannot diff, or a change to
 # the CI files themselves.
@@ -11,7 +11,7 @@
 set -euo pipefail
 
 ALL_PYTHON="gateway simulator merchant"
-ALL_FRONTEND="checkout dashboard website"
+ALL_FRONTEND="checkout dashboard website sdk"
 out="${GITHUB_OUTPUT:-/dev/stdout}"
 summary="${GITHUB_STEP_SUMMARY:-/dev/null}"
 
@@ -43,9 +43,11 @@ else
     && python="$python gateway"
   touches '^simulator/' && python="$python simulator"
   touches '^merchant/' && python="$python merchant"
-  for app in $ALL_FRONTEND; do
+  for app in checkout dashboard website; do
     touches "^frontend/$app/" && frontend="$frontend $app"
   done
+  # The Node.js SDK (sdk/node) generates its types from the bundled contract.
+  touches '^(sdk/node|contracts)/' && frontend="$frontend sdk"
   touches '^deploy/|^frontend/(checkout|dashboard)/|^\.dockerignore$' && deploy=true
   python="${python# }"; frontend="${frontend# }"
 fi

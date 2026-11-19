@@ -252,6 +252,7 @@ export const DOCS_NAV: DocNavGroup[] = [
     items: [
       { id: "get-started", label: "Get started" },
       { id: "quickstart", label: "Quickstart" },
+      { id: "sdk", label: "Node.js SDK" },
       { id: "auth", label: "Authentication" },
       { id: "lifecycle", label: "Payment lifecycle" },
       { id: "capture", label: "Capture and refunds" },
