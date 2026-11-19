@@ -11,3 +11,11 @@ b5e32330a803d3ff6cd54d5c7c4db4031c17072c:frontend/website/src/content/snippets.t
 99e4759a2eba530efced15a1eb3319c5a17fe211:contracts/examples/api/get-payment-captured-with-refund.200.json:generic-api-key:13
 99e4759a2eba530efced15a1eb3319c5a17fe211:contracts/examples/events/payment.authorised.json:generic-api-key:21
 99e4759a2eba530efced15a1eb3319c5a17fe211:contracts/examples/events/payment.blocked.json:generic-api-key:21
+
+# Sample merchant Idempotency-Key in SDK recovery tests, not a secret; built at runtime from 208687b on.
+a24f104194155cb799af2ea4b4b4fc94fb2baa1e:sdk/node/test/recovery.test.ts:generic-api-key:144
+a24f104194155cb799af2ea4b4b4fc94fb2baa1e:sdk/node/test/recovery.test.ts:generic-api-key:148
+a24f104194155cb799af2ea4b4b4fc94fb2baa1e:sdk/node/test/recovery.test.ts:generic-api-key:161
+a24f104194155cb799af2ea4b4b4fc94fb2baa1e:sdk/node/test/recovery.test.ts:generic-api-key:162
+a24f104194155cb799af2ea4b4b4fc94fb2baa1e:sdk/node/test/recovery.test.ts:generic-api-key:169
+a24f104194155cb799af2ea4b4b4fc94fb2baa1e:sdk/node/test/recovery.test.ts:generic-api-key:170
