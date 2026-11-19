@@ -1,14 +1,15 @@
 import { Box, Button, Link, Typography } from "@mui/material";
 import Grid from "@mui/material/Grid2";
 import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
-import OpenInNewRoundedIcon from "@mui/icons-material/OpenInNewRounded";
+import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
+import DownloadRoundedIcon from "@mui/icons-material/DownloadRounded";
 import { Link as RouterLink } from "react-router-dom";
 import { CodeBlock } from "../components/CodeBlock";
 import { Callout, DocSection, DOCS_NAV, DocsShell, FieldList, Inline, MethodBadge, P, SimpleTable } from "../components/Docs";
 import { PageHero } from "../components/Section";
 import { usePageTitle } from "../components/usePageTitle";
 import { ENDPOINTS, ERROR_EXAMPLE, ERRORS, EVENT_FIELDS, EVENTS, PAYMENT_FIELDS, REFUND_FIELDS, type Endpoint } from "../content/apiReference";
-import { API_BASE, REGISTER_URL, REPO_URL } from "../content/site";
+import { API_BASE, OPENAPI_YAML, REGISTER_URL } from "../content/site";
 import { brand, fonts } from "../theme";
 
 const ERROR_HTTP = Object.fromEntries(ERRORS.map((e) => [e.code, e.http]));
@@ -100,20 +101,16 @@ export default function ApiReference() {
       <PageHero
         overline="API reference"
         title="Merchant API v1"
-        lead="Seven endpoints, two objects, twelve webhook events. Everything here follows the written API contract; the OpenAPI file has the same detail in machine-readable form."
+        lead="Seven endpoints, two objects, twelve webhook events. Everything here follows the written API contract; the OpenAPI file has the same detail in machine-readable form, and the Node.js SDK wraps it."
       >
         <Box sx={{ mt: 4, display: "flex", gap: 1.5, flexWrap: "wrap" }}>
           <Button component={RouterLink} to="/developers" variant="contained" color="secondary" size="large" startIcon={<ArrowBackRoundedIcon />}>
             Guides
           </Button>
-          <Button
-            href={`${REPO_URL}/blob/main/contracts/openapi/merchant-api.v1.yaml`}
-            target="_blank"
-            rel="noopener"
-            size="large"
-            endIcon={<OpenInNewRoundedIcon />}
-            sx={{ color: brand.navy }}
-          >
+          <Button component={RouterLink} to="/developers/api/explorer" size="large" endIcon={<ArrowForwardRoundedIcon />} sx={{ color: brand.navy }}>
+            Interactive reference
+          </Button>
+          <Button href={OPENAPI_YAML} download size="large" startIcon={<DownloadRoundedIcon />} sx={{ color: brand.navy }}>
             OpenAPI file
           </Button>
         </Box>

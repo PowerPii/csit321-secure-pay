@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import ast
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -138,6 +139,27 @@ if set(payment_defs["PaymentStatus"]["enum"]) != enum_values(states, "PaymentSta
     errors.append("PaymentStatus in payment.schema.json differs from gateway/apps/payments/states.py")
 if not enum_values(states, "BlockReason") <= set(payment_defs["OutcomeReason"]["enum"]):
     errors.append("OutcomeReason in payment.schema.json is missing a BlockReason from states.py")
+
+# The public, bundled OpenAPI file (website + SDK types) is regenerated from the YAML above,
+# is a valid OpenAPI document and has no reference left outside itself.
+sys.path.insert(0, str(ROOT))
+import bundle_openapi  # noqa: E402
+
+public_spec = bundle_openapi.bundle()
+for path, text in bundle_openapi.outputs(public_spec).items():
+    if not path.exists() or path.read_text(encoding="utf-8") != text:
+        errors.append(f"{path.relative_to(REPO)} is out of date: run python contracts/bundle_openapi.py")
+external = sorted({r for r in re.findall(r'"\$ref": "([^"]+)"', json.dumps(public_spec)) if not r.startswith("#/")})
+if external:
+    errors.append(f"bundled OpenAPI still has external references: {external}")
+try:
+    from openapi_spec_validator import validate as validate_openapi
+
+    validate_openapi(public_spec)
+except ImportError:
+    pass
+except Exception as exc:  # noqa: BLE001
+    errors.append(f"bundled OpenAPI is invalid: {str(exc).splitlines()[0]}")
 
 if errors:
     print("\n".join(errors))

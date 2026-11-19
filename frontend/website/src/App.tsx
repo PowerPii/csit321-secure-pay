@@ -8,6 +8,7 @@ import Home from "./pages/Home";
 const Product = lazy(() => import("./pages/Product"));
 const Developers = lazy(() => import("./pages/Developers"));
 const ApiReference = lazy(() => import("./pages/ApiReference"));
+const ApiExplorer = lazy(() => import("./pages/ApiExplorer"));
 const Security = lazy(() => import("./pages/Security"));
 const Pricing = lazy(() => import("./pages/Pricing"));
 const About = lazy(() => import("./pages/About"));
@@ -64,6 +65,7 @@ export default function App() {
         <Route path="product" element={<Product />} />
         <Route path="developers" element={<Developers />} />
         <Route path="developers/api" element={<ApiReference />} />
+        <Route path="developers/api/explorer" element={<ApiExplorer />} />
         <Route path="security" element={<Security />} />
         <Route path="pricing" element={<Pricing />} />
         <Route path="about" element={<About />} />

@@ -9,8 +9,8 @@ import { PageHero } from "../components/Section";
 import { StatusChip } from "../components/StatusChip";
 import { usePageTitle } from "../components/usePageTitle";
 import { ERRORS, RETRY_SCHEDULE, WEBHOOK_HEADERS } from "../content/apiReference";
-import { API_BASE, DASHBOARD_URL, LIFECYCLE, REGISTER_URL, REPO_URL, RULES, TEST_CARDS, WEBHOOK_EVENTS } from "../content/site";
-import { CAPTURE, CREATE_PAYMENT, EVENT_EXAMPLE, PAYMENT_RESPONSE, VERIFY_WEBHOOK } from "../content/snippets";
+import { API_BASE, DASHBOARD_URL, LIFECYCLE, OPENAPI_YAML, REGISTER_URL, REPO_URL, RULES, SDK_NPM_URL, SDK_PACKAGE, TEST_CARDS, WEBHOOK_EVENTS } from "../content/site";
+import { CAPTURE, CREATE_PAYMENT, EVENT_EXAMPLE, PAYMENT_RESPONSE, SDK_INSTALL, SDK_USAGE, VERIFY_WEBHOOK } from "../content/snippets";
 import { brand, fonts } from "../theme";
 
 const STEPS: { title: string; text: string }[] = [
@@ -85,6 +85,24 @@ export default function Developers() {
           <CodeBlock snippets={CREATE_PAYMENT} />
           <Box sx={{ mt: 2 }}>
             <CodeBlock snippets={PAYMENT_RESPONSE} />
+          </Box>
+        </DocSection>
+
+        <DocSection id="sdk" title="Node.js SDK">
+          <P>
+            {`The \`${SDK_PACKAGE}\` package is a small, typed client for Node.js 20.19 or later, with no dependencies. It adds the \`Idempotency-Key\` to every \`POST\`, retries timeouts, \`429\` and \`5xx\` with that same key, checks the signature on every reply and webhook, and turns error replies into a \`SecurePayAPIError\` with the stable \`code\`. Its types are generated from the OpenAPI file.`}
+          </P>
+          <Box sx={{ mb: 2, maxWidth: 640 }}>
+            <CodeBlock snippets={SDK_INSTALL} />
+          </Box>
+          <CodeBlock snippets={SDK_USAGE} />
+          <Callout tone="info">
+            The API key is a secret, so the SDK runs on your server only and refuses to start in a browser. Webhook handling with the SDK is under Webhooks below.
+          </Callout>
+          <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap" }}>
+            <Button href={SDK_NPM_URL} target="_blank" rel="noopener" variant="outlined" endIcon={<OpenInNewRoundedIcon />}>
+              {SDK_PACKAGE} on npm
+            </Button>
           </Box>
         </DocSection>
 
@@ -227,15 +245,18 @@ export default function Developers() {
           <Grid container spacing={2}>
             {[
               { t: "API contract", d: "The rules a schema can’t express: lifecycle, errors, retries.", p: "contracts/API-CONTRACT.md" },
-              { t: "OpenAPI 3.1", d: "Every /v1 endpoint and the webhook request.", p: "contracts/openapi" },
+              { t: "OpenAPI 3.1", d: "Every /v1 endpoint and the webhook request, in one file.", p: "contracts/openapi", href: OPENAPI_YAML, label: "merchant-api.v1.yaml" },
+              { t: "Interactive reference", d: "The OpenAPI file, browsable, with request and response samples.", p: "", to: "/developers/api/explorer", label: "/developers/api/explorer" },
               { t: "JSON Schemas", d: "Payment, Refund, Event and Error objects.", p: "contracts/schemas" },
               { t: "Simulator contract", d: "How the simulated bank behaves and fails.", p: "contracts/SIMULATOR-CONTRACT.md" },
             ].map((r) => (
               <Grid key={r.t} size={{ xs: 12, sm: 6 }}>
                 <Link
-                  href={`${REPO_URL}/${r.p.endsWith(".md") ? "blob" : "tree"}/main/${r.p}`}
-                  target="_blank"
-                  rel="noopener"
+                  {...("to" in r && r.to
+                    ? { component: RouterLink, to: r.to }
+                    : "href" in r && r.href
+                      ? { href: r.href, download: true }
+                      : { href: `${REPO_URL}/${r.p.endsWith(".md") ? "blob" : "tree"}/main/${r.p}`, target: "_blank", rel: "noopener" })}
                   underline="none"
                   sx={{ display: "block", height: "100%", p: 2.5, borderRadius: 3, bgcolor: "#fff", border: `1px solid ${brand.line}`, color: "inherit", "&:hover": { borderColor: brand.navy } }}
                 >
@@ -243,7 +264,7 @@ export default function Developers() {
                     {r.t} <OpenInNewRoundedIcon sx={{ fontSize: 15, color: "text.secondary" }} />
                   </Typography>
                   <Typography sx={{ color: "text.secondary", fontSize: 14.5, mb: 1 }}>{r.d}</Typography>
-                  <Typography sx={{ fontFamily: fonts.mono, fontSize: 12.5, color: "text.secondary" }}>{r.p}</Typography>
+                  <Typography sx={{ fontFamily: fonts.mono, fontSize: 12.5, color: "text.secondary" }}>{"label" in r && r.label ? r.label : r.p}</Typography>
                 </Link>
               </Grid>
             ))}

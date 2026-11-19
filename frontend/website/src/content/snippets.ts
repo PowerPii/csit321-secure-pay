@@ -1,5 +1,5 @@
 import type { Snippet } from "../components/CodeBlock";
-import { API_BASE, GATEWAY_URL } from "./site";
+import { API_BASE, GATEWAY_URL, SDK_PACKAGE } from "./site";
 
 export const CREATE_PAYMENT: Snippet[] = [
   {
@@ -18,6 +18,24 @@ export const CREATE_PAYMENT: Snippet[] = [
       { "name": "Pour-over filter", "quantity": 1, "unit_amount": 690 }
     ]
   }'`,
+  },
+  {
+    label: "Node.js SDK",
+    code: `import { SecurePay } from "${SDK_PACKAGE}";
+
+const securepay = new SecurePay({
+  apiKey: process.env.SECUREPAY_API_KEY,
+  signingSecret: process.env.SECUREPAY_SIGNING_SECRET, // also checks every reply's signature
+});
+
+const payment = await securepay.payments.create({
+  amount: 4290, // cents, SGD
+  currency: "SGD",
+  order_reference: "order_1042",
+  return_url: "https://shop.example/orders/1042",
+});
+// The SDK adds the Idempotency-Key and retries safely with it.
+// Send the customer to payment.checkout_url`,
   },
   {
     label: "Node.js",
@@ -84,6 +102,28 @@ export const PAYMENT_RESPONSE: Snippet[] = [
 
 export const VERIFY_WEBHOOK: Snippet[] = [
   {
+    label: "Node.js SDK",
+    code: `import express from "express";
+import { SecurePay } from "${SDK_PACKAGE}";
+
+const securepay = new SecurePay({ apiKey: process.env.SECUREPAY_API_KEY, signingSecret: process.env.SECUREPAY_SIGNING_SECRET });
+const app = express();
+
+// The raw body: the signature covers the exact bytes sent.
+app.post("/webhooks/securepay", express.raw({ type: "application/json" }), (req, res) => {
+  let event;
+  try {
+    event = securepay.webhooks.constructEvent(req.body, req.get("SecurePay-Signature"));
+  } catch {
+    return res.sendStatus(400); // bad or stale signature
+  }
+  res.sendStatus(200); // reply within 10 s, then do the work
+  if (event.type === "payment.authorised") {
+    // event.data.object is the Payment. Skip event IDs you have seen.
+  }
+});`,
+  },
+  {
     label: "Node.js",
     code: `import { createHmac, timingSafeEqual } from "node:crypto";
 
@@ -96,7 +136,8 @@ export function verify(rawBody, header, secret) {
   const expected = createHmac("sha256", secret)
     .update(\`\${parts.t}.\${rawBody}\`)
     .digest("hex");
-  return timingSafeEqual(Buffer.from(expected), Buffer.from(parts.v1));
+  const given = Buffer.from(parts.v1 ?? "");
+  return given.length === expected.length && timingSafeEqual(Buffer.from(expected), given);
 }`,
   },
   {
@@ -149,5 +190,49 @@ curl -X POST ${API_BASE}/payments/pay_4fJ8.../capture \\
 curl -X POST ${API_BASE}/payments/pay_4fJ8.../refunds \\
   -H "Authorization: Bearer sp_test_..." \\
   -H "Idempotency-Key: $(uuidgen)" -d '{ "amount": 690, "reason": "item returned" }'`,
+  },
+];
+
+export const SDK_INSTALL: Snippet[] = [
+  { label: "npm", code: `npm install ${SDK_PACKAGE}` },
+  { label: "pnpm", code: `pnpm add ${SDK_PACKAGE}` },
+  { label: "yarn", code: `yarn add ${SDK_PACKAGE}` },
+];
+
+export const SDK_USAGE: Snippet[] = [
+  {
+    label: "Payments",
+    code: `import { SecurePay, SecurePayAPIError } from "${SDK_PACKAGE}";
+
+const securepay = new SecurePay({
+  apiKey: process.env.SECUREPAY_API_KEY,             // sp_test_...
+  signingSecret: process.env.SECUREPAY_SIGNING_SECRET, // whsec_...
+});
+
+// Before you ship: a signed status check, never the browser redirect.
+const payment = await securepay.payments.retrieve("pay_4fJ8kQ2mZx7RtL9vNc3bH1sD");
+
+if (payment.status === "authorised") {
+  await securepay.payments.capture(payment.id);                  // all of it
+  // or: await securepay.payments.capture(payment.id, { amount: 3000 });
+}
+
+try {
+  await securepay.refunds.create(payment.id, { amount: 1500, reason: "One item returned" });
+} catch (err) {
+  if (err instanceof SecurePayAPIError && err.code === "refund_exceeds_refundable") {
+    // more than is left to refund
+  } else throw err;
+}`,
+  },
+  {
+    label: "Types",
+    code: `import type { Payment, Refund, SecurePayEvent, PaymentStatus } from "${SDK_PACKAGE}";
+
+// Generated from the OpenAPI file, so field names and statuses
+// always match the API.
+function shouldShip(p: Payment): boolean {
+  return p.status === "captured";
+}`,
   },
 ];
