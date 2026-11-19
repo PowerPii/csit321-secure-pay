@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <a href="https://csit321-secure-pay.vercel.app/">Website</a> ·
+  <a href="https://securepaysg.me/">Website</a> ·
   <a href="https://gateway.securepaysg.me/dashboard/">Live dashboard</a> ·
   <a href="https://shop.securepaysg.me/">Demo store</a> ·
   <a href="contracts/API-CONTRACT.md">API reference</a> ·
@@ -78,7 +78,7 @@ flowchart LR
   W --> P
   S --> P
   M --> P
-  G --> E[Mailpit<br/>email]
+  G --> E[Mailpit<br/>email copy] -->|relay| R[Resend<br/>real inboxes]
 ```
 
 | Folder | What it is |
@@ -162,7 +162,7 @@ cd ../frontend/dashboard && npm install && npx tsc --noEmit && npm test
 
 ## Deployment
 
-The public demo runs on one VM at `securepaysg.me` (`gateway.`, `shop.` and `mail.`) with Let's Encrypt certificates; emails reach real inboxes through a provider, with the Mailpit demo inbox kept as a fallback. Setup, updates, backups and recovery are in [`deploy/RUNBOOK.md`](deploy/RUNBOOK.md); the checklist for a live demo is [`docs/DEMO-DAY.md`](docs/DEMO-DAY.md).
+The public demo runs on one VM at `securepaysg.me` (`gateway.`, `shop.` and `mail.`) with Let's Encrypt certificates; emails go to real inboxes through Resend (sender `no-reply@securepaysg.me`, SPF, DKIM and DMARC set up), Mailpit keeps a copy of each and is the switchable fallback, and made-up demo addresses never leave Mailpit. The marketing website is at [securepaysg.me](https://securepaysg.me/) on Vercel (the old `csit321-secure-pay.vercel.app` address still works). The server stays on Google Cloud through M6 on paid billing. Setup, updates, backups and recovery are in [`deploy/RUNBOOK.md`](deploy/RUNBOOK.md); the checklist for a live demo is [`docs/DEMO-DAY.md`](docs/DEMO-DAY.md).
 
 ## Engineering rules
 

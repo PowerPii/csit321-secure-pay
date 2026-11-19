@@ -4,8 +4,8 @@ These are the parts of URS Section 4.4 that the CI tests cannot prove on their o
 the demonstration server, a real browser or people. Everything else is automated (see
 `evidence.yaml`).
 
-**Where:** the demonstration server (Section 4.6.1), after the move to DigitalOcean and the
-Student Pack domain, so the figures are measured where the demo runs. On the server, from
+**Where:** the demonstration server (Section 4.6.1), now on the Student Pack domain
+`securepaysg.me` (same Google Cloud VM, since 19 Nov 2026), so the figures are measured where the demo runs. On the server, from
 `~/csit321-secure-pay`:
 
 ```bash

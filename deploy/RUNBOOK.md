@@ -1,8 +1,8 @@
 # Running SecurePay on the public server
 
 Sprint 9: the whole stack on one Ubuntu server in Fifa's account: a Google Cloud VM (chosen
-16 Nov 2026; it stays there through M6 on paid billing, Fifa's decision of 19 Nov 2026; a
-DigitalOcean droplet is also covered below), with Let's Encrypt certificates for its names:
+16 Nov 2026; it stays there through M6, switching from the free trial to paid billing before
+the trial ends, Fifa's decision of 19 Nov 2026), with Let's Encrypt certificates for its names:
 first free `sslip.io` names, since 19 Nov 2026 the domain `securepaysg.me` (section 13a). The marketing website stays on
 Vercel and does not link here (decided 14 Nov 2026). Share the addresses with the team and
 assessors directly.
@@ -24,8 +24,7 @@ its smoke check.
 
 `<domain>` is `securepaysg.me` on the live server. On a new server without a domain it can be
 the IPv4 with dashes plus `.sslip.io`: for `203.0.113.5` it is `203-0-113-5.sslip.io`. A real
-domain needs `gateway`, `shop` and `mail` pointed at the server in its DNS (section 13a). The names follow the IP, so keep it stable: a DigitalOcean droplet
-keeps its IP until it is destroyed; on Google Cloud, reserve a static external IP. Moving to another
+domain needs `gateway`, `shop` and `mail` pointed at the server in its DNS (section 13a). The names follow the IP, so keep it stable: on Google Cloud, reserve a static external IP. Moving to another
 server later means new names, which is fine because nothing public links here.
 
 What is different from the local stack (`compose.yaml`): `DJANGO_DEBUG=0`; the Django admin is
@@ -37,13 +36,16 @@ Caddy image (no Node.js on the server); container logs are capped at 50 MB each.
 
 ## 1. Create the server (Fifa, once)
 
-Either option; the rest of the runbook is the same. For step 2 only, sign in as your own
-Google Cloud user (`fifa@` below) or as `root@` on DigitalOcean; from then on as `securepay@`.
+For step 2 only, sign in as your own Google Cloud user (`fifa@` below); from then on as
+`securepay@`.
 
-**Google Cloud free trial (now, until about mid-February 2027)**
+**Google Cloud (the live server, through M6)**
 
-The trial gives US$300 for 90 days. When it ends the VM stops unless the account is upgraded,
-so move to DigitalOcean before then with `deploy/move-server.sh` (section 13).
+The free trial gives US$300 for 90 days (until about 14 February 2027). When it ends the VM
+stops unless the account is upgraded, so before then upgrade the **same** billing account to
+paid (Billing > Upgrade; the VM, disk and static IP stay as they are) and set a budget alert
+(Billing > Budgets & alerts, for example US$30 a month). The e2-medium VM costs about US$25 a
+month. Nothing moves, so the addresses stay the same.
 
 1. Sign up at cloud.google.com/free and create a project (for example `securepay-demo`).
    Enable the Compute Engine API when asked.
@@ -68,13 +70,12 @@ The server-setup script notices that the external IP is NAT'd (the VM itself onl
 `10.x` address) and puts it on the loopback interface, so the worker's webhooks to the shop
 stay inside the VM.
 
-**DigitalOcean (Student Pack)**
+**Another provider (fallback only)**
 
-1. Redeem the DigitalOcean offer in the GitHub Student Developer Pack (benefits arrive 72 hours
-   after academic approval).
-2. Create a droplet: **Ubuntu 24.04 LTS x64**, region **Singapore (SGP1)**, Basic, Regular,
-   **2 vCPU / 4 GB RAM** (about US$24 a month, paid from the credit), authentication **SSH key**,
-   free monitoring on. Its public IPv4 is all you need; no reserved IP.
+Not planned: the Student Pack no longer includes DigitalOcean credit (checked 19 Nov 2026), so
+the demo stays on Google Cloud. If the Google Cloud account ever cannot continue, any Ubuntu
+24.04 VM with 2 vCPU / 4 GB RAM, a stable public IPv4 and an SSH key works the same way (for
+example Azure for Students); move with section 13.
 
 ## 2. Get the code and set up the server (once)
 
@@ -82,7 +83,7 @@ The repository is private, so the server gets a **read-only deploy key** for it 
 `raw.githubusercontent.com` download answers 404). Sign in as your own user first:
 
 ```bash
-ssh fifa@203.0.113.5        # Google Cloud: the name in your SSH key's comment; DigitalOcean: root@
+ssh fifa@203.0.113.5        # Google Cloud: the name in your SSH key's comment (often root@ elsewhere)
 ssh-keygen -t ed25519 -f ~/.ssh/deploy_key -N "" -C securepay-server
 cat ~/.ssh/deploy_key.pub
 ```
@@ -267,7 +268,7 @@ reset first (`down -v` deletes **all** data; then steps 6 and 7 again).
 Two things worth checking by hand once:
 
 - **Webhooks reach the shop.** Pay in the shop with `4242 4242 4242 4242`; the order turns paid
-  within seconds. (The worker calls `shop.<domain>` at the droplet's public IP, which Docker
+  within seconds. (The worker calls `shop.<domain>` at the server's public IP, which Docker
   routes back to Caddy. If orders stay unpaid, look at `logs gateway-worker`.)
 - **The gateway sees real client IPs** (velocity rules use them). After a payment, the
   screening decision on the payment's dashboard page shows your own IP, not a `172.x` one.
@@ -303,11 +304,8 @@ Run `deploy/backup/backup.sh` first so the dumps inside the snapshot are fresh, 
 
 - Google Cloud: Compute Engine > Disks > the VM's disk > **Create snapshot**, or
   `gcloud compute snapshots create securepay-$(date +%Y%m%d) --source-disk=securepay --source-disk-zone=<zone>`.
-- DigitalOcean: Droplet > **Snapshots** > Take live snapshot (about US$0.06 per GB a month;
-  delete it after the demo).
 
-Restoring a snapshot makes a new disk or droplet; the IP stays if it is the reserved/static
-one (Google Cloud) or you restore into the same droplet (DigitalOcean "Restore droplet").
+Restoring a snapshot makes a new disk; the IP stays because it is the reserved static one.
 
 ## 9a. Monitoring (sprint 16)
 
@@ -525,7 +523,7 @@ again. It does not invent past payments: the dashboard shows only what really we
 | Orders stay unpaid | `logs gateway-worker` (webhook delivery) and `logs merchant` |
 | `/readyz` says `"worker"`, no emails | The worker loop is stuck or down: `restart gateway-worker` (the watchdog does this after 10 minutes), then `logs gateway-worker` |
 | Watchdog alert you do not understand | `tail -50 ~/watchdog.log`; `bash deploy/watchdog.sh --check` for the state now |
-| Server slow or out of memory | `free -h`, `docker stats`; a droplet can be resized up without losing its IP; on Google Cloud, stop the VM, change the machine type (e2-standard-2, 8 GB) and start it (the static IP stays) |
+| Server slow or out of memory | `free -h`, `docker stats`; on Google Cloud, stop the VM, change the machine type (e2-standard-2, 8 GB) and start it (the static IP stays) |
 | Pages time out from outside | Google Cloud: the VM's "Allow HTTP/HTTPS traffic" boxes (network tags `http-server`, `https-server`); then `sudo ufw status` |
 | Need the Django admin for a one-off | Use `manage.py shell` through `$P exec` instead; the admin stays off on the public server |
 
@@ -651,9 +649,10 @@ demo inbox (it keeps messages in memory), so switch before `demo.sh reset`, not 
 
 ## 13. Moving to a new server or domain
 
-Sprint 12 (planned for about 20 Nov 2026, when the Student Pack arrives): from the Google Cloud
-trial VM to a DigitalOcean droplet, and from `sslip.io` to the Student Pack domain, in one go
-so the addresses change only once. `deploy/move-server.sh` carries everything that matters:
+Sprint 12 kit. The domain part is done: on 19 Nov 2026 the live server moved from `sslip.io` to
+`securepaysg.me` with `change-domain.sh` (section 13a), on the same Google Cloud VM. Moving to
+another server is not planned (the demo stays on Google Cloud through M6); this section is kept
+as the fallback if the VM ever has to change. `deploy/move-server.sh` carries everything that matters:
 the three databases, every secret (including the vault and field master keys, without which
 the copied data cannot be read), `deploy/.env` and the fraud model folder. Payments, refunds,
 staff accounts with their TOTP, merchants and their API keys, audit log and integrity seals,
@@ -668,7 +667,7 @@ add three **A records**, `gateway`, `shop` and `mail`, pointing at the new serve
 one `*` record). TTL 5 minutes while moving. Check from a laptop:
 `dig +short gateway.<domain>` prints the new IP.
 
-**2. New server.** Steps 1 to 3 above on DigitalOcean (droplet, `server-setup.sh`, code for
+**2. New server.** Steps 1 to 3 above on the new VM ( `server-setup.sh`, code for
 `securepay`). Stop before step 4: the secrets come from the old server.
 
 **3. Export, on the old server** (stops the apps there; the database stays up for the copy):
@@ -715,6 +714,6 @@ the team chat. Change the two uptime monitor URLs to the new domain.
 `VITE_GATEWAY_URL` (Vercel project settings; `frontend/website/src/content/site.ts` holds the
 fallback). Delete the move file from the laptop and both servers. Keep the old server stopped
 (`docker compose -f deploy/compose.prod.yaml down`, no `-v`) for a few days as a fallback,
-then delete the VM and release its static IP so the trial credit stops being used.
+then delete the old VM and release its static IP so it stops being billed.
 
 To go back during the move: on the old server `docker compose -f deploy/compose.prod.yaml up -d`.
