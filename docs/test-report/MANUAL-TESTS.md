@@ -246,7 +246,10 @@ The API key limit (100 per minute) and the per-browser limit (60 per minute) wou
 most of the load, so raise both for the test only, then put them back:
 
 1. Dashboard, Limits (administrator): API rate limit per key 2000, per IP 4000.
-2. In `deploy/.env` add `THROTTLE_ANON=6000/min`, then `$P up -d gateway`.
+2. In `deploy/.env` add `THROTTLE_ANON=6000/min`, then `$P up -d gateway`. The gateway
+   container must be **Recreated**, not just "Running" (`compose.prod.yaml` passes
+   `THROTTLE_ANON` through since 20 Nov 2026; before that the line had no effect and the
+   first live run on 20 Nov got 5,921 HTTP 429 replies).
 3. From a laptop on a good connection (or from the server itself, which leaves out the
    internet link; say which in the result):
 

@@ -58,7 +58,18 @@ M-CON-04:
     notes: "Aggregate counts only; no hash is in the evidence."
     reviewed_by: ""   # team member who checked this result (left for the team)
     reviewed_on: ""
-M-CON-06: []
+M-CON-06:
+  - date: 2026-11-20
+    by: Claude (release audit thread), with Fifa running the server and dashboard steps
+    revision: db8cacd
+    environment: live server (gateway.securepaysg.me, Google Cloud e2-medium), code db8cacd; customer account driven by Playwright from a cloud container, dashboard by Fifa in a browser
+    result: pass
+    figures: "Customer account: warning at 13.0 min, signed out at 15.0 min, the old sp_customer cookie then refused with HTTP 401. Dashboard (administrator, Fifa): warning, sign-out after 15 min, a refresh lands on the sign-in page"
+    evidence: docs/test-report/evidence/2026-11-20-live/m-con-06-customer.txt
+    notes: "Throwaway customer idle-check-...@example.com. The dashboard half was watched by Fifa; the old sessionid was not replayed with curl, the refresh showed the session ended."
+    reviewed_by: ""   # team member who checked this result (left for the team)
+    reviewed_on: ""
+
 M-AVA-01:
   - date: 2026-11-19
     by: Claude (evidence thread, branch claude/project-thread-6gpxnq)
@@ -70,7 +81,17 @@ M-AVA-01:
     notes: "Disposable staging, not the live server, as the team asked. The load tool prints FAIL because it counts the 53 calls made while the gateway was down; that is expected in a crash drill and is not the pass criterion here."
     reviewed_by: ""   # team member who checked this result (left for the team)
     reviewed_on: ""
-M-AVA-05: []
+M-AVA-05:
+  - date: 2026-11-20
+    by: Claude (release audit thread), with Fifa running the server and dashboard steps
+    revision: db8cacd
+    environment: live server (gateway.securepaysg.me, Google Cloud e2-medium), code db8cacd, server shell (Fifa)
+    result: pass
+    figures: "crontab: backup.sh nightly 18:15 UTC (02:15 SGT), verify.sh weekly Sun 03:30 SGT; backup folders from 16 to 19 Nov only (within 14 days); verify.sh on 20261119T112340Z: MANIFEST checksums match, gateway 47 tables about 3,374 rows, simulator 14 / 461, merchant 15 / 706, vault table present and empty, live databases untouched"
+    evidence: docs/test-report/evidence/2026-11-20-live/server-checks.txt
+    notes: "The full restore drill (restore over a database with a checkout in flight) passed on a disposable local stack the same night: evidence/2026-11-20-local/recovery-drill.txt."
+    reviewed_by: ""   # team member who checked this result (left for the team)
+    reviewed_on: ""
 M-ENC-01:
   - date: 2026-11-19
     by: Fifa (run), recorded by Claude
@@ -93,8 +114,28 @@ M-ENC-02:
     notes: "The one vault row left at the end belongs to a checkout still open by design."
     reviewed_by: ""   # team member who checked this result (left for the team)
     reviewed_on: ""
-M-ENC-03: []
-M-PRI-01: []
+M-ENC-03:
+  - date: 2026-11-20
+    by: Claude (release audit thread), with Fifa running the server and dashboard steps
+    revision: db8cacd
+    environment: live server (gateway.securepaysg.me, Google Cloud e2-medium), code db8cacd, dashboard Integrity and keys page (Fifa, administrator)
+    result: pass
+    figures: "Field key and vault key rotated: 0 failed re-encryptions each; an older payment, Volt & Co. merchant settings and an older guest status all opened normally; key report: every active key younger than 90 days (oldest 3 days)"
+    evidence: docs/test-report/evidence/2026-11-20-live/integrity-page-2026-11-20.png
+    notes: ""
+    reviewed_by: ""   # team member who checked this result (left for the team)
+    reviewed_on: ""
+M-PRI-01:
+  - date: 2026-11-20
+    by: Claude (release audit thread), with Fifa running the server and dashboard steps
+    revision: db8cacd
+    environment: live server (gateway.securepaysg.me, Google Cloud e2-medium), code db8cacd, server shell (Fifa) and dashboard
+    result: pass
+    figures: "grep for email addresses and +65 phone numbers over 24 h of all container logs: 0 matches. Personal data clean-up: Passed, last run 20 Nov 2026 00:27 SGT (Integrity page)"
+    evidence: docs/test-report/evidence/2026-11-20-live/server-checks.txt, docs/test-report/evidence/2026-11-20-live/integrity-page-2026-11-20.png
+    notes: "No masked addresses appeared either: the logs hold no email addresses at all."
+    reviewed_by: ""   # team member who checked this result (left for the team)
+    reviewed_on: ""
 M-PRI-02: []
 M-PER-01: []
 M-PER-02:
@@ -108,7 +149,17 @@ M-PER-02:
     notes: "This run used the stub model (the trained artefact stays in the team folder). The decision record names the cut-off as InternalError rather than a timeout; the outcome is right, only the label is vague."
     reviewed_by: ""   # team member who checked this result (left for the team)
     reviewed_on: ""
-M-PER-03: []
+M-PER-03:
+  - date: 2026-11-20
+    by: Claude (release audit thread), with Fifa running the server and dashboard steps
+    revision: db8cacd
+    environment: live server (gateway.securepaysg.me, Google Cloud e2-medium), code db8cacd; 20 payments through shop.securepaysg.me by Playwright from a cloud container; alert times queried on the server by Fifa
+    result: pass
+    figures: "20 payments with blocked@example.com, all blocked; each fraud alert written 36 to 75 ms after the screening decision (median 41 ms); the dashboard polls alerts every 5 s, so each shows within about 5.1 s (under 10 s); the dashboard showed them"
+    evidence: docs/test-report/evidence/2026-11-20-live/m-per-03-alert-timing.txt, docs/test-report/evidence/2026-11-20-live/m-per-03-payments.json
+    notes: "The extra staff-lockout security alert in the procedure was not timed in this run; the 20 fraud alerts are the 20 triggered events of the criterion."
+    reviewed_by: ""   # team member who checked this result (left for the team)
+    reviewed_on: ""
 M-USE-01:
   - date: 2026-11-18
     by: Claude (accessibility pass, PR for branch claude/project-thread-kob5qb)
