@@ -2,7 +2,7 @@
 # public_ip <domain>: the server's public IPv4 for a DOMAIN from deploy/.env.
 #   PUBLIC_IP set (environment or deploy/.env) -> that value
 #   203-0-113-5.sslip.io                        -> 203.0.113.5 (the name carries the IP)
-#   a real domain, e.g. securepay-demo.me       -> what DNS says for gateway.<domain>
+#   a real domain, e.g. securepaysg.me          -> what DNS says for gateway.<domain>
 # Prints nothing if the IP cannot be found; callers treat that as a failure.
 public_ip() {
   local domain="$1" ip=""

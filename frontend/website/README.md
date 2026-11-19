@@ -23,7 +23,7 @@ npm run build    # type-check and build to dist/
 
 Optional environment variable: `VITE_CONTACT_EMAIL`. When set, the contact form opens the visitor's email app addressed to it. When unset, the form points visitors to GitHub issues instead.
 
-Optional environment variable: `VITE_GATEWAY_URL` (default `https://gateway.35-213-144-96.sslip.io`). The developer docs use it for the base URL in code samples and the sign-up and dashboard links. Set it in Vercel when the server moves, then redeploy.
+Optional environment variable: `VITE_GATEWAY_URL` (default `https://gateway.securepaysg.me`). The developer docs use it for the base URL in code samples and the sign-up and dashboard links. Set it in Vercel when the server moves, then redeploy.
 
 ## Content
 

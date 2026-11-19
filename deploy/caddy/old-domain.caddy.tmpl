@@ -1,0 +1,19 @@
+# The previous domain's names, kept only while moving to a new domain (deploy/change-domain.sh,
+# RUNBOOK.md section 13a). The caddy service copies this file into /etc/caddy/extra/ when
+# OLD_DOMAIN is set in deploy/.env; remove OLD_DOMAIN there (and `up -d`) to drop it.
+# 308 keeps the method and body, so an API call or webhook to an old address still works;
+# shared links, bookmarks and old documents land on the same page at the new name.
+gateway.{$OLD_DOMAIN} {
+	redir https://gateway.{$DOMAIN}{uri} 308
+	import security_headers
+}
+
+shop.{$OLD_DOMAIN} {
+	redir https://shop.{$DOMAIN}{uri} 308
+	import security_headers
+}
+
+mail.{$OLD_DOMAIN} {
+	redir https://mail.{$DOMAIN}{uri} 308
+	import security_headers
+}

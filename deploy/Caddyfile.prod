@@ -1,5 +1,6 @@
-# Public server (deploy/compose.prod.yaml). DOMAIN is the VM's sslip.io name, for example
-# 203-0-113-5.sslip.io; Caddy gets Let's Encrypt certificates for the public names by itself.
+# Public server (deploy/compose.prod.yaml). DOMAIN is the server's domain (securepaysg.me
+# since 19 Nov 2026) or its sslip.io name, for example 203-0-113-5.sslip.io; Caddy gets
+# Let's Encrypt certificates for the public names by itself.
 #
 # Public on 80/443:  gateway.{$DOMAIN}  shop.{$DOMAIN}  mail.{$DOMAIN} (basic auth)
 # Private on 8443:   simulator.securepay.internal, gateway.securepay.internal
@@ -101,6 +102,11 @@ mail.{$DOMAIN} {
 	reverse_proxy mailpit:8025
 	import security_headers
 }
+
+# Redirects from the previous domain while moving (OLD_DOMAIN in deploy/.env). The caddy
+# service puts deploy/caddy/old-domain.caddy.tmpl here only then; otherwise this imports
+# nothing (Caddy logs a harmless "No files matching import glob pattern" warning).
+import /etc/caddy/extra/*.caddy
 
 # ---- Private: never published, reached only over the internal Docker networks ----
 

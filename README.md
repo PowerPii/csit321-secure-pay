@@ -8,8 +8,8 @@
 
 <p align="center">
   <a href="https://csit321-secure-pay.vercel.app/">Website</a> ·
-  <a href="https://gateway.35-213-144-96.sslip.io/dashboard/">Live dashboard</a> ·
-  <a href="https://shop.35-213-144-96.sslip.io/">Demo store</a> ·
+  <a href="https://gateway.securepaysg.me/dashboard/">Live dashboard</a> ·
+  <a href="https://shop.securepaysg.me/">Demo store</a> ·
   <a href="contracts/API-CONTRACT.md">API reference</a> ·
   <a href="docs/DEMO-WALKTHROUGH.md">Demo walkthrough</a>
 </p>
@@ -162,7 +162,7 @@ cd ../frontend/dashboard && npm install && npx tsc --noEmit && npm test
 
 ## Deployment
 
-The public demo runs on one VM with sslip.io names and Let's Encrypt certificates. Setup, updates, backups and recovery are in [`deploy/RUNBOOK.md`](deploy/RUNBOOK.md); the checklist for a live demo is [`docs/DEMO-DAY.md`](docs/DEMO-DAY.md).
+The public demo runs on one VM at `securepaysg.me` (`gateway.`, `shop.` and `mail.`) with Let's Encrypt certificates; emails reach real inboxes through a provider, with the Mailpit demo inbox kept as a fallback. Setup, updates, backups and recovery are in [`deploy/RUNBOOK.md`](deploy/RUNBOOK.md); the checklist for a live demo is [`docs/DEMO-DAY.md`](docs/DEMO-DAY.md).
 
 ## Engineering rules
 
