@@ -41,7 +41,7 @@ jobs:
     env:
       MAIL_PASSWORD_HASH: $2a$14$abcdefghijklmnopqrstuuMOs2yZ1nOv8wOEUx1AYQ1zt6S1zBe2m
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - id: paths
@@ -66,10 +66,10 @@ jobs:
           echo "The freeze ended at $UNTIL."
       - name: Secrets scan (gitleaks)
         if: ${{ !cancelled() }}
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         if: ${{ !cancelled() }}
         with:
           python-version: "3.12"
@@ -121,8 +121,8 @@ jobs:
       VAULT_DB_USER: postgres
       VAULT_DB_PASSWORD: postgres
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -136,7 +136,7 @@ jobs:
             echo "::endgroup::"
           done
           if [ -n "$failed" ]; then echo "::error::Failed:$failed"; exit 1; fi
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: junit-python
@@ -154,8 +154,8 @@ jobs:
     env:
       APPS: ${{ needs.changes.outputs.frontend }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: npm
@@ -169,7 +169,7 @@ jobs:
             echo "::endgroup::"
           done
           if [ -n "$failed" ]; then echo "::error::Failed:$failed"; exit 1; fi
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: junit-frontend
@@ -187,12 +187,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - run: pip install -q pyyaml
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: junit-*
           path: reports
@@ -203,7 +203,7 @@ jobs:
           python tests/report/build_report.py --junit reports --out TEST-REPORT.md --strict
       - if: always()
         run: test -f TEST-REPORT.md && cat TEST-REPORT.md >> "$GITHUB_STEP_SUMMARY" || true
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: test-report
