@@ -17,16 +17,18 @@ def money(cents) -> str:
     return f"S$ {cents // 100:,}.{cents % 100:02d}"
 
 
-INK = "#1d2433"
-STEEL = "#8792a8"
-LIGHT = "#e9edf5"
-ACCENT = "#14b8a6"
+# Volt & Co. palette: graphite objects, warm grey metal, a warm paper backdrop and one orange.
+INK = "#26282b"
+STEEL = "#a39e95"
+LIGHT = "#efebe3"
+ACCENT = "#e8692a"
+SCREEN = "#8e9c97"  # screens: a quiet sage grey, so orange stays a small detail
 
 # Each drawing sits on a 400 x 300 canvas.
 _ART = {
     "laptop": f"""
       <rect x="95" y="62" width="210" height="140" rx="10" fill="{INK}"/>
-      <rect x="107" y="74" width="186" height="116" rx="4" fill="{ACCENT}" opacity=".85"/>
+      <rect x="107" y="74" width="186" height="116" rx="4" fill="{SCREEN}" opacity=".85"/>
       <path d="M107 160 160 118l30 22 40-36 63 56v30H107z" fill="#fff" opacity=".25"/>
       <path d="M60 206h280l-16 22H76z" fill="{STEEL}"/>
       <rect x="180" y="206" width="40" height="5" rx="2" fill="{INK}" opacity=".4"/>""",
@@ -35,8 +37,8 @@ _ART = {
         stroke-linecap="round"/>
       <rect x="100" y="150" width="48" height="80" rx="20" fill="{INK}"/>
       <rect x="252" y="150" width="48" height="80" rx="20" fill="{INK}"/>
-      <rect x="132" y="162" width="22" height="56" rx="10" fill="{ACCENT}"/>
-      <rect x="246" y="162" width="22" height="56" rx="10" fill="{ACCENT}"/>""",
+      <rect x="132" y="162" width="22" height="56" rx="10" fill="{SCREEN}"/>
+      <rect x="246" y="162" width="22" height="56" rx="10" fill="{SCREEN}"/>""",
     "earbuds": f"""
       <rect x="120" y="150" width="160" height="90" rx="40" fill="#fff" stroke="{STEEL}"
         stroke-width="4"/>
@@ -61,7 +63,7 @@ _ART = {
       <circle cx="318" cy="122" r="9" fill="{ACCENT}"/>""",
     "monitor": f"""
       <rect x="70" y="50" width="260" height="160" rx="10" fill="{INK}"/>
-      <rect x="82" y="62" width="236" height="136" rx="4" fill="{ACCENT}" opacity=".85"/>
+      <rect x="82" y="62" width="236" height="136" rx="4" fill="{SCREEN}" opacity=".85"/>
       <circle cx="270" cy="100" r="18" fill="#fff" opacity=".35"/>
       <path d="M82 198v-36l60-40 50 34 46-26 80 50v18z" fill="#fff" opacity=".25"/>
       <rect x="188" y="210" width="24" height="34" fill="{STEEL}"/>
@@ -101,7 +103,7 @@ _ART = {
         stroke-linecap="round" stroke-linejoin="round"/>
       <rect x="160" y="50" width="80" height="150" rx="12" fill="{INK}"
         transform="rotate(-12 200 125)"/>
-      <rect x="168" y="62" width="64" height="122" rx="6" fill="{ACCENT}" opacity=".85"
+      <rect x="168" y="62" width="64" height="122" rx="6" fill="{SCREEN}" opacity=".85"
         transform="rotate(-12 200 125)"/>""",
     "cable": f"""
       <path d="M110 90c120 0-40 150 90 150s100-110 80-150" fill="none" stroke="{INK}"
