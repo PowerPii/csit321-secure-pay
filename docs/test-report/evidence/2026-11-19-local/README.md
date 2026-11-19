@@ -20,7 +20,7 @@ Codex re-audit of 19 Nov 2026 (`4ee019b`). Results are recorded in
 | NFR-CON-02 | Pass | 0 full card numbers in 17 locations (all 7 service logs, 3 databases outside the vault, 11 emails, merchant API, dashboard payments/refunds, fraud report + CSV export, audit log, webhook delivery log) | `m-con-02-card-number-scan.json` |
 | NFR-CON-04 | Pass | 10 of 10 hashes Argon2id with 10 distinct salts; 11-character password refused on customer sign-up, merchant registration and `create_staff` | `m-con-04-password-hashes.json` |
 | NFR-AVA-01 | Pass | 5 crashes, back in 5.8 to 6.4 s; 1,028 = 1,028 authorisations matched by operation ID, 0 missing, 0 twice, 0 unresolved | `m-ava-01-*.{txt,json}` |
-| NFR-ENC-01 | **Still open** | This container reaches the internet through a proxy that inspects TLS, so it cannot see the live server's own handshake. Plain HTTP on `gateway.`, `shop.` and `mail.securepaysg.me` answered 308 to HTTPS (checked through the proxy). The same Caddy build on the local stack refuses TLS 1.0 and 1.1 and accepts only ECDHE + AES-GCM / ChaCha20 on TLS 1.2 and the three TLS 1.3 suites. One laptop run of `tests/tls/check-tls.sh` closes it | `m-enc-01-local-caddy-tls.txt` |
+| NFR-ENC-01 | Pass | Run by Fifa on the live server's shell (this container's proxy inspects TLS): all 5 names Let's Encrypt, TLS 1.0/1.1 refused, only ECDHE + AEAD on TLS 1.2, HTTP 308 to HTTPS everywhere, 8443 closed. The local Caddy run is kept as well | `../2026-11-19-tls-host.txt`, `m-enc-01-local-caddy-tls.txt` |
 | NFR-ENC-02 | Pass | AES-256-GCM while held (tamper and wrong-token both refused), removed on submission and 1 s after expiry, restored backup has 0 vault rows | `m-enc-02-vault.json` |
 | NFR-PER-02 | Pass | p95 13.3 ms (1,000) and 22.0 ms (20/s for 60 s), 0 over 500 ms; forced slow screening blocked 3 of 3 as `screening_unavailable` at 510 ms | `m-per-02-*.{txt,json}` |
 
@@ -64,4 +64,4 @@ Codex re-audit of 19 Nov 2026 (`4ee019b`). Results are recorded in
 
 Bring up the local stack as in the README quick start, add an override with `DJANGO_DEBUG: "0"`,
 run `bash deploy/demo.sh seed` and the integration suite, then the scripts above. For NFR-ENC-01
-run `bash tests/tls/check-tls.sh securepaysg.me` from a laptop and record it under `M-ENC-01`.
+run `bash tests/tls/check-tls.sh securepaysg.me` from a network that does not intercept TLS (the script says INVALID if it does) and record it under `M-ENC-01`.

@@ -157,6 +157,11 @@ and curl, and runs testssl.sh as well if it is installed:
 for host in gateway shop mail; do ./testssl.sh --quiet --protocols --ciphers --severity HIGH "https://$host.$D"; done
 ```
 
+If the network in between intercepts TLS (an ISP or company filter, an antivirus web shield), the
+certificates come from that filter instead of Let's Encrypt and plain HTTP may be redirected to
+its block page. The script then ends with `INVALID` (exit 2): record nothing and run it again
+from another network, or from the server's own shell (as on 19 Nov 2026).
+
 **Pass:** the script ends with `PASS` (only TLS 1.2 and 1.3, no weak suite, every plain-HTTP
 request redirected). Save the output. The same script against the local stack
 (`bash tests/tls/check-tls.sh localhost`) checks the Caddy build before a deploy; the result of

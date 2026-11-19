@@ -60,7 +60,17 @@ M-AVA-01:
     notes: "Disposable staging, not the live server, as the team asked. The load tool prints FAIL because it counts the 53 calls made while the gateway was down; that is expected in a crash drill and is not the pass criterion here."
     reviewed_by: ""   # team member who checked this result (left for the team)
     reviewed_on: ""
-M-ENC-01: []
+M-ENC-01:
+  - date: 2026-11-19
+    by: Fifa (run), recorded by Claude
+    revision: 575e1d6
+    environment: live server shell (securepay@securepay, Google Cloud VM), bash tests/tls/check-tls.sh securepaysg.me, OpenSSL 3.0.13; connections to the public names from the host itself
+    result: pass
+    figures: "5 names (gateway, shop, mail on Caddy; apex and www on Vercel), all Let's Encrypt certificates valid to 17 Feb 2027: TLS 1.0 and 1.1 refused, TLS 1.2 and 1.3 offered, TLS 1.2 suites only ECDHE with AES-GCM or ChaCha20-Poly1305, plain HTTP 308 to HTTPS on all 5; HSTS on gateway and shop (mail, apex and www send none: not part of the criterion); port 8443 not reachable"
+    evidence: docs/test-report/evidence/2026-11-19-tls-host.txt
+    notes: "Run from the server itself, so the traffic did not cross the internet; the TLS settings and certificates are the server's own (Let's Encrypt issuers checked). An earlier run from a home network was intercepted by the ISP filter and is not recorded. The 8443 line from the host shows the port is unpublished; the outside firewall (ufw: 22, 80, 443 only) is not separately tested here."
+    reviewed_by: ""   # team member who checked this result (left for the team)
+    reviewed_on: ""
 M-ENC-02:
   - date: 2026-11-19
     by: Claude (evidence thread, branch claude/project-thread-6gpxnq)
