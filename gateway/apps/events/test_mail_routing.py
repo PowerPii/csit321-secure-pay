@@ -23,7 +23,7 @@ from apps.events import emails
 from apps.events.models import OutboundEmail
 
 PROVIDER = {"host": "smtp.provider.test", "port": 587, "username": "resend",
-            "password": "re_test", "use_tls": True, "use_ssl": False}
+            "password": "", "use_tls": True, "use_ssl": False}
 NO_PROVIDER = {**PROVIDER, "host": ""}
 
 
