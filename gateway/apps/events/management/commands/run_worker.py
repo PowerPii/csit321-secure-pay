@@ -128,6 +128,13 @@ def run_scheduled_checks():
     run_due()
 
 
+def record_status_sample():
+    """One sample for the public status page every five minutes (apps.status)."""
+    from apps.status.service import record_sample
+
+    record_sample()
+
+
 JOBS = [
     deliver_outbox,
     send_emails,
@@ -138,4 +145,5 @@ JOBS = [
     purge_idempotency_records,
     seal_audit_entries,
     run_scheduled_checks,
+    record_status_sample,
 ]

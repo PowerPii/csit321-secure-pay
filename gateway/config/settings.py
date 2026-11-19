@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     "apps.guest",
     "apps.customers",
     "apps.security",
+    "apps.status",
 ]
 
 MIDDLEWARE = [
@@ -316,6 +317,12 @@ SIMULATOR_SIGNING_SECRET = secret(
 # CA bundle for the simulator's TLS certificate (Caddy's local CA in the Compose stack);
 # empty means the system trust store.
 SIMULATOR_CA_BUNDLE = env("SIMULATOR_CA_BUNDLE", "")
+# Public status page (apps.status): the worker checks these two every five minutes through
+# their public names. Empty = that part is not checked and shows as "not monitored".
+STATUS_GATEWAY_URL = env("STATUS_GATEWAY_URL", "").rstrip("/")
+STATUS_SHOP_URL = env("STATUS_SHOP_URL", "").rstrip("/")
+# A line shown at the top of the status page, for planned work ("Upgrade on Sat 10 pm").
+STATUS_NOTICE = env("STATUS_NOTICE", "")
 # Webhooks go only to public addresses (API-CONTRACT.md section 7). In the local stack the
 # shop is reached through Caddy on a private Docker network, so its host name is allowed
 # here. Leave empty in any real deployment.

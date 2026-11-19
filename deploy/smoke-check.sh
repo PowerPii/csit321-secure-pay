@@ -19,6 +19,7 @@ check() {  # description, expected HTTP status, curl arguments...
 check "gateway health"                    200 "https://gateway.$domain/healthz"
 check "gateway ready (databases, worker)" 200 "https://gateway.$domain/readyz"
 check "shop health"                       200 "https://shop.$domain/healthz"
+check "public status data"                200 "https://gateway.$domain/status.json"
 check "checkout page served"              200 "https://gateway.$domain/pay/cs_test"
 check "guest status page served"          200 "https://gateway.$domain/guest/status"
 check "customer account pages served"   200 "https://gateway.$domain/account/sign-in"

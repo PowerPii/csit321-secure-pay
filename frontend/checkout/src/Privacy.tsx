@@ -6,6 +6,12 @@ import { errorId, invalidProps } from "./ui";
 
 export const PRIVACY_NOTICE_VERSION = "2026-11-16";
 
+// The full policy is on the marketing website: www. next to this page's gateway. name.
+export function privacyPolicyUrl(hostname = window.location.hostname): string {
+  const domain = hostname.startsWith("gateway.") && !hostname.endsWith("localhost") ? hostname.slice("gateway.".length) : "securepaysg.me";
+  return `https://www.${domain}/privacy`;
+}
+
 export function PrivacyNotice() {
   return (
     <details className="privacy">
@@ -21,8 +27,9 @@ export function PrivacyNotice() {
         your email address and the payment result.
       </p>
       <p>
-        With an account you can see and correct your details on the Profile page. Notice version{" "}
-        {PRIVACY_NOTICE_VERSION}.
+        With an account you can see and correct your details on the Profile page.{" "}
+        <a href={privacyPolicyUrl()} target="_blank" rel="noopener noreferrer">Read the full privacy policy</a>. Notice
+        version {PRIVACY_NOTICE_VERSION}.
       </p>
     </details>
   );

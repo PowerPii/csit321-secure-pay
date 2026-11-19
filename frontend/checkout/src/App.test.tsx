@@ -244,3 +244,12 @@ describe("checkout page", () => {
     await waitFor(() => expect(screen.getByText("This checkout link isn't valid")).toBeTruthy());
   });
 });
+
+describe("privacy policy link", () => {
+  it("points at the website next to the gateway", async () => {
+    const { privacyPolicyUrl } = await import("./Privacy");
+    expect(privacyPolicyUrl("gateway.securepaysg.me")).toBe("https://www.securepaysg.me/privacy");
+    expect(privacyPolicyUrl("gateway.example.org")).toBe("https://www.example.org/privacy");
+    expect(privacyPolicyUrl("gateway.localhost")).toBe("https://www.securepaysg.me/privacy");
+  });
+});
