@@ -17,9 +17,11 @@ mockups. How we got there, and the rules for new screens, are in [`docs/BRAND.md
 | `securepay-wordmark-on-navy.svg` | The logo for navy backgrounds (title slides, email header) |
 | `securepay-mark.svg` | The square mark: "s." on a navy tile. Favicon, app icon, avatar. Also every app's `public/favicon.svg` |
 | `securepay-wordmark-1316.png`, `securepay-wordmark-on-navy-1316.png`, `securepay-mark-256.png` | PNG copies for slides, the report and documents |
+| `frontend/*/public/apple-touch-icon.png`, website `icon-192.png`, `icon-512.png`, `site.webmanifest` | App icons: the "s." mark on a full navy square (phones round the corners) |
+| `frontend/website/public/og-image.png` | The link preview (1200 x 630) shown when the website is shared in chat apps and social sites |
 | `tokens.json` | The colours, the source of truth |
 | `tokens.css` | The same colours as CSS custom properties |
-| `render.cjs` | Makes the PNGs again after an SVG changes, including the email header wordmark (`gateway/apps/common/brand/securepay-wordmark-email.png`) |
+| `render.cjs` | Makes the PNGs again after an SVG changes: the copies above, the app icons, the link preview and the email header wordmark (`gateway/apps/common/brand/securepay-wordmark-email.png`). Run `npm ci` in `frontend/website` first for the fonts |
 
 The SVGs are outlined paths (Schibsted Grotesk SemiBold, tracking -0.045em), so they look the
 same without the font installed.
