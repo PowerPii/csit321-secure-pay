@@ -1,13 +1,13 @@
 # Test report for the non-functional requirements (M6)
 
-The M6 test report checks every non-functional requirement in URS Section 4.4 (29 of them,
+The M6 test report checks every non-functional requirement in URS Section 4.4 (31 of them,
 Tables 4.4.1.1 to 4.4.9.1) against its acceptance criterion.
 
 | File | What it is | Who edits it |
 | --- | --- | --- |
-| `requirements.json` | The 29 requirements as the final URS states them (text, method, acceptance, priority) | Nobody; regenerate only if the URS changes |
+| `requirements.json` | The 31 requirements as the final URS states them (text, method, acceptance, priority) | Nobody; regenerate only if the URS changes |
 | `evidence.yaml` | For each requirement: the CI tests, the integration (stack) tests and the manual checks that verify it | Whoever adds or renames a test |
-| `MANUAL-TESTS.md` | Step-by-step procedures for the 19 checks that need the live server, a browser or people | The test lead (Noppawut) |
+| `MANUAL-TESTS.md` | Step-by-step procedures for the 21 checks that need the live server, a browser or people | The test lead (Noppawut) |
 | `manual-results.yaml` | Results of those checks, newest last | Whoever runs a check |
 | `evidence/` | Raw output of manual checks, one dated folder per run (`evidence/2026-11-19-local/README.md`: the six Must checks of 19 Nov 2026) | Whoever runs a check |
 | `ACCESSIBILITY.md` | The accessibility and mobile pass (NFR-USE-01, NFR-USE-02): what was found, fixed and measured | Whoever re-runs `tests/a11y/scan.mjs` |

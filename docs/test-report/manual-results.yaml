@@ -26,6 +26,16 @@ STACK:
     reviewed_by: ""   # team member who checked this result (left for the team)
     reviewed_on: ""
 
+  - date: 2026-11-20
+    by: Claude (release audit thread, branch claude/project-thread-77iawl)
+    revision: db8cacd
+    environment: disposable local copy of the stack (deploy/compose.yaml, images built from main db8cacd, Caddy local CA, synthetic data only, stub model) in a cloud container; torn down afterwards; not the live server
+    result: pass
+    figures: "11 of 11 integration scenarios passed in 97 s (S1 to S6, receipt and guest status, fault controls) on fresh data; the opt-in recovery drill (RECOVERY_DRILL=1) passed in 32 s"
+    evidence: docs/test-report/evidence/2026-11-20-local/integration.txt, recovery-drill.txt
+    notes: "Re-run on the revision after PRs 73 to 80."
+    reviewed_by: ""   # team member who checked this result (left for the team)
+    reviewed_on: ""
 M-CON-02:
   - date: 2026-11-19
     by: Claude (evidence thread, branch claude/project-thread-6gpxnq)
@@ -60,6 +70,7 @@ M-AVA-01:
     notes: "Disposable staging, not the live server, as the team asked. The load tool prints FAIL because it counts the 53 calls made while the gateway was down; that is expected in a crash drill and is not the pass criterion here."
     reviewed_by: ""   # team member who checked this result (left for the team)
     reviewed_on: ""
+M-AVA-05: []
 M-ENC-01:
   - date: 2026-11-19
     by: Fifa (run), recorded by Claude
@@ -139,4 +150,25 @@ M-USE-03:
 M-USE-04: []
 M-AUD-01: []
 M-MNT-01: []
-M-MNT-02: []
+M-MNT-02:
+  - date: 2026-11-20
+    by: Claude (release audit thread, branch claude/project-thread-77iawl)
+    revision: db8cacd
+    environment: disposable local copy of the stack (deploy/compose.yaml, images built from main db8cacd, Caddy local CA, synthetic data only, stub model) in a cloud container; torn down afterwards; not the live server
+    result: pass
+    figures: "psql as the gateway role: SELECT count(*) FROM vault.vault_storedcard -> ERROR: permission denied for schema vault"
+    evidence: docs/test-report/evidence/2026-11-20-local/m-mnt-02.txt
+    notes: "The database roles and grants come from the same initialiser image as the live server (deploy/postgres); the live server itself was not queried."
+    reviewed_by: ""   # team member who checked this result (left for the team)
+    reviewed_on: ""
+M-MNT-03:
+  - date: 2026-11-20
+    by: Claude (release audit thread, branch claude/project-thread-77iawl)
+    revision: db8cacd
+    environment: "repository main (db8cacd): .github/workflows/ci.yml, .github/ci-python.sh, .github/ci-frontend.sh; both scripts run locally in a cloud container"
+    result: pass
+    figures: "ci-python.sh runs pip-audit -r requirements.lock and bandit -r apps for each Python service under set -euo pipefail; ci-frontend.sh runs npm audit --audit-level=high --omit=dev for checkout, dashboard and website and npm audit --audit-level=high for the SDK under set -euo pipefail; ci-ok is red when either job fails. Local run: pip-audit found no known vulnerabilities in gateway, simulator and merchant, bandit reported nothing, npm audit found 0 vulnerabilities in all four packages"
+    evidence: docs/test-report/evidence/2026-11-20-local/local-ci-scripts.txt
+    notes: "The pipeline is configured to run on every pull request that touches the code; GitHub Actions minutes are used up until 1 Dec 2026, so until then the same scripts are run locally before merging."
+    reviewed_by: ""   # team member who checked this result (left for the team)
+    reviewed_on: ""

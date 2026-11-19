@@ -1,5 +1,5 @@
 {
-  "source": "User Requirement Specification, Section 4.4 (Tables 4.4.1.1 to 4.4.9.1), final version for M1 (20 Nov 2026)",
+  "source": "User Requirement Specification, Section 4.4 (Tables 4.4.1.1 to 4.4.9.1), final version (course milestone M2, 21 Nov 2026)",
   "groups": [
     {
       "prefix": "CON",
@@ -161,6 +161,14 @@
       "source": "US-38, US-56"
     },
     {
+      "id": "NFR-AVA-05",
+      "requirement": "Payment records can be restored after the loss of the database.",
+      "verification": "Restore test",
+      "acceptance": "The gateway, processing simulator and demonstration store databases are backed up every night and each backup is kept for 14 days; backups never contain card data; the weekly restore check confirms the newest complete backup against its checksums, restores it into separate databases and finds the tables present and holding rows, with the card vault table present but empty, without touching the live databases.",
+      "priority": "Should",
+      "source": "US-31"
+    },
+    {
       "id": "NFR-ENC-01",
       "requirement": "All external traffic uses TLS 1.2 or higher.",
       "verification": "TLS scan",
@@ -279,6 +287,14 @@
       "acceptance": "A test fails the build if any module other than the vault imports vault internals or queries vault tables, and the main database role is refused when it reads the encrypted card table.",
       "priority": "Should",
       "source": "US-12, Section 4.5.1"
+    },
+    {
+      "id": "NFR-MNT-03",
+      "requirement": "Dependencies with known vulnerabilities and insecure code patterns are caught before a change is merged.",
+      "verification": "Pipeline inspection",
+      "acceptance": "On every pull request the pipeline runs pip-audit for each Python service, npm audit at high severity on the production dependencies of each front end and bandit on the Python code; any finding fails the run.",
+      "priority": "Should",
+      "source": "EN-03, Objective 2"
     }
   ]
 }

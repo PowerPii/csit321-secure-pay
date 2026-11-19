@@ -29,6 +29,7 @@ reset` afterwards.
 | M-CON-04 | NFR-CON-04 | Inspect the live user tables for Argon2id hashes | 5 min |
 | M-CON-06 | NFR-CON-06 | Idle sign-out on the account pages and dashboard | 35 min (mostly waiting) |
 | M-AVA-01 | NFR-AVA-01 | Kill the gateway 5 times under traffic | 30 min |
+| M-AVA-05 | NFR-AVA-05 | Backup schedule on the server, then the restore check | 10 min |
 | M-ENC-01 | NFR-ENC-01 | TLS scan of every public name | 15 min |
 | M-ENC-02 | NFR-ENC-02 | Inspect the live vault after a test run | 5 min |
 | M-ENC-03 | NFR-ENC-03 | Rotate the keys on the live server, read the key report | 10 min |
@@ -44,6 +45,7 @@ reset` afterwards.
 | M-AUD-01 | NFR-AUD-01 | Trace 20 sampled payments in the dashboard | 30 min |
 | M-MNT-01 | NFR-MNT-01 | Pipeline inspection and branch protection | 10 min |
 | M-MNT-02 | NFR-MNT-02 | The gateway's database role cannot read the card table | 5 min |
+| M-MNT-03 | NFR-MNT-03 | Pipeline inspection: dependency and code audits fail the run | 10 min |
 
 ---
 
@@ -136,6 +138,27 @@ matches every authorise on the gateway with the simulator's record by operation 
 **Pass:** each of the 5 restarts answers `/readyz` within 30 s, no payment stays unresolved
 or is escalated without a final answer, and the two counts match for the run's merchant
 (no payment missing on either side and none processed twice). Record the 5 restart times.
+
+## M-AVA-05: nightly backups and the weekly restore check
+
+On the server:
+
+```bash
+crontab -l | grep -E 'backup/(backup|verify)\.sh'   # nightly backup.sh, weekly verify.sh
+ls -1 ~/fyp-backups | tail -n 16                       # dated folders, none older than 14 days
+bash deploy/backup/verify.sh                           # the restore check, on the newest backup
+```
+
+`verify.sh` checks the newest complete backup against its MANIFEST checksums, restores each
+of the three dumps into a scratch database (`restorecheck_*`), counts tables and rows, checks
+that the vault table is present and empty (no card data in backups) and drops the scratch
+databases. The live databases are not touched. Backups made before 19 Nov 2026 have no
+MANIFEST and fail by design: run `backup.sh` once first. The full drill (restore over the
+local databases with a checkout in flight) is the opt-in integration test
+`RECOVERY_DRILL=1 pytest tests/integration/test_recovery_drill.py`, on a laptop stack only.
+
+**Pass:** both cron lines are there, the backup folders cover at most the last 14 days, and
+`verify.sh` ends with `Backup ... restores.` (exit 0).
 
 ## M-ENC-01: TLS scan
 
@@ -364,3 +387,16 @@ $P exec -T db psql -U gateway -d gateway -c "SELECT count(*) FROM vault.vault_st
 
 **Pass:** `permission denied for schema vault`. The import half of the requirement is the CI
 test `test_nfr_mnt_02_only_the_vault_touches_card_data`.
+
+## M-MNT-03: dependency and code audits fail the run
+
+1. In `.github/ci-python.sh` (run by the `python` job for each Python service on every pull
+   request that touches it): `pip-audit -r requirements.lock` and `bandit -r apps` run under
+   `set -euo pipefail`, so a finding fails the job.
+2. In `.github/ci-frontend.sh` (job `frontend`, for checkout, dashboard, website and the SDK):
+   `npm audit --audit-level=high --omit=dev` (the SDK, which has no runtime dependencies,
+   audits its build tools) under `set -euo pipefail`.
+3. `ci-ok` is red when either job fails.
+
+**Pass:** all three true on `main`, and the latest run of both scripts (in Actions, or locally
+while Actions minutes are used up) shows the audits running and passing.
