@@ -190,7 +190,7 @@ export default function Home() {
                 "Idempotency-Key on every POST, kept for 24 hours",
                 "Each reply signed with your secret (SecurePay-Signature)",
                 "30 documented error codes, each with a fixed name",
-                "Public OpenAPI 3.1 file with an interactive API reference",
+                "Public OpenAPI 3.1 file, interactive API reference and open source code",
                 `Node.js SDK on npm: ${SDK_PACKAGE} ${SDK_VERSION}`,
               ].map((t) => (
                 <Box key={t} sx={{ display: "flex", gap: 1.5, alignItems: "flex-start" }}>

@@ -121,7 +121,7 @@ const SECTIONS: LegalSection[] = [
             ["Google Cloud", "Runs the server with the gateway, databases, demo shop and emails", "Singapore"],
             ["Resend", "Delivers emails such as receipts and verification codes to real inboxes", "Outside Singapore (Japan region)"],
             ["Vercel", "Hosts this marketing website and its server logs", "Global network"],
-            ["GitHub", "Hosts our source code (private repository)", "United States"],
+            ["GitHub", "Hosts our public source code repository", "United States"],
           ]}
         />
         <p>
