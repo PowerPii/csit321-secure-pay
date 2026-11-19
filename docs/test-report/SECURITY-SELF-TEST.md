@@ -18,7 +18,7 @@ checklist passed (section 5).
 | Gateway: merchant API, hosted checkout, guest status, customer accounts, staff dashboard API | Local Docker stack (`deploy/compose.yaml`) with fresh secrets, two merchants and one staff account per role; manual requests and scripts; OWASP ZAP |
 | Demo shop, simulator | Local stack; code review |
 | Caddy configuration (headers, TLS, routing) | Local stack, plus passive checks of the live server |
-| Live server `gateway/shop/mail.35-213-144-96.sslip.io` | About 20 plain GET requests for headers, cookies and routing. No scanning, no sign-in, no test data |
+| Live server `gateway/shop/mail.35-213-144-96.sslip.io` (the names before the 19 Nov 2026 move to `securepaysg.me`; same server) | About 20 plain GET requests for headers, cookies and routing. No scanning, no sign-in, no test data |
 | Repository | gitleaks over the full git history (111 commits), bandit, pip-audit (all three services); npm audit already runs in CI |
 
 Tools: OWASP ZAP 2.17 (`zaproxy/zap-stable`): baseline scan of the dashboard, checkout page,

@@ -55,5 +55,5 @@ evidence; their run is recorded once under `STACK` in `manual-results.yaml`.
 ## Manual checks still to do
 
 All 19 are listed with their time estimate at the top of `MANUAL-TESTS.md`. Most need the
-demonstration server, so they are best run after the move to DigitalOcean and the new domain,
+demonstration server, so they are best run on the live server at `securepaysg.me` (Google Cloud, since 19 Nov 2026),
 and at least 48 hours before any demo. NFR-USE-04 needs five people outside the team.

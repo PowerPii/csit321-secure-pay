@@ -4,7 +4,7 @@
 # M-ENC-01:
 #   - date: 2026-12-05
 #     by: Noppawut
-#     environment: DigitalOcean droplet, securepay.example     # where it ran
+#     environment: live server, gateway.securepaysg.me          # where it ran
 #     result: pass                                             # pass or fail
 #     figures: TLS 1.2 and 1.3 only; 0 HIGH findings; HTTP -> 308 on all 3 names
 #     evidence: docs/test-report/evidence/2026-12-05-testssl.txt   # optional file or link
@@ -53,7 +53,7 @@ M-USE-02:
     notes: "No session with a screen-reader user yet; re-run tests/a11y/scan.mjs on the live server after the deploy."
   - date: 2026-11-18
     by: Claude (tests/a11y/scan.mjs with NO_PAY=1, after PR #46 deployed)
-    environment: live server (gateway.35-213-144-96.sslip.io), Chromium 157, axe-core 4.10.2
+    environment: live server (gateway.35-213-144-96.sslip.io, now securepaysg.me), Chromium 157, axe-core 4.10.2
     result: pass
     figures: 0 axe violations on 17 live scans (shop home, cart, checkout errors, card form, card form errors, guest status, account sign-in, invalid link at 1280 and 320 px; dashboard sign-in); keyboard reaches Pay and an empty submit focuses the first error at both widths
     evidence: /mnt/project-files/fyp/10-accessibility/live-after-2026-11-18.json
