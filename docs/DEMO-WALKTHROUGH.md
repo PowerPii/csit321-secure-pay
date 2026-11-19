@@ -62,6 +62,14 @@ curl -s https://simulator.localhost/sim/faults -H "Authorization: Bearer $KEY" -
 curl -s -X DELETE https://simulator.localhost/sim/faults -H "Authorization: Bearer $KEY"   # clear all rules
 ```
 
+## Status page, privacy and terms
+
+https://www.securepaysg.me/status shows each part of the live service (payments API and checkout, database and card vault, worker, card network, demo shop) with 90 days of daily uptime and the incidents of the last two weeks. The data comes from https://gateway.securepaysg.me/status.json, which the worker refreshes every 5 minutes; nobody posts incidents by hand. Locally the data is at https://gateway.localhost/status.json. The privacy policy (/privacy, linked from the checkout's privacy notice) and terms of use (/terms) are in the website footer.
+
+## API reference and SDK
+
+https://www.securepaysg.me/developers/api/explorer is the interactive reference built from the public OpenAPI file (`frontend/website/public/openapi/`). The Node.js SDK is on npm as `securepaysg` (`npm install securepaysg`); `sdk/node/scripts/live-check.mjs` runs a 14-step check through it (two payments paid with a test card, then capture, refund and cancel) against a gateway you point it at; use a test merchant only.
+
 ## More
 
 - Automated cross-service tests for S1-S6, receipts, guest status and fault controls: [`tests/integration/README.md`](../tests/integration/README.md).

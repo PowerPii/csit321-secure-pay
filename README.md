@@ -10,7 +10,9 @@
   <a href="https://securepaysg.me/">Website</a> ·
   <a href="https://gateway.securepaysg.me/dashboard/">Live dashboard</a> ·
   <a href="https://shop.securepaysg.me/">Demo store</a> ·
-  <a href="contracts/API-CONTRACT.md">API reference</a> ·
+  <a href="https://www.securepaysg.me/developers/api/explorer">API reference</a> ·
+  <a href="https://www.npmjs.com/package/securepaysg">Node.js SDK</a> ·
+  <a href="https://www.securepaysg.me/status">Status</a> ·
   <a href="docs/DEMO-WALKTHROUGH.md">Demo walkthrough</a>
 </p>
 
@@ -32,6 +34,7 @@ This is the CSIT321 final year project of team FYP-26-S4-36 (University of Wollo
 - REST API (`/v1`) to create, capture, cancel and refund payments, with API keys, signed responses and `Idempotency-Key` on every state change, so a retried request never charges twice.
 - Signed webhooks (HMAC, timestamped) for every status change, retried for up to 72 hours, with a delivery log and a resend button in the dashboard.
 - Self-service sign-up: register, verify the email, get approved by an administrator, then generate keys and submit a webhook address.
+- A public OpenAPI 3.1 file with an interactive reference on the website, and a Node.js SDK on npm ([`securepaysg`](https://www.npmjs.com/package/securepaysg), MIT, no dependencies) that adds idempotency keys, retries safely and checks reply and webhook signatures.
 
 **For customers**
 - Hosted checkout under a strict Content Security Policy. Card details go straight into an encrypted vault (AES-256-GCM) and the merchant never sees them.
@@ -46,6 +49,7 @@ This is the CSIT321 final year project of team FYP-26-S4-36 (University of Wollo
 - State changes and their webhook events are written in the same database transaction (outbox pattern), and a worker delivers them.
 - When the bank's reply is lost, the payment is marked Unresolved and the worker asks the simulator about the same operation ID until it has an answer. Nobody can set an outcome by hand.
 - Refunds reserve their amount under a row lock, so two refunds that together exceed the payment cannot both succeed.
+- A public [status page](https://www.securepaysg.me/status) shows each part of the service (API and checkout, database and vault, worker, card network, demo shop), 90 days of daily uptime and incidents worked out automatically from checks the worker makes every 5 minutes.
 
 **Staff dashboard**
 - Three roles: merchant operator, fraud analyst and administrator, each seeing only what it should.
@@ -83,15 +87,16 @@ flowchart LR
 
 | Folder | What it is |
 | --- | --- |
-| `gateway/` | Django 5.2 + DRF gateway. Modules in `gateway/apps/` (accounts, merchants, checkout, vault, payments, refunds, risk, events, reconciliation, audit, customers, guest, security). Each module's `__init__.py` says what it owns. The worker is `python manage.py run_worker`. |
+| `gateway/` | Django 5.2 + DRF gateway. Modules in `gateway/apps/` (accounts, merchants, checkout, vault, payments, refunds, risk, events, reconciliation, audit, customers, guest, security, status). Each module's `__init__.py` says what it owns. The worker is `python manage.py run_worker`. |
 | `simulator/` | The processing simulator: operations, ledger and fault controls |
 | `merchant/` | Volt & Co., the demo store, in Django templates |
 | `frontend/checkout/` | Hosted checkout (Vite + React + TypeScript) |
 | `frontend/dashboard/` | Staff dashboard (Vite + React + TypeScript + MUI) |
-| `frontend/website/` | The public website, deployed on Vercel |
+| `frontend/website/` | The public website, deployed on Vercel: product pages, developer guides and API explorer, status page, privacy policy and terms of use |
 | `frontend/brand/` | Logo, favicon and colour tokens ([`docs/BRAND.md`](docs/BRAND.md)) |
 | `research/` | Notebooks, shared feature definitions, model training and evaluation |
-| `contracts/` | OpenAPI files, event JSON Schemas, generated TypeScript types |
+| `contracts/` | OpenAPI files, event JSON Schemas, generated TypeScript types; `bundle_openapi.py` makes the public OpenAPI file |
+| `sdk/node/` | The `securepaysg` Node.js SDK, published on npm ([`sdk/node/README.md`](sdk/node/README.md)) |
 | `tests/` | Cross-service integration, load, accessibility, browser tests and the test report builder |
 | `deploy/` | Docker Compose, Caddy, Postgres init, secrets templates, backups and server scripts |
 | `docs/` | Scope, architecture, demo notes and the test report |
@@ -153,6 +158,7 @@ For day-to-day work on one service, see that service's README (venv + `runserver
 cd gateway && python3.12 -m venv .venv && . .venv/bin/activate && pip install --require-hashes --no-deps -r requirements-dev.lock
 DJANGO_DEBUG=1 python manage.py check && ruff check . && pytest
 cd ../frontend/dashboard && npm ci && npx tsc --noEmit && npm test
+cd ../../sdk/node && npm ci && npm run check:generated && npm run typecheck && npm test
 ```
 
 Package versions are locked. Python services install `requirements.lock` (the images) or `requirements-dev.lock` (checks and tests), with hashes; after changing a service's `pyproject.toml`, regenerate both with the `uv pip compile` commands at the top of each file. Front-end apps install with `npm ci` from `package-lock.json`, and their `package.json` lists exact versions. Base images in the Dockerfiles and compose files name exact versions.
@@ -164,7 +170,7 @@ Package versions are locked. Python services install `requirements.lock` (the im
 
 ## Deployment
 
-The public demo runs on one VM at `securepaysg.me` (`gateway.`, `shop.` and `mail.`) with Let's Encrypt certificates; emails go to real inboxes through Resend (sender `no-reply@securepaysg.me`, SPF, DKIM and DMARC set up), Mailpit keeps a copy of each and is the switchable fallback, and made-up demo addresses never leave Mailpit. The marketing website is at [securepaysg.me](https://securepaysg.me/) on Vercel (the old `csit321-secure-pay.vercel.app` address still works). The server stays on Google Cloud through M6 on paid billing. Setup, updates, backups and recovery are in [`deploy/RUNBOOK.md`](deploy/RUNBOOK.md); the checklist for a live demo is [`docs/DEMO-DAY.md`](docs/DEMO-DAY.md).
+The public demo runs on one VM at `securepaysg.me` (`gateway.`, `shop.` and `mail.`) with Let's Encrypt certificates; emails go to real inboxes through Resend (sender `no-reply@securepaysg.me`, SPF, DKIM and DMARC set up), Mailpit keeps a copy of each and is the switchable fallback, and made-up demo addresses never leave Mailpit. The marketing website is at [securepaysg.me](https://securepaysg.me/) on Vercel (the old `csit321-secure-pay.vercel.app` address still works); its [status page](https://www.securepaysg.me/status) reads `gateway.securepaysg.me/status.json`, and its [privacy policy](https://www.securepaysg.me/privacy) and [terms of use](https://www.securepaysg.me/terms) describe what the demo keeps and for how long. The server stays on Google Cloud through M6 on paid billing. Setup, updates, backups and recovery are in [`deploy/RUNBOOK.md`](deploy/RUNBOOK.md); the checklist for a live demo is [`docs/DEMO-DAY.md`](docs/DEMO-DAY.md).
 
 ## Engineering rules
 

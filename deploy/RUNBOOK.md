@@ -17,7 +17,7 @@ its smoke check.
 
 | Name | What | Who |
 | --- | --- | --- |
-| `https://gateway.<domain>` | Merchant API, hosted checkout (`/pay/...`), guest status (`/guest/status`), staff dashboard (`/dashboard/`) | Public; the dashboard needs a staff account with TOTP |
+| `https://gateway.<domain>` | Merchant API, hosted checkout (`/pay/...`), guest status (`/guest/status`), staff dashboard (`/dashboard/`), public status data (`/status.json`, read by the website's `/status` page) | Public; the dashboard needs a staff account with TOTP |
 | `https://shop.<domain>` | Demo shop | Public |
 | `https://mail.<domain>` | Demo inbox (Mailpit): verification codes, receipts, guest status codes | Team and assessors (basic auth) |
 | `simulator.securepay.internal:8443` | Payment simulator, including its fault controls | Inside the server only |
@@ -248,7 +248,7 @@ From a laptop:
 bash deploy/smoke-check.sh 203-0-113-5.sslip.io
 ```
 
-It checks the health endpoint, the checkout, guest status and dashboard pages, that `/admin/`
+It checks the health endpoint, the public status data (`/status.json`), the checkout, guest status and dashboard pages, that `/admin/`
 is 404 on the gateway and the shop, that the API needs a key, that the inbox needs a password,
 HTTP to HTTPS, the security headers, and that the simulator does not answer from outside.
 
@@ -347,7 +347,22 @@ fails twice:
    `https://gateway.<domain>/readyz` (fails with 503 when the worker or a database is down)
    and `https://shop.<domain>/healthz`.
 3. Alert contacts: the team email, and the Discord/Slack webhook or Telegram if you set one up.
-4. Optional: a public status page with the two monitors, to show at the demo.
+4. No UptimeRobot status page is needed: the website has its own (below).
+
+**Public: the status page** (`https://www.<domain>/status`, since 19 Nov 2026). The worker
+records one sample every 5 minutes, checking each part through its public name like an outside
+visitor: the API (`STATUS_GATEWAY_URL/healthz`), the database and card vault, the worker
+itself, the simulator and the shop (`STATUS_SHOP_URL/healthz`; both URLs are set for
+`gateway-worker` in `compose.prod.yaml`). `GET https://gateway.<domain>/status.json` (no key,
+cached 60 s) gives today's state, 90 days of daily uptime in Singapore time and the incidents of
+the last 14 days, all worked out from the samples. A gap of more than 15 minutes between samples
+shows as the worker being down. For planned work, set one line in `deploy/.env` and restart the
+gateway; empty it afterwards:
+
+```bash
+STATUS_NOTICE="Planned upgrade Sat 21 Nov, 10 to 10:30 pm SGT. Payments may fail briefly."
+docker compose -f deploy/compose.prod.yaml up -d gateway
+```
 
 After a move to a new domain (section 13 or 13a), change the two monitor URLs. A GitHub Actions
 schedule could do the same checks, but every 5 minutes it would use more than the private
