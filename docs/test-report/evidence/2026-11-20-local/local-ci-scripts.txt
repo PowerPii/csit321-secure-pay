@@ -1,0 +1,22 @@
+== gateway (.github/ci-python.sh)
+================== 673 passed, 2 skipped in 178.64s (0:02:58) ==================
+No known vulnerabilities found
+== simulator (.github/ci-python.sh)
+============================== 79 passed in 2.91s ==============================
+No known vulnerabilities found
+== merchant (.github/ci-python.sh)
+============================== 55 passed in 3.20s ==============================
+No known vulnerabilities found
+== checkout (.github/ci-frontend.sh)
+      Tests  75 passed (75)
+found 0 vulnerabilities
+== dashboard (.github/ci-frontend.sh)
+      Tests  62 passed (62)
+found 0 vulnerabilities
+== website (.github/ci-frontend.sh)
+      Tests  13 passed (13)
+found 0 vulnerabilities
+== sdk (.github/ci-frontend.sh)
+# pass 32
+# fail 0
+found 0 vulnerabilities

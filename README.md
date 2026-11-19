@@ -49,7 +49,8 @@ This is the CSIT321 final year project of team FYP-26-S4-36 (University of Wollo
 - State changes and their webhook events are written in the same database transaction (outbox pattern), and a worker delivers them.
 - When the bank's reply is lost, the payment is marked Unresolved and the worker asks the simulator about the same operation ID until it has an answer. Nobody can set an outcome by hand.
 - Refunds reserve their amount under a row lock, so two refunds that together exceed the payment cannot both succeed.
-- A public [status page](https://www.securepaysg.me/status) shows each part of the service (API and checkout, database and vault, worker, card network, demo shop), 90 days of daily uptime and incidents worked out automatically from checks the worker makes every 5 minutes.
+- A public [status page](https://www.securepaysg.me/status) shows each part of the service (API and checkout, database and vault, worker, card network, demo shop), 90 days of daily uptime and incidents worked out automatically from checks the worker makes every 5 minutes, and what payments experienced over the last 24 hours (checkout time, definite answers, screening outages, oldest unfinished item), each with its count.
+- Nightly backups that never contain card data, a weekly restore check, and scripts to restore a backup and roll back a release ([`docs/RECOVERY.md`](docs/RECOVERY.md)).
 
 **Staff dashboard**
 - Three roles: merchant operator, fraud analyst and administrator, each seeing only what it should.
@@ -61,7 +62,7 @@ This is the CSIT321 final year project of team FYP-26-S4-36 (University of Wollo
 | --- | --- | --- |
 | Fraud screening latency, as checkout calls it (target p95 200 ms) | p50 16.9 ms, p95 21.6 ms over 1,200 screenings at 20 per second | [`research/evaluation/hgb-fs02-2026-11-13.md`](research/evaluation/hgb-fs02-2026-11-13.md) |
 | Fraud model ROC-AUC on the held-out report days (later in time than training) | 0.738 (average precision 0.099 at a 3.5% fraud rate) | same file |
-| Non-functional requirements covered by the test report | 29 of 29 (URS Section 4.4) | [`docs/test-report/`](docs/test-report/README.md) |
+| Non-functional requirements covered by the test report | 31 of 31 (URS Section 4.4); all 15 Musts pass, the Shoulds still waiting on manual checks are listed in the report | [`docs/test-report/`](docs/test-report/README.md) |
 
 The fraud experiment and its limits are written up in the evaluation file above.
 
@@ -82,7 +83,8 @@ flowchart LR
   W --> P
   S --> P
   M --> P
-  G --> E[Mailpit<br/>email copy] -->|relay| R[Resend<br/>real inboxes]
+  W -->|real addresses| R[Resend<br/>real inboxes]
+  W -->|demo addresses| E[Mailpit<br/>test inbox]
 ```
 
 | Folder | What it is |
@@ -105,7 +107,7 @@ The full design is in [`docs/architecture/ARCHITECTURE-RECOMMENDATION.md`](docs/
 
 ### Tech stack
 
-Python 3.12, Django 5.2, Django REST Framework, PostgreSQL 17, React with Vite and TypeScript, MUI, scikit-learn, pandas and NumPy, Docker Compose, Caddy, Mailpit. No Redis, Celery, Kafka or Kubernetes.
+Python 3.12, Django 5.2, Django REST Framework, PostgreSQL 17, React with Vite and TypeScript, MUI, scikit-learn, pandas and NumPy, Docker Compose, Caddy, Resend for real email and Mailpit for demo addresses. No Redis, Celery, Kafka or Kubernetes.
 
 ## Quick start
 
@@ -165,13 +167,13 @@ Package versions are locked. Python services install `requirements.lock` (the im
 
 - Cross-service tests for demo stories S1-S6, receipts, guest status and fault controls: [`tests/integration/README.md`](tests/integration/README.md).
 - Acceptance tests numbered after the URS are in `gateway/acceptance/`; the checkout load test is `tests/load/checkout_load.py`.
-- The non-functional test report (all 29 requirements in URS Section 4.4) is built from the test results and manual checks: [`docs/test-report/README.md`](docs/test-report/README.md). Security and accessibility results are in the same folder.
+- The non-functional test report (all 31 requirements in URS Section 4.4) is built from the test results and manual checks: [`docs/test-report/README.md`](docs/test-report/README.md). Security and accessibility results are in the same folder.
 - Release candidates and their notes (versions, digests, test results, URS dispositions, known limitations): [`docs/releases/`](docs/releases/v1.0.0-rc.1.md).
 - CI (`.github/workflows/ci.yml`) runs lint, type checks, tests on real PostgreSQL, dependency audits and gitleaks, only for the parts a change touches. `ci-ok` is the check to require.
 
 ## Deployment
 
-The public demo runs on one VM at `securepaysg.me` (`gateway.`, `shop.` and `mail.`) with Let's Encrypt certificates; emails go to real inboxes through Resend (sender `no-reply@securepaysg.me`, SPF, DKIM and DMARC set up), Mailpit keeps a copy of each and is the switchable fallback, and made-up demo addresses never leave Mailpit. The marketing website is at [securepaysg.me](https://securepaysg.me/) on Vercel (the old `csit321-secure-pay.vercel.app` address still works); its [status page](https://www.securepaysg.me/status) reads `gateway.securepaysg.me/status.json`, and its [privacy policy](https://www.securepaysg.me/privacy) and [terms of use](https://www.securepaysg.me/terms) describe what the demo keeps and for how long. The server stays on Google Cloud through M6 on paid billing. Setup, updates, backups and recovery are in [`deploy/RUNBOOK.md`](deploy/RUNBOOK.md); the checklist for a live demo is [`docs/DEMO-DAY.md`](docs/DEMO-DAY.md).
+The public demo runs on one VM at `securepaysg.me` (`gateway.`, `shop.` and `mail.`) with Let's Encrypt certificates; the gateway worker sends emails for real addresses straight to Resend (sender `no-reply@securepaysg.me`, SPF, DKIM and DMARC set up; a signed Resend webhook reports delivered and bounced emails once it is set up, RUNBOOK 13b step 5), never copied into Mailpit, while made-up demo addresses go only to Mailpit and never leave it. The marketing website is at [securepaysg.me](https://securepaysg.me/) on Vercel (the old `csit321-secure-pay.vercel.app` address still works); its [status page](https://www.securepaysg.me/status) reads `gateway.securepaysg.me/status.json`, and its [privacy policy](https://www.securepaysg.me/privacy) and [terms of use](https://www.securepaysg.me/terms) describe what the demo keeps and for how long. The server stays on Google Cloud through M6 on paid billing. Setup, updates, backups and recovery are in [`deploy/RUNBOOK.md`](deploy/RUNBOOK.md); the checklist for a live demo is [`docs/DEMO-DAY.md`](docs/DEMO-DAY.md).
 
 ## Engineering rules
 

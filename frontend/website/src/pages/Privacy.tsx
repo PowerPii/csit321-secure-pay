@@ -10,7 +10,7 @@ import { usePageTitle } from "../components/usePageTitle";
    PRIVACY_NOTICE_VERSION (gateway settings + frontend/checkout/src/Privacy.tsx) when the short
    notice on the payment page changes. */
 
-export const PRIVACY_UPDATED = "19 November 2026";
+export const PRIVACY_UPDATED = "20 November 2026";
 
 const contact = (
   <Link component={RouterLink} to="/contact">
@@ -76,8 +76,8 @@ const SECTIONS: LegalSection[] = [
             ],
             [
               "You use the contact form on this website",
-              "Nothing is stored by the website. The form opens your own email app or a GitHub issue",
-              "To answer you. A GitHub issue is public, so don’t put personal details in one",
+              "Nothing is stored by the website. The form opens your own email app with your message",
+              "To answer you",
             ],
           ]}
         />
@@ -169,7 +169,7 @@ const SECTIONS: LegalSection[] = [
             ["Customer accounts", "While you use the account, or until you ask us to close it"],
             ["Database backups", "14 days. Backups never contain card numbers"],
             ["Server logs", "Rotated by size, usually a few days to weeks"],
-            ["Copies of emails in the team’s demo inbox", "Held in memory only, and gone when the inbox restarts or newer emails push them out"],
+            ["Emails to made-up demo addresses (such as @example.com) in the team’s demo inbox. Emails to real addresses are never copied there", "Held in memory only, and gone when the inbox restarts or newer emails push them out"],
           ]}
         />
         <p>

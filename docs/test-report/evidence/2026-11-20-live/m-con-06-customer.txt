@@ -1,0 +1,7 @@
+2026-11-19T16:22:52.684Z register idle-check-1795105371288@example.com 201 {"id":"cus_bDtKXy2ipYH0M70xidITWAhx","full_name":"Idle Check","email":"idle-check-1795105371288@example.com","idle_minutes":15,"idle_warning_minutes":13}
+2026-11-19T16:22:56.825Z signed-in page: securepay. TEST MODE Idle Check · Sign out Payment history Spending Profile Password Sign out Payment history Only payments made while signed in to this account
+2026-11-19T16:22:56.827Z cookie present true
+2026-11-19T16:35:57.678Z WARNING at 13.01 min: securepay. TEST MODE Idle Check · Sign out Payment history Spending Profile Password Sign out Payment history Only payments made while signed in to this account are listed. You have not made any payme
+2026-11-19T16:37:57.842Z SIGNED OUT at 15.02 min: securepay. TEST MODE My account Your SecurePay account An account is optional. Guests can still pay and check a payment with the one-time code on their receipt. See all your payments in one place Chec
+2026-11-19T16:37:58.616Z replay old cookie -> HTTP 401
+2026-11-19T16:37:58.616Z RESULT warned=13.01 ended=15.02 replay=401

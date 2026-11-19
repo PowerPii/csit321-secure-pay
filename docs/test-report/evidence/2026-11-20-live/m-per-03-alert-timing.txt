@@ -1,0 +1,26 @@
+# 20 payments with blocked@example.com through shop.securepaysg.me (Playwright from a cloud container, 20 Nov 2026 00:25-00:27 SGT; m-per-03-payments.json).
+# Alert creation vs screening decision, queried by Fifa on the live server (times UTC):
+  reference   | status  |   screened   |    alert     | ms
+ SP-Y9SC-LUYG | blocked | 16:25:21.961 | 16:25:22.035 | 75
+ SP-KALB-SJ97 | blocked | 16:25:29.487 | 16:25:29.535 | 48
+ SP-WW9J-HRG7 | blocked | 16:25:35.592 | 16:25:35.635 | 43
+ SP-F2PD-XSRM | blocked | 16:25:41.771 | 16:25:41.819 | 48
+ SP-VADM-WAN6 | blocked | 16:25:47.929 | 16:25:47.978 | 49
+ SP-2NTM-RRRM | blocked | 16:25:55.087 | 16:25:55.125 | 38
+ SP-P43M-MLJ4 | blocked | 16:26:02.591 | 16:26:02.631 | 40
+ SP-U6JM-NH87 | blocked | 16:26:09.624 | 16:26:09.663 | 39
+ SP-F6E3-PJ8H | blocked | 16:26:16.617 | 16:26:16.670 | 53
+ SP-8JLP-HDLL | blocked | 16:26:23.076 | 16:26:23.117 | 41
+ SP-H462-RSME | blocked | 16:26:29.860 | 16:26:29.897 | 37
+ SP-SHU2-M8HL | blocked | 16:26:36.489 | 16:26:36.527 | 38
+ SP-QDGJ-LQDM | blocked | 16:26:43.103 | 16:26:43.142 | 39
+ SP-SGKU-K39Z | blocked | 16:26:49.215 | 16:26:49.255 | 41
+ SP-LEKB-3R7F | blocked | 16:26:55.441 | 16:26:55.477 | 36
+ SP-9QUW-DAWL | blocked | 16:27:02.310 | 16:27:02.352 | 42
+ SP-XTQ5-A7FF | blocked | 16:27:09.124 | 16:27:09.170 | 47
+ SP-GTRA-BSUW | blocked | 16:27:15.255 | 16:27:15.294 | 39
+ SP-R8W3-4424 | blocked | 16:27:22.077 | 16:27:22.115 | 38
+ SP-AFP9-W747 | blocked | 16:27:28.537 | 16:27:28.576 | 39
+# All 20 alerts written 36-75 ms after the decision. The dashboard polls alerts every 5 s
+# (frontend/dashboard/src/components/Layout.tsx, refetchInterval 5000, also in the background),
+# so each appears within about 5.1 s. The dashboard showed the new alerts (41 new) at 00:27 SGT.

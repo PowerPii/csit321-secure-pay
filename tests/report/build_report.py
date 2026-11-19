@@ -4,7 +4,7 @@
     python tests/report/build_report.py --check     # the mapping still matches the code
 
 Inputs (all in docs/test-report/):
-    requirements.json    the 29 requirements, copied from the final URS
+    requirements.json    the 31 requirements, copied from the final URS
     evidence.yaml        which CI tests, stack tests and manual checks verify each one
     manual-results.yaml  results of the manual checks (and of the integration suite, STACK)
 and JUnit XML files from the test runs: junit-gateway.xml, junit-merchant.xml (pytest

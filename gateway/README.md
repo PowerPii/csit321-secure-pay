@@ -74,7 +74,7 @@ same-origin JSON API under `/checkout/`:
 | `apps/risk/scoring.py` | Model interface. `StubModel` (`stub-0`, score 0) until a trained HistGradientBoosting artefact is installed (`model_artifacts/README.md`) |
 | `apps/risk/screening.py` | Savepoint + Postgres `statement_timeout` of 500 ms; any error or overrun -> `blocked`, `screening_unavailable`, decision `not_screened`, never sent to the simulator (FR-FRD-04) |
 | `apps/risk/models.py` | `ScreeningEvent`: one per attempt; score, reasons, feature values, model / rules / policy versions, time taken. `RiskListEntry`: block and review lists |
-| `apps/checkout/verification.py` | 6-digit codes (HMAC-hashed, 10 minutes), emailed through Mailpit, which relays them to real inboxes through Resend on the live server |
+| `apps/checkout/verification.py` | 6-digit codes (HMAC-hashed, 10 minutes), queued in the outbox and emailed by the worker: real addresses straight through Resend on the live server, demo addresses to Mailpit only (`apps/common/mail_routing.py`) |
 
 Analysts read decisions in the Django admin (Risk -> Screening events) until the dashboard (D4, D6) lands in sprint 6. Demo data: `python manage.py seed_risk_lists` (the Compose stack runs it on start) lists card **4000 0000 0000 0101** and `blocked@example.com` for blocking and `review@example.com` for verification. Any order over S$500 asks for a code too. The burst rule counts every attempt, including blocked ones, so after an outage test or many declines on one test card, wait 10 minutes or use another card.
 
