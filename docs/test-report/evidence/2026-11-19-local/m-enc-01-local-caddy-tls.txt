@@ -1,0 +1,23 @@
+# Local Caddy (same caddy 2.11.9 base, same default TLS policy as Caddyfile.prod public sites), 127.0.0.1:443, 2026-11-19T10:58:34Z
+OpenSSL 3.0.13 30 Jan 2024 (Library: OpenSSL 3.0.13 30 Jan 2024)
+gateway.localhost tls1 refused (server alert: protocol version)
+gateway.localhost tls1_1 refused (server alert: protocol version)
+gateway.localhost tls1_2 OFFERED (ECDHE-ECDSA-AES128-GCM-SHA256)
+gateway.localhost tls1_3 OFFERED (TLS_AES_128_GCM_SHA256)
+gateway.localhost TLS1.2 ciphers accepted: ECDHE-ECDSA-AES256-GCM-SHA384 ECDHE-ECDSA-CHACHA20-POLY1305 ECDHE-ECDSA-AES128-GCM-SHA256
+gateway.localhost TLS1.3 suites accepted: TLS_AES_128_GCM_SHA256 TLS_AES_256_GCM_SHA384 TLS_CHACHA20_POLY1305_SHA256
+gateway.localhost http:// -> 308 https://gateway.localhost/
+shop.localhost tls1 refused (server alert: protocol version)
+shop.localhost tls1_1 refused (server alert: protocol version)
+shop.localhost tls1_2 OFFERED (ECDHE-ECDSA-AES128-GCM-SHA256)
+shop.localhost tls1_3 OFFERED (TLS_AES_128_GCM_SHA256)
+shop.localhost TLS1.2 ciphers accepted: ECDHE-ECDSA-AES256-GCM-SHA384 ECDHE-ECDSA-CHACHA20-POLY1305 ECDHE-ECDSA-AES128-GCM-SHA256
+shop.localhost TLS1.3 suites accepted: TLS_AES_128_GCM_SHA256 TLS_AES_256_GCM_SHA384 TLS_CHACHA20_POLY1305_SHA256
+shop.localhost http:// -> 308 https://shop.localhost/
+mail.localhost tls1 refused (server alert: protocol version)
+mail.localhost tls1_1 refused (server alert: protocol version)
+mail.localhost tls1_2 OFFERED (ECDHE-ECDSA-AES128-GCM-SHA256)
+mail.localhost tls1_3 OFFERED (TLS_AES_128_GCM_SHA256)
+mail.localhost TLS1.2 ciphers accepted: ECDHE-ECDSA-AES256-GCM-SHA384 ECDHE-ECDSA-CHACHA20-POLY1305 ECDHE-ECDSA-AES128-GCM-SHA256
+mail.localhost TLS1.3 suites accepted: TLS_AES_128_GCM_SHA256 TLS_AES_256_GCM_SHA384 TLS_CHACHA20_POLY1305_SHA256
+mail.localhost http:// -> 308 https://mail.localhost/

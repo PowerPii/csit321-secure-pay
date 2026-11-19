@@ -128,21 +128,39 @@ $P exec -T db psql -U gateway -d gateway -At -c "SELECT count(*) FROM payments_o
 $P exec -T db psql -U simulator -d simulator -At -c "SELECT count(*) FROM operations_operation WHERE type='authorise' AND status='approved'"
 ```
 
+Run it on a disposable copy of the stack, never on the live server. The 19 Nov 2026 run used
+the local stack with production settings; its scripts are in
+`evidence/2026-11-19-local/scripts/` (`ava01.sh` for the kills, `ava01_reconcile.py`, which
+matches every authorise on the gateway with the simulator's record by operation ID).
+
 **Pass:** each of the 5 restarts answers `/readyz` within 30 s, no payment stays unresolved
 or is escalated without a final answer, and the two counts match for the run's merchant
 (no payment missing on either side and none processed twice). Record the 5 restart times.
 
 ## M-ENC-01: TLS scan
 
-From a laptop (not the server), with [testssl.sh](https://testssl.sh):
+From a laptop on an ordinary network (not the server, and not behind a proxy that inspects TLS,
+or you measure the proxy):
+
+```bash
+bash tests/tls/check-tls.sh securepaysg.me | tee docs/test-report/evidence/$(date +%F)-tls.txt
+```
+
+It covers every external entry point: `gateway.`, `shop.` and `mail.` on the Google Cloud VM
+(TLS 1.0 and 1.1 must be refused, TLS 1.2 and 1.3 offered, each TLS 1.2 cipher suite tried one
+by one and only ECDHE with AES-GCM or ChaCha20-Poly1305 allowed, plain HTTP must answer 301 or
+308 to HTTPS, HSTS shown), the website on Vercel (`securepaysg.me` and `www.`), and port 8443
+(the private simulator hop, which must not answer from outside). It needs only bash, openssl
+and curl, and runs testssl.sh as well if it is installed:
 
 ```bash
 for host in gateway shop mail; do ./testssl.sh --quiet --protocols --ciphers --severity HIGH "https://$host.$D"; done
-for host in gateway shop mail; do curl -sI "http://$host.$D/" | head -1; done
 ```
 
-**Pass:** only TLS 1.2 and 1.3 offered, no weak cipher (testssl.sh shows none in red or
-HIGH), and every plain-HTTP request answers 301 or 308 to HTTPS. Save the testssl.sh output.
+**Pass:** the script ends with `PASS` (only TLS 1.2 and 1.3, no weak suite, every plain-HTTP
+request redirected). Save the output. The same script against the local stack
+(`bash tests/tls/check-tls.sh localhost`) checks the Caddy build before a deploy; the result of
+19 Nov 2026 is in `evidence/2026-11-19-local/m-enc-01-local-caddy-tls.txt`.
 
 ## M-ENC-02: the live vault after a test run
 
@@ -237,6 +255,17 @@ $P exec -T gateway python manage.py loadtest_screening --rate 20 --seconds 60
 **Pass:** p95 screening time at most 200 ms (including history features) in both, and the
 benchmark reports every request over 500 ms as blocked "screening unavailable" (normally
 none). Record the p50, p95 and max.
+
+A fast run has no request over 500 ms, so it cannot show the timeout branch. Show it on a
+disposable stack: hold a lock on the risk-list table that the rules read, then pay. The 500 ms
+statement timeout cuts the screening query off and the payment must end Blocked with
+`screening_unavailable`; a payment after the lock ends is authorised as normal.
+
+```bash
+$P exec -T db psql -U postgres -d gateway -c \
+  "BEGIN; LOCK TABLE risk_risklistentry IN ACCESS EXCLUSIVE MODE; SELECT pg_sleep(12); COMMIT;" &
+# within those 12 s: pay in the shop (or evidence/2026-11-19-local/scripts/per02_timeout.py)
+```
 
 ## M-PER-03: alerts reach the dashboard within 10 seconds
 

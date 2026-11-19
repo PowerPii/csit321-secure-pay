@@ -1,0 +1,14 @@
+## benchmark_screening --payments 1000
+model stub-0: 1000 screenings over 5000 earlier events
+  mean 10.9 ms   p50 10.8 ms   p95 13.3 ms   p99 14.9 ms   max 34.8 ms
+  over the 500 ms budget: 0
+  outcomes: {'allow': 571, 'block': 112, 'verify': 317}
+  NFR-PER-02 p95 <= 200 ms: PASS
+
+## loadtest_screening --rate 20 --seconds 60
+model stub-0: 1200 screenings at 20/s over 60.0 s (20.0/s achieved), 8 workers, 5000 earlier events
+  screening (as checkout calls it): mean 18.1 ms   p50 17.6   p95 22.0   p99 27.5   max 138.7 ms
+  pipeline only (decision record): p50 10.5   p95 13.2 ms
+  start lag p95 0.2 ms (rate held: yes)   over the 500 ms budget: 0
+  outcomes: {'allow': 661, 'block': 124, 'verify': 415}
+  NFR-PER-02 p95 <= 200 ms at 20/s: PASS

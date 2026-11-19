@@ -1,0 +1,55 @@
+{
+ "while the risk list is locked (3 payments)": [
+  {
+   "payment": "pay_4ylORmXtvu01t7t12B3l0upr",
+   "submit_http": 200,
+   "submit_ms": 532,
+   "status": "blocked",
+   "reason": "screening_unavailable"
+  },
+  {
+   "payment": "pay_WxyQxnt5PKxD28wvSPXOI6Y9",
+   "submit_http": 200,
+   "submit_ms": 533,
+   "status": "blocked",
+   "reason": "screening_unavailable"
+  },
+  {
+   "payment": "pay_suKRYHfbjuneCF0geA4Nk4Lm",
+   "submit_http": 200,
+   "submit_ms": 533,
+   "status": "blocked",
+   "reason": "screening_unavailable"
+  }
+ ],
+ "control, lock released": {
+  "payment": "pay_EJPOsh7xEko0zZ1N3hule2Ol",
+  "submit_http": 200,
+  "submit_ms": 100,
+  "status": "authorised",
+  "reason": null
+ },
+ "screening event columns": [
+  "id",
+  "public_id",
+  "occurred_at",
+  "amount",
+  "card_fingerprint",
+  "email_hash",
+  "ip_hash",
+  "device_hash",
+  "outcome",
+  "score",
+  "reasons",
+  "features",
+  "model_version",
+  "rules_version",
+  "policy_version",
+  "feature_schema_version",
+  "elapsed_ms",
+  "error",
+  "merchant_id",
+  "payment_id",
+  "explanation"
+ ]
+}

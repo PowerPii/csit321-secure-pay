@@ -14,19 +14,79 @@
 #   docker compose -f deploy/compose.prod.yaml run --rm integration-tests)
 # is recorded under STACK the same way; its result counts for every "stack" test.
 
-STACK: []
+STACK:
+  - date: 2026-11-19
+    by: Claude (evidence thread, branch claude/project-thread-6gpxnq)
+    revision: 4ee019b
+    environment: disposable local copy of the stack (deploy/compose.yaml with DJANGO_DEBUG=0 and the Django admin off, images built from main 4ee019b, Postgres 17, Caddy local CA, synthetic data only, stub model), cloud container 4 vCPU; torn down afterwards
+    result: pass
+    figures: "11 of 11 integration scenarios passed in 99 s (S1 to S6, receipt and guest status, fault controls) on fresh data"
+    evidence: pytest tests/integration (this run)
+    notes: "Run before the manual checks below, on the same stack."
+    reviewed_by: ""   # team member who checked this result (left for the team)
+    reviewed_on: ""
 
-M-CON-02: []
-M-CON-04: []
+M-CON-02:
+  - date: 2026-11-19
+    by: Claude (evidence thread, branch claude/project-thread-6gpxnq)
+    revision: 4ee019b
+    environment: disposable local copy of the stack (deploy/compose.yaml with DJANGO_DEBUG=0 and the Django admin off, images built from main 4ee019b, Postgres 17, Caddy local CA, synthetic data only, stub model), cloud container 4 vCPU; torn down afterwards
+    result: pass
+    figures: "0 full card numbers in 17 locations after the integration run plus 1,080 load payments: logs of all 7 services, gateway database (outside the vault), shop database incl. received webhooks, simulator database, 11 emails (raw source), 10 payments in the merchant API and the dashboard (list, detail, refunds), fraud report and its CSV export, audit log (85 events), webhook delivery log (23 events). Two checks per location: Luhn-valid 13 to 19 digit numbers, and exact matches of the 6 card numbers the run paid with. 7 Luhn-valid look-alikes set aside by rule (3 decimal fractions, 4 MIME boundaries or Message-IDs), each checked by hand"
+    evidence: docs/test-report/evidence/2026-11-19-local/m-con-02-card-number-scan.json
+    notes: "Scanner tested first on a positive control (3 card numbers found, spaced, dashed and plain). A read-only repeat on the live server is optional: the same scan with the server compose file."
+    reviewed_by: ""   # team member who checked this result (left for the team)
+    reviewed_on: ""
+M-CON-04:
+  - date: 2026-11-19
+    by: Claude (evidence thread, branch claude/project-thread-6gpxnq)
+    revision: 4ee019b
+    environment: disposable local copy of the stack (deploy/compose.yaml with DJANGO_DEBUG=0 and the Django admin off, images built from main 4ee019b, Postgres 17, Caddy local CA, synthetic data only, stub model), cloud container 4 vCPU; torn down afterwards
+    result: pass
+    figures: "staff 5 of 5 and customers 5 of 5 stored as argon2id (v=19, m=102400, t=2, p=8), 5 and 5 distinct salts, 0 unusable; an 11-character password (Abcdefgh12!) refused with weak_password on customer sign-up and merchant registration, and by create_staff; 12 characters accepted on both sign-up paths"
+    evidence: docs/test-report/evidence/2026-11-19-local/m-con-04-password-hashes.json
+    notes: "Aggregate counts only; no hash is in the evidence."
+    reviewed_by: ""   # team member who checked this result (left for the team)
+    reviewed_on: ""
 M-CON-06: []
-M-AVA-01: []
+M-AVA-01:
+  - date: 2026-11-19
+    by: Claude (evidence thread, branch claude/project-thread-6gpxnq)
+    revision: 4ee019b
+    environment: disposable local copy of the stack (deploy/compose.yaml with DJANGO_DEBUG=0 and the Django admin off, images built from main 4ee019b, Postgres 17, Caddy local CA, synthetic data only, stub model), cloud container 4 vCPU; torn down afterwards
+    result: pass
+    figures: "5 kill -9 of the gateway's main process under 2 payments/s for 540 s: /readyz answered again after 5.9, 5.9, 6.4, 6.0 and 5.8 s (all under 30 s). 1,028 authorise operations on the gateway and 1,028 approved records on the simulator, matched one to one by operation ID: 0 missing on either side, 0 payments authorised twice, 0 unresolved, 0 escalated. 51 create calls hit the gateway while it was down and got 502 (nothing was created); 2 submits lost their reply: LOAD-000758 had reached the simulator and the worker's status check settled it as authorised with the same operation ID 61 s later; LOAD-000180 never reached the gateway and stayed open for the customer to retry"
+    evidence: docs/test-report/evidence/2026-11-19-local/m-ava-01-restarts.txt, m-ava-01-reconciliation.json, m-ava-01-load-summary.json
+    notes: "Disposable staging, not the live server, as the team asked. The load tool prints FAIL because it counts the 53 calls made while the gateway was down; that is expected in a crash drill and is not the pass criterion here."
+    reviewed_by: ""   # team member who checked this result (left for the team)
+    reviewed_on: ""
 M-ENC-01: []
-M-ENC-02: []
+M-ENC-02:
+  - date: 2026-11-19
+    by: Claude (evidence thread, branch claude/project-thread-6gpxnq)
+    revision: 4ee019b
+    environment: disposable local copy of the stack (deploy/compose.yaml with DJANGO_DEBUG=0 and the Django admin off, images built from main 4ee019b, Postgres 17, Caddy local CA, synthetic data only, stub model), cloud container 4 vCPU; torn down afterwards
+    result: pass
+    figures: "a held card is stored only as k1.<key>.base64(nonce + ciphertext + tag), 127 characters, no digits in clear; it decrypts with the vault key and its token, and fails (InvalidTag) with one changed byte or another token. Removed from the vault on submission (1 to 0) and 1 s after its checkout expired (worker). Backup taken while a card was held: the plain-SQL form of gateway.dump has 0 vault rows and none of the card's digits; restored into a scratch database the vault table exists with 0 rows and all 13 payments came back. The gateway role is refused on the vault schema"
+    evidence: docs/test-report/evidence/2026-11-19-local/m-enc-02-vault.json
+    notes: "The one vault row left at the end belongs to a checkout still open by design."
+    reviewed_by: ""   # team member who checked this result (left for the team)
+    reviewed_on: ""
 M-ENC-03: []
 M-PRI-01: []
 M-PRI-02: []
 M-PER-01: []
-M-PER-02: []
+M-PER-02:
+  - date: 2026-11-19
+    by: Claude (evidence thread, branch claude/project-thread-6gpxnq)
+    revision: 4ee019b
+    environment: disposable local copy of the stack (deploy/compose.yaml with DJANGO_DEBUG=0 and the Django admin off, images built from main 4ee019b, Postgres 17, Caddy local CA, synthetic data only, stub model), cloud container 4 vCPU; torn down afterwards
+    result: pass
+    figures: "benchmark_screening 1,000 payments: p50 10.8, p95 13.3, max 34.8 ms, 0 over 500 ms. loadtest_screening 20/s for 60 s (1,200): p50 17.6, p95 22.0, max 138.7 ms, 0 over 500 ms. Timeout branch, production settings: with the risk-list table locked, 3 of 3 payments were blocked as screening_unavailable after 510 ms of screening (submit answered 200 in 532 ms); a control payment after the lock was authorised in 100 ms. Trained model (earlier runs): p95 21.6 ms on 13 Nov 2026 (research/evaluation/hgb-fs02-2026-11-13.md) and 28.1 ms in the Codex review of 19 Nov 2026"
+    evidence: docs/test-report/evidence/2026-11-19-local/m-per-02-benchmarks.txt, m-per-02-timeout-branch.json
+    notes: "This run used the stub model (the trained artefact stays in the team folder). The decision record names the cut-off as InternalError rather than a timeout; the outcome is right, only the label is vague."
+    reviewed_by: ""   # team member who checked this result (left for the team)
+    reviewed_on: ""
 M-PER-03: []
 M-USE-01:
   - date: 2026-11-18

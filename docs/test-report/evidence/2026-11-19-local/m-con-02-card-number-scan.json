@@ -1,0 +1,146 @@
+{
+ "locations": {
+  "logs:gateway": {
+   "bytes": 10814,
+   "luhn_valid_numbers": 0,
+   "exact_test_card_matches": 0,
+   "distinct": 0,
+   "known_test_cards": 0,
+   "note": ""
+  },
+  "logs:gateway-worker": {
+   "bytes": 97440,
+   "luhn_valid_numbers": 0,
+   "exact_test_card_matches": 0,
+   "distinct": 0,
+   "known_test_cards": 0,
+   "note": ""
+  },
+  "logs:simulator": {
+   "bytes": 2239,
+   "luhn_valid_numbers": 0,
+   "exact_test_card_matches": 0,
+   "distinct": 0,
+   "known_test_cards": 0,
+   "note": ""
+  },
+  "logs:merchant": {
+   "bytes": 3498,
+   "luhn_valid_numbers": 0,
+   "exact_test_card_matches": 0,
+   "distinct": 0,
+   "known_test_cards": 0,
+   "note": ""
+  },
+  "logs:caddy": {
+   "bytes": 5962,
+   "luhn_valid_numbers": 0,
+   "exact_test_card_matches": 0,
+   "distinct": 0,
+   "known_test_cards": 0,
+   "note": ""
+  },
+  "logs:mailpit": {
+   "bytes": 492,
+   "luhn_valid_numbers": 0,
+   "exact_test_card_matches": 0,
+   "distinct": 0,
+   "known_test_cards": 0,
+   "note": ""
+  },
+  "logs:db": {
+   "bytes": 18704,
+   "luhn_valid_numbers": 0,
+   "exact_test_card_matches": 0,
+   "distinct": 0,
+   "known_test_cards": 0,
+   "note": ""
+  },
+  "db:gateway (all schemas except vault)": {
+   "bytes": 135287,
+   "luhn_valid_numbers": 0,
+   "exact_test_card_matches": 0,
+   "distinct": 0,
+   "known_test_cards": 0,
+   "note": ""
+  },
+  "db:merchant (demo shop, incl. received webhooks)": {
+   "bytes": 17004,
+   "luhn_valid_numbers": 0,
+   "exact_test_card_matches": 0,
+   "distinct": 0,
+   "known_test_cards": 0,
+   "note": ""
+  },
+  "db:simulator (the simulated bank)": {
+   "bytes": 15289,
+   "luhn_valid_numbers": 0,
+   "exact_test_card_matches": 0,
+   "distinct": 0,
+   "known_test_cards": 0,
+   "note": "The simulator plays the card network and issuer; outside the gateway, shown for completeness."
+  },
+  "emails:mailpit (11 messages, raw source)": {
+   "bytes": 165841,
+   "luhn_valid_numbers": 0,
+   "exact_test_card_matches": 0,
+   "distinct": 0,
+   "known_test_cards": 0,
+   "note": ""
+  },
+  "dashboard:payments (10 payments, list + detail + refunds)": {
+   "bytes": 76464,
+   "luhn_valid_numbers": 0,
+   "exact_test_card_matches": 0,
+   "distinct": 0,
+   "known_test_cards": 0,
+   "note": ""
+  },
+  "api:/v1/payments/<id> + refunds (10 payments of the demo shop)": {
+   "bytes": 9421,
+   "luhn_valid_numbers": 0,
+   "exact_test_card_matches": 0,
+   "distinct": 0,
+   "known_test_cards": 0,
+   "note": ""
+  },
+  "export:fraud report CSV (/internal/reports/fraud/export)": {
+   "bytes": 1393,
+   "luhn_valid_numbers": 0,
+   "exact_test_card_matches": 0,
+   "distinct": 0,
+   "known_test_cards": 0,
+   "note": ""
+  },
+  "dashboard:fraud report": {
+   "bytes": 3373,
+   "luhn_valid_numbers": 0,
+   "exact_test_card_matches": 0,
+   "distinct": 0,
+   "known_test_cards": 0,
+   "note": ""
+  },
+  "dashboard:audit log (85 events)": {
+   "bytes": 32161,
+   "luhn_valid_numbers": 0,
+   "exact_test_card_matches": 0,
+   "distinct": 0,
+   "known_test_cards": 0,
+   "note": ""
+  },
+  "dashboard:webhook delivery log (23 events, bodies sent to the shop)": {
+   "bytes": 49044,
+   "luhn_valid_numbers": 0,
+   "exact_test_card_matches": 0,
+   "distinct": 0,
+   "known_test_cards": 0,
+   "note": ""
+  }
+ },
+ "luhn_hits_in_scope": 0,
+ "exact_test_card_matches_in_scope": 0,
+ "set_aside_as_not_card_numbers": {
+  "decimal fraction": 3,
+  "MIME boundary / Message-ID": 4
+ }
+}
