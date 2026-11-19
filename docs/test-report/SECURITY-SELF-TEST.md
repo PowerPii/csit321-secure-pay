@@ -63,6 +63,10 @@ counted in each worker separately.
 `security 0004`), shared by every worker and the background worker. No new service is needed
 on the server. After the fix the same test answered 117 and refused 213; the small overshoot
 comes from 10 requests arriving at the same instant, which a get-then-set throttle allows.
+Follow-up (19 Nov 2026): the overshoot is gone. Each key's read-modify-write now runs under
+a Postgres advisory lock on that key (`apps/common/throttling.py`, also the violation counter);
+`apps/common/test_throttling.py` sends 24 requests at once against a limit of 5: DRF's own class
+lets them all through, ours exactly 5.
 
 ### SEC-02 Referrer-Policy overwritten (Low)
 
@@ -209,7 +213,7 @@ fraud explanations and the merchant view of fraud decisions.
 | SEC-09 | DNS rebinding window on webhooks; the new delivery log shows the start of the reply, so a rebinding would no longer be blind | Low | Fixed: the name is resolved once per attempt, every answer must be public, and the call connects to that address, with the Host header and the TLS name (SNI and certificate check) still the merchant's host name |
 | SEC-12 | DRF's per-IP rate limits keyed on the whole `X-Forwarded-For` header, which the client writes; safe today only because Caddy replaces the header | Low | Fixed: `NUM_PROXIES` follows `TRUSTED_PROXY_HOPS`, so the limits and fraud screening read the same address |
 | SEC-13 | `npm audit` reports `picomatch` (ReDoS) in the three front ends | Info | Accepted: build tools only, not in the files served to browsers (`npm audit --omit=dev`: 0) |
-| SEC-14 | Python dependencies are version ranges and Docker images are tags, so a deploy installs the newest matching releases | Info | Recommendation: lock exact versions (with hashes) before the final submission |
+| SEC-14 | Python dependencies are version ranges and Docker images are tags, so a deploy installs the newest matching releases | Info | Fixed (19 Nov 2026): Python services install `requirements.lock` with hashes, front-end `package.json` files name exact versions (with `package-lock.json`), base images are pinned by tag and digest. Images built by CI and pushed to a registry are still planned (needs a registry and Actions minutes) |
 
 What was checked, and passed:
 

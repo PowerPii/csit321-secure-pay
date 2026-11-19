@@ -150,10 +150,12 @@ For day-to-day work on one service, see that service's README (venv + `runserver
 ## Testing
 
 ```bash
-cd gateway && python3.12 -m venv .venv && . .venv/bin/activate && pip install -e ".[dev]"
+cd gateway && python3.12 -m venv .venv && . .venv/bin/activate && pip install --require-hashes --no-deps -r requirements-dev.lock
 DJANGO_DEBUG=1 python manage.py check && ruff check . && pytest
-cd ../frontend/dashboard && npm install && npx tsc --noEmit && npm test
+cd ../frontend/dashboard && npm ci && npx tsc --noEmit && npm test
 ```
+
+Package versions are locked. Python services install `requirements.lock` (the images) or `requirements-dev.lock` (checks and tests), with hashes; after changing a service's `pyproject.toml`, regenerate both with the `uv pip compile` commands at the top of each file. Front-end apps install with `npm ci` from `package-lock.json`, and their `package.json` lists exact versions. Base images in the Dockerfiles and compose files name exact versions.
 
 - Cross-service tests for demo stories S1-S6, receipts, guest status and fault controls: [`tests/integration/README.md`](tests/integration/README.md).
 - Acceptance tests numbered after the URS are in `gateway/acceptance/`; the checkout load test is `tests/load/checkout_load.py`.

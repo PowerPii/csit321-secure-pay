@@ -9,8 +9,8 @@ from typing import ClassVar
 
 from django.conf import settings
 from rest_framework.response import Response
-from rest_framework.throttling import AnonRateThrottle, ScopedRateThrottle
 
+from apps.common.throttling import AnonRateThrottle, ScopedRateThrottle
 from apps.common.views import PublicJSONView, body_or_empty
 from apps.customers import history, insights, service
 

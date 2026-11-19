@@ -51,9 +51,20 @@ def _variants(pan):
     return {pan, groups, groups.replace(" ", "-")}
 
 
+# Random UUIDs (idempotency keys) and hex digests (fingerprints, signatures, hashes) are
+# not card numbers, but their digit runs pass the generic scan by chance: "834686-5630-429"
+# inside a UUID is 13 digits with dashes, and about 1 in 250 hex digests holds a Luhn-valid
+# run. With dozens of them in the database the test failed about 1 run in 8. The exact test
+# cards are still searched for in the full text first, so a real leak is always caught.
+_NOT_CARD_TOKENS = re.compile(
+    r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+    r"|[0-9a-fA-F]{32,}")
+
+
 def _leaks(text: str) -> list[str]:
     found = [pan for number in CARDS.values() for pan in _variants(number) if pan in text]
-    return found or (["a Luhn-valid card number"] if looks_like_card_number(text) else [])
+    rest = _NOT_CARD_TOKENS.sub(" ", text)
+    return found or (["a Luhn-valid card number"] if looks_like_card_number(rest) else [])
 
 
 def _database_dump(alias="default") -> str:

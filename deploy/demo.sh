@@ -126,7 +126,7 @@ preflight() {
       || failed+=("test payment")
   else
     echo "WARN  skipped: make the test environment once (tests/integration/README.md):"
-    echo "      python3 -m venv .venv-it && .venv-it/bin/pip install pytest httpx"
+    echo "      python3 -m venv .venv-it && .venv-it/bin/pip install --require-hashes -r tests/integration/requirements.lock"
   fi
   echo
   echo "== Gateway checks"
@@ -147,7 +147,7 @@ traffic() {
   if [ "$domain" != localhost ]; then
     "${P[@]}" run --rm -T integration-tests sh -c '
       cat /etc/ssl/certs/ca-certificates.crt /caddy-ca/root.crt > /tmp/ca.pem
-      pip install -q --root-user-action=ignore pytest httpx
+      pip install -q --root-user-action=ignore --require-hashes -r tests/integration/requirements.lock
       exec python tests/integration/demo_traffic.py "$@"' traffic "$@" </dev/null
   elif [ -x .venv-it/bin/python ]; then
     ca="$(mktemp)"
@@ -155,7 +155,7 @@ traffic() {
       CADDY_ROOT_CA="$ca" .venv-it/bin/python tests/integration/demo_traffic.py "$@"
   else
     echo "Make the test environment once (tests/integration/README.md):"
-    echo "  python3 -m venv .venv-it && .venv-it/bin/pip install pytest httpx"
+    echo "  python3 -m venv .venv-it && .venv-it/bin/pip install --require-hashes -r tests/integration/requirements.lock"
     return 1
   fi
 }

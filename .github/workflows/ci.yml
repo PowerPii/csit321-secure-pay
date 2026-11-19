@@ -91,7 +91,7 @@ jobs:
           docker run --rm -e DOMAIN=203-0-113-5.sslip.io -e ACME_EMAIL=ci@example.com \
             -e MAIL_USER=team -e MAIL_PASSWORD_HASH \
             -v "$PWD/deploy/Caddyfile.prod:/etc/caddy/Caddyfile:ro" \
-            caddy:2 caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+            caddy:2.11.9@sha256:4851e54a46b206517c574821bb5cc67f170d2156041e9fbc4c9193b45e84a75b caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
           docker build -f deploy/caddy/Dockerfile -t securepay-caddy .
           # bash -n checks only its first file, so check each script on its own.
           for f in deploy/*.sh deploy/backup/*.sh; do bash -n "$f" || exit 1; done
@@ -106,7 +106,7 @@ jobs:
     timeout-minutes: 20
     services:
       postgres:
-        image: postgres:17
+        image: postgres:17.12-trixie@sha256:0d938e975177bef9f1f61f3f9dbcf2e0aa0a139568f66d3415ed8892eb97f6ac
         env:
           POSTGRES_PASSWORD: postgres
         ports: ["5432:5432"]
@@ -126,7 +126,7 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-          cache-dependency-path: "*/pyproject.toml"
+          cache-dependency-path: "*/requirements-dev.lock"
       - name: Test ${{ needs.changes.outputs.python }}
         run: |
           failed=""

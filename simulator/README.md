@@ -6,7 +6,7 @@ Stands in for the card network/issuer: enforces unique operation ids, records le
 
 ```bash
 python3.12 -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
+pip install --require-hashes --no-deps -r requirements-dev.lock
 export DJANGO_DEBUG=1
 python manage.py migrate
 python manage.py runserver 8001

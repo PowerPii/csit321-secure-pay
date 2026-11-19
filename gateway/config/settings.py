@@ -186,7 +186,7 @@ REST_FRAMEWORK = {
 
 REST_FRAMEWORK.update(
     {
-        "DEFAULT_THROTTLE_CLASSES": ["rest_framework.throttling.AnonRateThrottle"],
+        "DEFAULT_THROTTLE_CLASSES": ["apps.common.throttling.AnonRateThrottle"],
         "DEFAULT_THROTTLE_RATES": {
             "anon": env("THROTTLE_ANON", "60/min"),
             # Per IP: forgot-password and business registration forms (FR-ACC-07, FR-MER-01).

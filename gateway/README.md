@@ -6,7 +6,7 @@ Modular Django + DRF gateway (merchant API, hosted checkout, dashboards' API, va
 
 ```bash
 python3.12 -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
+pip install --require-hashes --no-deps -r requirements-dev.lock
 export DJANGO_DEBUG=1
 python manage.py migrate
 python manage.py runserver 8000

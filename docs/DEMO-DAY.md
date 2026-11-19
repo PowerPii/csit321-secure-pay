@@ -78,7 +78,7 @@ and the repository at the commit the server runs (`main` during the freeze).
 docker compose -f deploy/compose.yaml up -d --build
 bash deploy/demo.sh seed          # Volt & Co., staff logins (temporary passwords), shop keys
 bash deploy/demo.sh reset         # cards, emails, demo_check
-python3 -m venv .venv-it && .venv-it/bin/pip install pytest httpx   # once, for preflight
+python3 -m venv .venv-it && .venv-it/bin/pip install --require-hashes -r tests/integration/requirements.lock   # once, for preflight
 bash deploy/demo.sh preflight     # READY
 ```
 

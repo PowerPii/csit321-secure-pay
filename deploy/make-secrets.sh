@@ -51,7 +51,7 @@ chmod 600 .env
 
 if ! grep -q '^MAIL_PASSWORD_HASH=' .env; then
   pw="$(openssl rand -base64 18 | tr -d '\n/+=')"
-  hash="$(docker run --rm caddy:2 caddy hash-password --plaintext "$pw")"
+  hash="$(docker run --rm caddy:2.11.9@sha256:4851e54a46b206517c574821bb5cc67f170d2156041e9fbc4c9193b45e84a75b caddy hash-password --plaintext "$pw")"
   # Single quotes: the hash contains '$', which Compose would otherwise read as a variable.
   echo "MAIL_PASSWORD_HASH='$hash'" >> .env
   user="$(grep '^MAIL_USER=' .env | cut -d= -f2)"

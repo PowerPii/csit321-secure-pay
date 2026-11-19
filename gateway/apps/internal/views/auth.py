@@ -9,7 +9,6 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 from rest_framework.authentication import CSRFCheck
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
 
 from apps.accounts import backup_codes, signin
@@ -17,6 +16,7 @@ from apps.accounts.models import StaffAccount
 from apps.audit.models import AuditEvent
 from apps.audit.models import record as audit
 from apps.common.errors import ApiError, invalid
+from apps.common.throttling import AnonRateThrottle
 from apps.internal.access import StaffAPIView
 
 
