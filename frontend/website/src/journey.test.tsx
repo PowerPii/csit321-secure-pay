@@ -45,6 +45,20 @@ function statusData(over: Record<string, unknown> = {}) {
     ...over,
   };
 }
+const measures = (over: Record<string, unknown> = {}) => ({
+  environment: "gateway.securepaysg.me",
+  window: { start: "2026-11-18T10:00:00Z", end: "2026-11-19T10:00:00Z", hours: 24, settle_minutes: 10 },
+  population: "every payment",
+  checkout_time: { definition: "", count: 42, p50_ms: 120, p95_ms: 410 },
+  definite_answers: {
+    definition: "", eligible: 50, answered: 48, percent: 96,
+    breakdown: { approved: 40, declined: 3, expected_block: 5, screening_unavailable: 2, not_processed: 0, other_block: 0, unfinished: 0, waiting_on_customer: 1 },
+    excluded: { waiting_on_customer: 1, too_recent: 4 },
+  },
+  screening_unavailable: { definition: "", count: 2 },
+  oldest_outstanding: { definition: "", operations_open: 0, operation_age_seconds: null, webhooks_waiting: 1, webhook_age_seconds: 95 },
+  ...over,
+});
 const json = (data: unknown) => new Response(JSON.stringify(data), { status: 200, headers: { "Content-Type": "application/json" } });
 
 beforeAll(() => {
@@ -93,6 +107,36 @@ describe("status page", () => {
     expect(await screen.findByText("All systems operational")).toBeTruthy();
     expect(screen.getByText(/Last checked/)).toBeTruthy();
     await expectNoAxeViolations();
+  });
+
+  it("shows each payment measure with its denominator, window and environment", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => json(statusData({ measures: measures() }))));
+    visit("/status");
+    const section = within(await screen.findByRole("region", { name: "What payments experienced" }));
+    expect(section.getByText("Environment: gateway.securepaysg.me")).toBeTruthy();
+    expect(section.getByText(/Last 24 h to/, { selector: "span" })).toBeTruthy();
+    expect(section.getByText("410 ms p95")).toBeTruthy();
+    expect(section.getByText(/Out of 42 payments approved without a code/)).toBeTruthy();
+    expect(section.getByText("96%")).toBeTruthy();
+    expect(section.getAllByText(/Out of 50 eligible payments/)).toHaveLength(2);
+    expect(section.getByText("2 payments")).toBeTruthy(); // screening unavailable, on its own
+    expect(section.getByText("No calls waiting")).toBeTruthy();
+    expect(section.getByText("1 webhook waiting")).toBeTruthy(); // not "Clear" while one waits
+    expect(section.getByText(/oldest merchant webhook still to deliver is 1 min old/)).toBeTruthy();
+    await expectNoAxeViolations();
+  });
+
+  it("gives a median, not a p95, for a handful of payments, and hides the measures when there are none", async () => {
+    const few = measures({ checkout_time: { definition: "", count: 3, p50_ms: 1500, p95_ms: 2100 } });
+    vi.stubGlobal("fetch", vi.fn(async () => json(statusData({ measures: few }))));
+    visit("/status");
+    expect(await screen.findByText("1.50 s median")).toBeTruthy();
+    expect(screen.queryByText(/p95$/)).toBeNull();
+    cleanup();
+    vi.stubGlobal("fetch", vi.fn(async () => json(statusData({ measures: null }))));
+    visit("/status");
+    await screen.findByText(/Last checked/);
+    expect(screen.queryByText("What payments experienced")).toBeNull();
   });
 
   it("keeps 'no recent check' apart from healthy, and old checks apart from fresh ones", () => {

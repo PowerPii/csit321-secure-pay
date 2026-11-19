@@ -405,6 +405,9 @@ MAIL_PROVIDER = {
     "use_tls": _provider_port not in (465, 2465),
 }
 MAIL_CAPTURE_REAL = env("MAIL_CAPTURE_REAL", "1") == "1"
+# Signing secret of the provider's delivery reports (Resend > Webhooks, `whsec_...`;
+# RUNBOOK.md 13b). Empty = POST /webhooks/resend answers 404.
+RESEND_WEBHOOK_SECRET = secret("resend_webhook_secret", "")
 MAIL_REAL_RECIPIENTS = env("MAIL_REAL_RECIPIENTS", "")  # optional allowlist (regex)
 MAIL_SYNTHETIC_RECIPIENTS = env("MAIL_SYNTHETIC_RECIPIENTS", "") or (
     "(?i)@(example\\.(com|org|net)|demoshop\\.sg|securepay\\.sg"

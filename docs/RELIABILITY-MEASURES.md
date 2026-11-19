@@ -9,6 +9,10 @@ Where to read them:
 
 - `GET /status.json` on the gateway, field `measures` (the public status page's data; counts
   only, no IDs, amounts or emails), recomputed at most once a minute;
+- the public status page (`www.<domain>/status`, section "What payments experienced"), which
+  shows each number with what it is out of, its window and its environment
+  (`frontend/website/src/components/StatusMeasures.tsx`). Fewer than 20 timed payments: it
+  shows the median, not the p95;
 - `python manage.py reliability_report [--hours 168] [--json]` on the server, for slides
   and the M6 report. It prints each number with its population, window and environment.
 

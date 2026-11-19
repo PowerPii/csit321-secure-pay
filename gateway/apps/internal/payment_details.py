@@ -206,19 +206,27 @@ def payment_detail(staff: StaffAccount, payment: Payment) -> dict:
 
 
 def email_outcome(email) -> str:
-    """One line an operator can act on: was the email accepted, still retrying, refused, or
-    never sent? Accepted means the provider (or the demo inbox) took it, not that the customer
-    read it. Never includes the address, subject or body."""
+    """One line an operator can act on: was the email delivered, bounced, accepted, still
+    retrying, refused, or never sent? Accepted means the provider (or the demo inbox) took it;
+    delivered and bounced come later from the provider's report (apps.events.mail_events).
+    Neither proves the customer read it. Never includes the address, subject or body."""
     from apps.events.models import OutboundEmail as E
 
     where = {E.Route.PROVIDER: "the mail provider", E.Route.CAPTURE: "the demo inbox"}.get(
         email.route, "")
     tries = f"{email.attempt_count} attempt{'s' if email.attempt_count != 1 else ''}"
     error = f", last error {email.last_error}" if email.last_error else ""
+    if email.status == E.Status.DELIVERED:
+        return f"Delivered to the recipient's mail server ({tries})"
+    if email.status == E.Status.BOUNCED:
+        kind = f" ({email.bounce_type})" if email.bounce_type else ""
+        return f"Bounced: the recipient's mail server refused it{kind}"
     if email.status == E.Status.SENT:
         return f"Accepted by {where or 'the mail server'} ({tries})"
     if email.status == E.Status.PENDING:
         return f"Retrying ({tries}{error})" if email.attempt_count else "Queued"
+    if email.status == E.Status.FAILED and email.last_error == "ProviderFailed":
+        return "Not delivered: the mail provider could not send it"
     if email.status == E.Status.FAILED:
         return f"Not delivered: gave up ({tries}{error})"
     if email.status == E.Status.DISCARDED:

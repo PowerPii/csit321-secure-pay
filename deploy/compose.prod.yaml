@@ -79,6 +79,12 @@ services:
       RISK_MODEL_SHA256: ${RISK_MODEL_SHA256:-}
       # One line at the top of the public status page, for planned work (deploy/.env).
       STATUS_NOTICE: ${STATUS_NOTICE:-}
+      # Names the environment on the status page's payment measures (status.json is built
+      # here, not in the worker; without it they said "local stack" on the live server).
+      STATUS_GATEWAY_URL: https://gateway.${DOMAIN}
+      # Delivered/bounced reports from Resend (POST /webhooks/resend, RUNBOOK.md 13b).
+      # Empty = the endpoint answers 404.
+      RESEND_WEBHOOK_SECRET: ${RESEND_WEBHOOK_SECRET:-}
     command: ["sh", "-c", "python manage.py migrate --noinput && python manage.py migrate --database=vault --noinput && python manage.py seed_risk_lists && exec gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 30"]
     volumes:
       - caddy_ca:/caddy-ca:ro

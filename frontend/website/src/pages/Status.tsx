@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link as RouterLink } from "react-router-dom";
 import { Section } from "../components/Section";
 import { StatusChip, type Tone } from "../components/StatusChip";
+import { StatusMeasures, type Measures } from "../components/StatusMeasures";
 import { usePageTitle } from "../components/usePageTitle";
 import { GATEWAY_URL } from "../content/site";
 import { brand, fonts } from "../theme";
@@ -30,6 +31,8 @@ interface StatusData {
   measured_since: string | null;
   components: Component[];
   incidents: Incident[];
+  /** What payments experienced (gateway/apps/status/measures.py); null when the database is down, absent on older gateways. */
+  measures?: Measures | null;
 }
 
 const STATUS_URL = `${GATEWAY_URL}/status.json`;
@@ -293,6 +296,8 @@ export default function Status() {
             ))}
           </Box>
 
+          {data?.measures && <StatusMeasures m={data.measures} />}
+
           {data && <Incidents data={data} />}
 
           <Box sx={{ mt: { xs: 6, md: 8 }, pt: 4, borderTop: `1px solid ${brand.line}` }}>
@@ -321,6 +326,10 @@ export default function Status() {
                   {STATUS_URL.replace(/^https?:\/\//, "")}
                 </Link>
                 .
+              </li>
+              <li>
+                “What payments experienced” is recounted at most once a minute from the gateway’s own payment records. Nothing is sampled
+                or estimated, and each number says what it is out of.
               </li>
               <li>
                 Something wrong that this page doesn’t show? <Link component={RouterLink} to="/contact">Tell us</Link>.

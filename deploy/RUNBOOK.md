@@ -673,9 +673,11 @@ ID across retries (its `eml_...` outbox ID as `Message-ID`, `Resend-Idempotency-
 `X-Entity-Ref-ID`), so a retry after a lost reply is not delivered twice. A provider outage
 is retried (30 s, 2 min, 10 min, 30 min, 1 h); a permanent refusal (SMTP 5xx) is not; retries
 stop once the code or link has expired (`discarded`). The payment's **Full timeline** in the
-dashboard shows each email's outcome ("Accepted by the mail provider", "Retrying (2 attempts,
+dashboard shows each email's outcome ("Delivered to the recipient's mail server", "Bounced",
+"Accepted by the mail provider", "Retrying (2 attempts,
 last error ...)", "Not delivered: gave up", "Expired before it could be sent", "Not sent").
-"Accepted" means the provider took it; it does not prove the customer read it.
+"Accepted" means the provider took it; "Delivered" and "Bounced" come later from the
+provider's report (step 5). None of them proves the customer read it.
 
 **1. Provider account (Fifa).** Resend is suggested (free plan: 3,000 emails a month, 100 a
 day, one domain; SMTP with the API key as password). Brevo's free plan (300 a day) works the
@@ -716,6 +718,33 @@ and **not** in Mailpit. Gmail's **Show original** should say SPF, DKIM and DMARC
 does not arrive, open the payment in the dashboard: the Full timeline says whether the
 provider accepted it or what failed, and `docker compose -f deploy/compose.prod.yaml logs
 gateway-worker | grep Email` shows the error class (never the address or body).
+
+**5. Delivered and bounced (Resend webhook).** "Accepted" only means Resend took the email.
+To see what happened next, let Resend report back:
+
+1. Resend > **Webhooks** > **Add endpoint**. URL
+   `https://gateway.securepaysg.me/webhooks/resend`. Events: tick `email.delivered`,
+   `email.bounced` and `email.failed` (others are accepted and ignored). **Add**.
+2. Open the new endpoint and copy its **Signing secret** (`whsec_...`) into the team password
+   manager.
+3. On the server, add it to `deploy/.env` (`nano deploy/.env`):
+   `RESEND_WEBHOOK_SECRET=whsec_...`, then
+   `docker compose -f deploy/compose.prod.yaml up -d gateway` (the web container takes the
+   reports; the worker does not need it).
+4. Check: send yourself a receipt. In Resend > Webhooks > the endpoint, the
+   `email.delivered` attempt shows **200**, and the payment's Full timeline in the dashboard
+   now says "Delivered to the recipient's mail server". Send one to `bounced@resend.dev` (a
+   demo shop payment with that email) and the timeline says "Bounced: the recipient's mail
+   server refused it (Permanent/...)". A **400** in Resend means the secret in `deploy/.env`
+   does not match; a **404** means it is not set or the gateway was not restarted.
+
+Each report is checked against the secret (Svix signature, at most 5 minutes old) and found
+by the email's `Message-ID` (`<eml_...@securepaysg.me>`). Reports only move an email forward
+(accepted to delivered or bounced; a bounce is final), so repeats and late copies change
+nothing. The provider's bounce text can quote the address, so only its type
+(`Permanent/Suppressed`) is kept. `demo_check` warns about bounced emails in the last 24
+hours, next to failed ones. To turn the reports off, empty `RESEND_WEBHOOK_SECRET` and restart
+`gateway`.
 
 Real people need real addresses: staff and customer accounts made with `example.com` or
 `securepay.sg` addresses only get their email in Mailpit. Make demo accounts with the
