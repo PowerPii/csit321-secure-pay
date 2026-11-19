@@ -1,0 +1,30 @@
+{
+ "gateway": "https://gateway.localhost",
+ "spread_ips": false,
+ "rate": 2.0,
+ "seconds": 540,
+ "payments": 1080,
+ "wall_seconds": 539.6,
+ "checkout_responses": 2058,
+ "p50_ms": 47.8,
+ "p95_ms": 74.2,
+ "max_ms": 282.0,
+ "share_within_2s": 1.0,
+ "max_start_lag_ms": 2.8,
+ "http_429": 0,
+ "errors": 53,
+ "outcomes": {
+  "authorised": 1027,
+  "error": 53
+ },
+ "not_authorised": 53,
+ "reasons": {},
+ "result": "FAIL",
+ "errors_by_stage": {
+  "create 502 (gateway down, nothing created)": 51,
+  "submit 502 (reply lost)": [
+   "LOAD-000180",
+   "LOAD-000758"
+  ]
+ }
+}

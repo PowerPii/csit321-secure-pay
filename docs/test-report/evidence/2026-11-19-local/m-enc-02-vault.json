@@ -1,0 +1,52 @@
+{
+ "A1 card held after entry (vault rows for token)": "1",
+ "A2 stored ciphertext format / length / contains card digits or last4 in clear": "k1.|127|f|f",
+ "A3 AES-256-GCM: decrypts with the vault key + token; one changed byte or another row's token fails": [
+  "decrypts: True | matches entered card: True",
+  "tampered byte refused: InvalidTag",
+  "wrong token (AAD) refused: InvalidTag",
+  "nonce+tag overhead bytes: 28"
+ ],
+ "A4 submit": [
+  200,
+  "authorised"
+ ],
+ "A5 vault rows for that token after submission": "0",
+ "B1 card held": "1",
+ "B2 seconds until the worker removed it after expiry": 1,
+ "B3 vault rows after expiry / payment status": [
+  "0",
+  "expired"
+ ],
+ "C1 vault rows (all) at backup time": "1",
+ "C2 backup.sh": [
+  "backups written to /tmp/claude-0/ev/backups/20261119T105454Z"
+ ],
+ "C3 gateway.dump as plain SQL (pg_restore -f -): bytes / held card's digits found / vault COPY blocks": [
+  268110,
+  0,
+  0
+ ],
+ "C4 pg_restore -l: vault entries (TABLE / TABLE DATA)": [
+  1,
+  0
+ ],
+ "C5 restored: vault table exists / rows / payments restored / held payment's token still on its payment row": [
+  "t",
+  "0",
+  "13",
+  "t"
+ ],
+ "D1 gateway role reads vault": "ERROR:  permission denied for schema vault",
+ "D2 vault rows now / expired / for submitted payments": [
+  "1",
+  "0",
+  "0",
+  "the 1 row is the open checkout from step C, as designed"
+ ],
+ "_ids": [
+  "pay_snjB7mo7MbpPGccHCCyuiql1",
+  "pay_GuM3owdmherv99IR1n678efs",
+  "pay_w2tX9KienWdnwKXXJO3yKZta"
+ ]
+}

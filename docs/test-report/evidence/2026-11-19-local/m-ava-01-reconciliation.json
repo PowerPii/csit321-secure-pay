@@ -1,0 +1,23 @@
+{
+ "payments created in the run, by status": {
+  "authorised": 1029,
+  "blocked": 3,
+  "created": 1
+ },
+ "gateway authorise operations": 1029,
+ "gateway authorise operations by status": {
+  "succeeded": 1029
+ },
+ "simulator authorise records": 1029,
+ "simulator records by status": {
+  "approved": 1029
+ },
+ "on simulator, missing on gateway": [],
+ "approved on simulator but not succeeded on gateway": [],
+ "succeeded on gateway but not approved on simulator": [],
+ "payments with more than one succeeded authorise (gateway)": [],
+ "payments approved more than once (simulator)": [],
+ "gateway operations still unresolved (pending/unknown)": [],
+ "operations that needed a status check": 1,
+ "operations escalated": 0
+}

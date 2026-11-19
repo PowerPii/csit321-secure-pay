@@ -1,0 +1,13 @@
+before gateway_authorise_ops=8 sim_authorise_ops=
+kill 1 at 10:57:27 pid=9690
+  back after 5.9 s; restarts=1
+kill 2 at 10:59:04 pid=11462
+  back after 5.9 s; restarts=2
+kill 3 at 11:00:40 pid=14248
+  back after 6.4 s; restarts=3
+kill 4 at 11:02:16 pid=19534
+  back after 6.0 s; restarts=4
+kill 5 at 11:03:53 pid=20489
+  back after 5.8 s; restarts=5
+load exit 1
+DONE
