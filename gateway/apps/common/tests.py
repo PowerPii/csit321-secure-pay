@@ -154,6 +154,14 @@ def test_brand_kit_is_the_same_everywhere():
     for app in ("checkout", "dashboard", "website"):
         favicon = (root / "frontend" / app / "public" / "favicon.svg").read_text().strip()
         assert favicon == mark, f"frontend/{app}/public/favicon.svg differs from the brand mark"
+        html = (root / "frontend" / app / "index.html").read_text()
+        assert 'href="/apple-touch-icon.png"' in html, f"frontend/{app}/index.html lacks the app icon"
+        assert (root / "frontend" / app / "public" / "apple-touch-icon.png").is_file(), app
+    website_html = (root / "frontend" / "website" / "index.html").read_text()
+    for needle in ('og:image" content="https://www.securepaysg.me/og-image.png', 'href="/site.webmanifest"'):
+        assert needle in website_html, needle
+    for name in ("og-image.png", "icon-192.png", "icon-512.png", "site.webmanifest"):
+        assert (root / "frontend" / "website" / "public" / name).is_file(), name
 
     tokens = json.loads((brand / "tokens.json").read_text())
     assert (branded_email.NAVY, branded_email.INK, branded_email.BRASS,
