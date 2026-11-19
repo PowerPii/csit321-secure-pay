@@ -1,0 +1,12 @@
+backups written to /tmp/claude-0/backups/20261119T161140Z
+exit 0
+
+== Restore test of /tmp/claude-0/backups/20261119T161140Z (2026-11-19T16:11:41Z)
+ok    MANIFEST: 3 dumps match their checksums (db8cacdf97eb)
+ok    gateway: 47 tables, about 584 rows restored
+ok    gateway: vault table present and empty (no card data in the backup)
+ok    gateway: vault migration history present (67 rows)
+ok    simulator: 14 tables, about 119 rows restored
+ok    merchant: 15 tables, about 124 rows restored
+== Backup /tmp/claude-0/backups/20261119T161140Z restores.
+exit 0

@@ -109,6 +109,11 @@ NFR-AVA-04:
     - gateway: apps/checkout/test_screening.py::test_slow_database_query_is_cut_off_by_the_budget
     - gateway: apps/risk/tests.py::test_slow_screening_is_unavailable
 
+NFR-AVA-05:
+  stack:
+    - integration: test_recovery_drill.py::test_restore_during_an_in_flight_checkout
+  manual: [M-AVA-05]
+
 NFR-ENC-01:
   manual: [M-ENC-01]
 
@@ -196,3 +201,6 @@ NFR-MNT-02:
     - gateway: acceptance/test_nfr_maintainability.py::test_nfr_mnt_02_only_the_vault_touches_card_data
     - gateway: acceptance/test_nfr_maintainability.py::test_nfr_mnt_02_the_boundary_check_catches_a_violation
   manual: [M-MNT-02]
+
+NFR-MNT-03:
+  manual: [M-MNT-03]

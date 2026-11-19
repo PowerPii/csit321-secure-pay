@@ -85,6 +85,9 @@ services:
       # Delivered/bounced reports from Resend (POST /webhooks/resend, RUNBOOK.md 13b).
       # Empty = the endpoint answers 404.
       RESEND_WEBHOOK_SECRET: ${RESEND_WEBHOOK_SECRET:-}
+      # Per-IP limit on the public endpoints (checkout, guest status). Raised only for the
+      # checkout load test (docs/test-report/MANUAL-TESTS.md, M-PER-01), then removed again.
+      THROTTLE_ANON: ${THROTTLE_ANON:-60/min}
     command: ["sh", "-c", "python manage.py migrate --noinput && python manage.py migrate --database=vault --noinput && python manage.py seed_risk_lists && exec gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 30"]
     volumes:
       - caddy_ca:/caddy-ca:ro

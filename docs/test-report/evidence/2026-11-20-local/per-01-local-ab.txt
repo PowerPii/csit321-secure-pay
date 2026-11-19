@@ -1,0 +1,24 @@
+6000 payments at 20.0/s for 300 s, 80 threads ...
+{
+  "gateway": "https://gateway.localhost",
+  "spread_ips": false,
+  "rate": 20.0,
+  "seconds": 300,
+  "payments": 6000,
+  "wall_seconds": 300.1,
+  "checkout_responses": 12000,
+  "p50_ms": 49.5,
+  "p95_ms": 84.7,
+  "max_ms": 289.5,
+  "share_within_2s": 1.0,
+  "max_start_lag_ms": 201.0,
+  "http_429": 0,
+  "errors": 0,
+  "outcomes": {
+    "authorised": 6000
+  },
+  "not_authorised": 0,
+  "reasons": {},
+  "result": "PASS"
+}
+PASS

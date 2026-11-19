@@ -1,0 +1,26 @@
+# Run by Fifa on the live server (securepay@securepay, ~/csit321-secure-pay) on 20 Nov 2026 ~00:22 SGT, pasted into the project thread.
+== git
+db8cacd 2026-11-20 00:01:17 +0800 Merge pull request PR #80
+== cron
+15 18 * * * /home/securepay/csit321-secure-pay/deploy/backup/backup.sh >> /home/securepay/backup.log 2>&1
+30 19 * * 6 /home/securepay/csit321-secure-pay/deploy/backup/verify.sh >> /home/securepay/backup.log 2>&1
+== backups
+20261116T034303Z
+20261116T181501Z
+20261117T181501Z
+20261118T181501Z
+20261119T112340Z
+== verify
+== Restore test of /home/securepay/fyp-backups/20261119T112340Z (2026-11-19T16:22:03Z)
+ok    MANIFEST: 3 dumps match their checksums (575e1d641402)
+ok    gateway: 47 tables, about 3374 rows restored
+ok    gateway: vault table present and empty (no card data in the backup)
+ok    gateway: vault migration history present (66 rows)
+ok    simulator: 14 tables, about 461 rows restored
+ok    merchant: 15 tables, about 706 rows restored
+== Backup /home/securepay/fyp-backups/20261119T112340Z restores.
+== logs (PRI-01)    # grep for email addresses and +65 phone numbers over 24 h of all container logs: no matches
+== migrations
+ [X] 0007_webhook_log
+ [X] 0008_email_routes
+ [X] 0009_email_delivery_reports
