@@ -314,7 +314,7 @@ def _ask_for_code(payment: Payment, request_id: str, details: dict) -> None:
     _, code = verification.issue(payment)
     audit("payment.verification_required", **_actor(payment), request_id=request_id,
           details=details)
-    transaction.on_commit(lambda: verification.send_code(payment, code))
+    verification.send_code(payment, code)  # queued in this transaction
 
 
 def _block(payment: Payment, reason: OutcomeReason, request_id: str, details: dict) -> None:
@@ -411,7 +411,7 @@ def resend(payment: Payment, request_id: str) -> Payment:
         _, code = verification.issue(payment, challenge)
         audit("payment.verification_code_resent", **_actor(payment), request_id=request_id,
               details={"codes_sent": challenge.codes_sent})
-        transaction.on_commit(lambda: verification.send_code(payment, code))
+        verification.send_code(payment, code)  # queued in this transaction
     return payment
 
 

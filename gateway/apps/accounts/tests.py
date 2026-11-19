@@ -9,6 +9,7 @@ from django_otp.plugins.otp_totp.models import TOTPDevice
 
 from apps.accounts.models import StaffAccount
 from apps.audit.models import AuditEvent
+from apps.events.emails import send_due
 from conftest import current_totp, make_staff_user
 
 pytestmark = pytest.mark.django_db(databases=["default", "vault"])
@@ -104,6 +105,7 @@ def test_five_failures_lock_the_account_and_email_the_holder(analyst):
     assert r.json()["error"]["message"] == unknown.json()["error"]["message"]
     analyst.refresh_from_db()
     assert analyst.is_locked()
+    send_due()  # security notices go through the email outbox
     assert len(mail.outbox) == 1 and mail.outbox[0].to == ["analyst@securepay.sg"]
     assert AuditEvent.objects.filter(action="staff.locked", actor_id=analyst.public_id).count() \
         == 1

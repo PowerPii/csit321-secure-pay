@@ -2,8 +2,8 @@
 
 The 6-digit code comes from `secrets`, is stored only as an HMAC keyed with the Django
 secret and the payment ID, lives for VERIFICATION_CODE_TTL_MINUTES, and is emailed to the
-checkout email through Django's mail backend (Mailpit locally). The plain code never
-reaches a log, an audit row or the outbox.
+checkout email through the email outbox, in its encrypted body only. The plain code never
+reaches a log, an audit row, an email subject or a stored plain-text column.
 """
 import hashlib
 import hmac
@@ -12,7 +12,6 @@ import secrets
 from datetime import timedelta
 
 from django.conf import settings
-from django.core.mail import send_mail
 from django.utils import timezone
 
 from apps.checkout.models import VerificationChallenge
@@ -64,8 +63,12 @@ def resend_available_at(challenge: VerificationChallenge):
 
 
 def send_code(payment: Payment, code: str) -> None:
-    """Email the code. Runs after the commit; a failure is logged and the customer can ask
-    for a new code."""
+    """Queue the code email in the caller's transaction; the worker sends it (one route per
+    recipient, apps/common/mail_routing.py) and stops trying once the code has expired. The
+    code is only in the encrypted body, which is wiped once sent: never in the subject."""
+    from apps.events.emails import queue
+    from apps.events.models import OutboundEmail
+
     minutes = RULES["VERIFICATION_CODE_TTL_MINUTES"]
     amount = f"S${payment.amount / 100:,.2f}"
     body = (
@@ -76,8 +79,6 @@ def send_code(payment: Payment, code: str) -> None:
         "If you did not try to pay, ignore this email; nothing will be charged.\n"
         "SecurePay will never ask you for this code by phone or message.\n"
     )
-    try:
-        send_mail(f"{code} is your SecurePay verification code", body, None,
-                  [payment.customer_email], fail_silently=False)
-    except Exception:
-        logger.exception("Verification email for %s not sent", payment.public_id)
+    queue(OutboundEmail.Kind.VERIFICATION_CODE, payment, payment.customer_email,
+          "Your SecurePay verification code", body,
+          discard_after=timezone.now() + timedelta(minutes=minutes))

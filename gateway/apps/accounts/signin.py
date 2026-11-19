@@ -22,7 +22,6 @@ from dataclasses import dataclass
 import segno
 from django.conf import settings
 from django.contrib.auth import authenticate, login
-from django.core.mail import send_mail
 from django.db import transaction
 from django.utils import timezone
 from django_otp import login as otp_login
@@ -105,16 +104,13 @@ def _record_failure(account: StaffAccount, request, stage: str) -> bool:
 
 def _alert_locked(account: StaffAccount) -> None:
     """FR-ACC-15: tell the account holder. A mail failure never unlocks or breaks sign-in."""
-    try:
-        send_mail(
-            "SecurePay: your dashboard account was locked",
-            f"Hello,\n\nYour SecurePay dashboard account ({account.email}) was locked for "
-            f"{_rules()['STAFF_LOCKOUT_MINUTES']} minutes after "
-            f"{_rules()['STAFF_LOCKOUT_FAILURES']} failed sign-in attempts.\n\n"
-            "If this was not you, tell an administrator straight away.\n\nSecurePay",
-            None, [account.email], fail_silently=False)
-    except Exception:
-        logger.exception("Could not send the lockout alert for %s", account.public_id)
+    _security_notice(
+        account,
+        "SecurePay: your dashboard account was locked",
+        f"Hello,\n\nYour SecurePay dashboard account ({account.email}) was locked for "
+        f"{_rules()['STAFF_LOCKOUT_MINUTES']} minutes after "
+        f"{_rules()['STAFF_LOCKOUT_FAILURES']} failed sign-in attempts.\n\n"
+        "If this was not you, tell an administrator straight away.\n\nSecurePay")
 
 
 def confirmed_device(account: StaffAccount) -> TOTPDevice | None:
@@ -289,18 +285,28 @@ def check_backup_code(request, code: str) -> SignedIn:
 
 def _alert_backup_code_used(account: StaffAccount, left: int) -> None:
     """Tell the holder, so a stolen code is noticed. A mail failure never breaks sign-in."""
+    _security_notice(
+        account,
+        "SecurePay: a backup code was used to sign in",
+        f"Hello,\n\nA one-time backup code was just used to sign in to your SecurePay "
+        f"dashboard account ({account.email}). You have {left} backup "
+        f"code{'s' if left != 1 else ''} left.\n\nIf you have lost your phone, set up "
+        "your authenticator app again with an administrator and make new backup codes "
+        "under Two-step verification in the dashboard.\n\nIf this was not you, tell an "
+        "administrator straight away.\n\nSecurePay")
+
+
+def _security_notice(account: StaffAccount, subject: str, body: str) -> None:
+    """Queued for the worker. A failure to queue is logged and never breaks sign-in (the
+    savepoint keeps a failed insert from spoiling any surrounding transaction)."""
+    from apps.events.emails import queue
+    from apps.events.models import OutboundEmail
+
     try:
-        send_mail(
-            "SecurePay: a backup code was used to sign in",
-            f"Hello,\n\nA one-time backup code was just used to sign in to your SecurePay "
-            f"dashboard account ({account.email}). You have {left} backup "
-            f"code{'s' if left != 1 else ''} left.\n\nIf you have lost your phone, set up "
-            "your authenticator app again with an administrator and make new backup codes "
-            "under Two-step verification in the dashboard.\n\nIf this was not you, tell an "
-            "administrator straight away.\n\nSecurePay",
-            None, [account.email], fail_silently=False)
+        with transaction.atomic():
+            queue(OutboundEmail.Kind.SECURITY_NOTICE, None, account.email, subject, body)
     except Exception:
-        logger.exception("Could not send the backup code alert for %s", account.public_id)
+        logger.exception("Could not queue the security notice for %s", account.public_id)
 
 
 def regenerate_backup_codes(request, account: StaffAccount, code) -> list[str]:

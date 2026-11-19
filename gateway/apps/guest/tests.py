@@ -90,7 +90,7 @@ def test_failed_email_is_retried_then_recorded(shop, fake_sim, monkeypatch):
         calls.append(1)
         raise ConnectionRefusedError("smtp down")
 
-    monkeypatch.setattr(emails, "send_mail", broken)
+    monkeypatch.setattr(emails.EmailMessage, "send", broken)
     for _ in range(len(emails.RETRY_DELAYS_SECONDS) + 1):
         send_queued()
     queued = OutboundEmail.objects.get(payment=payment)
@@ -102,7 +102,8 @@ def test_failed_email_is_retried_then_recorded(shop, fake_sim, monkeypatch):
 
 def test_first_failure_waits_before_retrying(shop, fake_sim, monkeypatch):
     payment = pay(shop)
-    monkeypatch.setattr(emails, "send_mail", lambda *a, **k: (_ for _ in ()).throw(OSError()))
+    monkeypatch.setattr(emails.EmailMessage, "send",
+                        lambda *a, **k: (_ for _ in ()).throw(OSError()))
     send_queued()
     queued = OutboundEmail.objects.get(payment=payment)
     assert queued.status == "pending" and queued.attempt_count == 1

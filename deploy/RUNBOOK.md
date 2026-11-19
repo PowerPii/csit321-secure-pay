@@ -19,7 +19,7 @@ its smoke check.
 | --- | --- | --- |
 | `https://gateway.<domain>` | Merchant API, hosted checkout (`/pay/...`), guest status (`/guest/status`), staff dashboard (`/dashboard/`), public status data (`/status.json`, read by the website's `/status` page) | Public; the dashboard needs a staff account with TOTP |
 | `https://shop.<domain>` | Demo shop | Public |
-| `https://mail.<domain>` | Demo inbox (Mailpit): verification codes, receipts, guest status codes | Team and assessors (basic auth) |
+| `https://mail.<domain>` | Demo inbox (Mailpit): emails to made-up demo addresses only (`example.com`, `demoshop.sg`, `.test`); real addresses never land here | Team and assessors (basic auth) |
 | `simulator.securepay.internal:8443` | Payment simulator, including its fault controls | Inside the server only |
 
 `<domain>` is `securepaysg.me` on the live server. On a new server without a domain it can be
@@ -608,19 +608,34 @@ links already shared (and the old webhook URL of any other merchant) keep workin
 
 To go back: `bash deploy/change-domain.sh 35-213-144-96.sslip.io --drop-old`.
 
-## 13b. Real email (provider relay, Mailpit kept)
+## 13b. Real email (direct to the provider; Mailpit for demo addresses only)
 
 Decided by Fifa on 18 Nov 2026: once the domain exists, emails go to real inboxes through a
-provider, with Mailpit kept as the switchable fallback for demo day.
+provider, with Mailpit kept for demo day. Changed on 19 Nov 2026 after the Codex re-audit:
+Mailpit used to receive a copy of every email, so anyone with the demo inbox password could
+read a real person's verification code or reset link.
 
-How it works: the apps keep sending every email to Mailpit, unchanged, so the demo inbox at
-`https://mail.<domain>` still shows everything. When `MAIL_RELAY_HOST` is set in
-`deploy/.env`, Mailpit also passes a copy of each email whose recipient matches
-`MAIL_RELAY_MATCHING` to the provider, which delivers it as `SecurePay
-<no-reply@securepaysg.me>`. Made-up demo addresses (`example.com`, `demoshop.sg`,
-`securepay.sg`, `.test`) are never relayed (`MAIL_RELAY_BLOCKED` in `compose.prod.yaml`), so
-the provider sees no bounces. In the Mailpit page, an email can also be sent on by hand with
-**Release**.
+How it works now: the apps queue every email in the gateway outbox, and `gateway-worker`
+sends each one by its recipient (`gateway/apps/common/mail_routing.py`):
+
+| Recipient | Where it goes | Outbox record |
+| --- | --- | --- |
+| Made-up demo address (`example.com/.org/.net`, `demoshop.sg`, `securepay.sg`, `.test`, `.invalid`, `.localhost`; `MAIL_RELAY_BLOCKED` overrides the list) | Mailpit only (`https://mail.<domain>`) | `sent`, route `capture` |
+| Real address matching `MAIL_RELAY_MATCHING` (empty or `.*` = all), with `MAIL_RELAY_HOST` set | Straight to the provider, never to Mailpit; delivered as `SecurePay <no-reply@securepaysg.me>` | `sent` (accepted by the provider), route `provider` |
+| Real address, no provider set, or outside `MAIL_RELAY_MATCHING` | Not sent | `suppressed` |
+
+On a laptop and in CI nothing changes: there is no provider, and every address lands in the
+local Mailpit (`MAIL_CAPTURE_REAL=1`, the default).
+
+Codes are never in a subject (`Your SecurePay verification code`, `Your SecurePay status
+code`); they are only in the encrypted body, which is wiped once sent. Each email keeps one
+ID across retries (its `eml_...` outbox ID as `Message-ID`, `Resend-Idempotency-Key` and
+`X-Entity-Ref-ID`), so a retry after a lost reply is not delivered twice. A provider outage
+is retried (30 s, 2 min, 10 min, 30 min, 1 h); a permanent refusal (SMTP 5xx) is not; retries
+stop once the code or link has expired (`discarded`). The payment's **Full timeline** in the
+dashboard shows each email's outcome ("Accepted by the mail provider", "Retrying (2 attempts,
+last error ...)", "Not delivered: gave up", "Expired before it could be sent", "Not sent").
+"Accepted" means the provider took it; it does not prove the customer read it.
 
 **1. Provider account (Fifa).** Resend is suggested (free plan: 3,000 emails a month, 100 a
 day, one domain; SMTP with the API key as password). Brevo's free plan (300 a day) works the
@@ -655,20 +670,30 @@ MAIL_RELAY_PASSWORD=re_...           # the API key
 MAIL_RELAY_MATCHING='.*'             # or only the team: '(?i)@(gmail\.com|uowmail\.edu\.au)$'
 ```
 
-then `docker compose -f deploy/compose.prod.yaml up -d mailpit` and check
-`docker compose -f deploy/compose.prod.yaml logs mailpit | grep relay`: it prints the
-"auto-relaying new messages to recipients matching" line. Make a payment with your own email
-at the demo shop (or reset your staff password): the code lands in your inbox and in
-Mailpit. Gmail's **Show original** should say SPF, DKIM and DMARC: PASS.
+then `docker compose -f deploy/compose.prod.yaml up -d gateway-worker`. Make a payment with
+your own email at the demo shop (or reset your staff password): the email lands in your inbox
+and **not** in Mailpit. Gmail's **Show original** should say SPF, DKIM and DMARC: PASS. If it
+does not arrive, open the payment in the dashboard: the Full timeline says whether the
+provider accepted it or what failed, and `docker compose -f deploy/compose.prod.yaml logs
+gateway-worker | grep Email` shows the error class (never the address or body).
 
 Real people need real addresses: staff and customer accounts made with `example.com` or
 `securepay.sg` addresses only get their email in Mailpit. Make demo accounts with the
 team's own addresses where a real inbox is wanted on the day.
 
 **Fallback (demo day, or when the free quota runs out):** set `MAIL_RELAY_HOST=` in
-`deploy/.env` and `docker compose -f deploy/compose.prod.yaml up -d mailpit`. Everything
-keeps working; emails are then only in Mailpit, as before. Recreating Mailpit empties the
-demo inbox (it keeps messages in memory), so switch before `demo.sh reset`, not after.
+`deploy/.env` and `docker compose -f deploy/compose.prod.yaml up -d gateway-worker`. Demo
+addresses keep working through Mailpit; emails to real addresses are then not sent at all
+(`suppressed`), so use `@example.com` addresses for the demo.
+
+**Provider staging (before trusting real delivery).** With `MAIL_RELAY_MATCHING` set to the
+team's own inboxes only, check with a synthetic shopper name and your own address: one
+receipt, one checkout code and one password reset arrive once, with no code in the subject,
+and nothing new appears in Mailpit. Then stop the provider route (`MAIL_RELAY_HOST=smtp.invalid`,
+`up -d gateway-worker`), queue a receipt, see "Retrying" on the timeline, put the real host
+back and see it become "Accepted by the mail provider" exactly once. Resend's test address
+`bounced@resend.dev` gives a permanent bounce. Record times and outcomes only: never codes,
+reset links or the API key.
 
 ## 13. Moving to a new server or domain
 

@@ -12,6 +12,7 @@ from django.utils import timezone
 
 from apps.audit.models import AuditEvent
 from apps.checkout.models import VerificationChallenge
+from apps.events.emails import send_due
 from apps.events.models import OutboxEvent
 from apps.payments.models import Operation, Payment
 from apps.risk.models import RiskListEntry, ScreeningEvent
@@ -63,6 +64,32 @@ def pay(browser, payment, number=PAN, **extra):
     return browser.post(url(payment, "/submit"), {}, format="json", **extra)
 
 
+class _WorkerOutbox:
+    """pytest-django's mailoutbox, read after the worker has sent what is queued: codes go
+    through the email outbox (apps.events.emails) like every other email."""
+
+    def __init__(self, outbox):
+        self._outbox = outbox
+
+    def _sent(self):
+        send_due()
+        return self._outbox
+
+    def __getitem__(self, i):
+        return self._sent()[i]
+
+    def __len__(self):
+        return len(self._sent())
+
+    def __iter__(self):
+        return iter(self._sent())
+
+
+@pytest.fixture
+def mailoutbox(mailoutbox):
+    return _WorkerOutbox(mailoutbox)
+
+
 def code_from(mail):
     return re.search(r"verification code is (\d{6})", mail.body).group(1)
 
@@ -105,7 +132,8 @@ def test_s2_risky_attempt_verified_by_code_then_authorised(browser, make_payment
     [mail] = mailoutbox
     assert mail.to == ["alex@example.com"]
     code = code_from(mail)
-    assert code in mail.subject and "S$600.00" in mail.body
+    assert code not in mail.subject and "S$600.00" in mail.body  # codes never in subjects
+    assert mail.subject == "Your SecurePay verification code"
     # The merchant sees verification_required, with a webhook.
     api = shop.get(f"/v1/payments/{payment.public_id}").json()
     payment_schema.validate(api)
