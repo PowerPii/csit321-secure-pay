@@ -24,6 +24,7 @@ from django.utils import timezone
 
 from apps.common.timefmt import rfc3339
 
+from .measures import build_measures
 from .models import StatusSample
 
 logger = logging.getLogger(__name__)
@@ -250,6 +251,9 @@ def build_status(now: datetime | None = None) -> dict:
         "measured_since": rfc3339(first),
         "components": components,
         "incidents": incidents[:MAX_INCIDENTS],
+        # What shoppers and merchants experienced, with each population and window
+        # (apps.status.measures, docs/RELIABILITY-MEASURES.md).
+        "measures": build_measures(now),
     }
 
 
@@ -271,4 +275,5 @@ def database_down_status(now: datetime | None = None) -> dict:
                         "status": states[cid], "uptime": None, "days": []}
                        for cid, name, description in COMPONENTS],
         "incidents": [],
+        "measures": None,
     }

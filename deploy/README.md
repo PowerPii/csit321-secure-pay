@@ -23,6 +23,9 @@ Public server (sprint 9), step by step in **[`RUNBOOK.md`](RUNBOOK.md)**:
 
 Both:
 
-- `postgres/init/`: creates the gateway, simulator and merchant databases, their roles, and the vault schema with its own role.
+- `postgres/` (Dockerfile + `init/`): the database image with its first-start initialiser baked in; creates the gateway, simulator and merchant databases, their roles, and the vault schema with its own role.
 - `secrets/`: templates for the Compose secret files.
 - `backup/backup.sh`: `pg_dump` of all three databases, 14 days kept. `backup/verify.sh` restores the newest one into scratch databases to prove it works (weekly cron).
+- `backup/restore.sh`: puts a complete backup back (verify first, safety backup, all three databases, waits for `/readyz`, fails on any card row); refuses the public server without `--replace-live-data`. `recovery-check.sh` then compares recent payments with the simulator. RUNBOOK.md 9b.
+- `release-record.sh`: the revision and image digest of every service after each deploy or rollback, in `~/deploy-history.jsonl`. `rollback.sh` goes back to an older commit on main (refuses when migrations were added). RUNBOOK.md 10b, rehearsal in `docs/RECOVERY.md`.
+- `tests/backup-test.sh`: backup.sh with a stand-in docker, on any Bash (CI also runs it on Bash 3.2, the macOS one).

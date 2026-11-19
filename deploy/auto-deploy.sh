@@ -11,12 +11,15 @@
 # any other command is refused.
 #
 # By hand (you have run the checks yourself, for example while Actions is paused):
-#   bash ~/csit321-secure-pay/deploy/auto-deploy.sh            # the newest  main "$@"
-#   bash ~/csit321-secure-pay/deploy/auto-deploy.sh <commit>   # one commit on  main "$@"
+#   bash ~/csit321-secure-pay/deploy/auto-deploy.sh            # the newest main
+#   bash ~/csit321-secure-pay/deploy/auto-deploy.sh <commit>   # one commit on main
+#
+# Every deploy is recorded with its exact revision and the image digest of every running
+# service (deploy/release-record.sh, ~/deploy-history.jsonl). To go back, deploy/rollback.sh.
 set -euo pipefail
 
 main() {
-  local repo log prev now domain tries want request bad
+  local repo log prev now domain tries want request
   # What to deploy: a commit named by GitHub Actions (forced SSH command) or on the command
   # line, else the newest main.
   request="${SSH_ORIGINAL_COMMAND:-${1:-}}"
@@ -46,11 +49,18 @@ main() {
     exit 1
   fi
 
+  prev="$(git rev-parse HEAD)"
   if [ "$(git rev-parse --abbrev-ref HEAD)" != main ]; then
-    echo "the server clone is not on main; refusing to deploy"; exit 1
+    if [ -f "$HOME/.securepay-rolled-back" ]; then
+      # rollback.sh left the clone on an older commit; a deploy moves forward on main again.
+      echo "rolled back to ${prev:0:12} ($(cat "$HOME/.securepay-rolled-back")); returning to main"
+      git checkout --quiet main
+      rm -f "$HOME/.securepay-rolled-back"
+    else
+      echo "the server clone is not on main; refusing to deploy"; exit 1
+    fi
   fi
-  prev="$(git rev-parse --short HEAD)"
-  git fetch --quiet origin  main "$@"
+  git fetch --quiet origin main
   if [ -z "$want" ]; then
     want="$(git rev-parse origin/main)"
     echo "no commit named: deploying the newest main ($want)"
@@ -58,7 +68,7 @@ main() {
     echo "refusing: $want is not a commit on main"; exit 1
   elif [ "$(git rev-parse HEAD)" != "$want" ] && git merge-base --is-ancestor "$want" HEAD; then
     # A slower run for an older merge arrived after a newer one was deployed: never go back.
-    echo "already running $prev, which is newer than $want; nothing to do"; return 0
+    echo "already running ${prev:0:12}, which is newer than $want; nothing to do"; return 0
   fi
   # Fast-forward only: hand edits on the server are kept, and ones that clash with the new
   # code stop the deploy instead of being thrown away.
@@ -66,22 +76,17 @@ main() {
     echo "the server clone has local changes or commits; fix by hand (git status)"; exit 1
   fi
   now="$(git rev-parse HEAD)"
-  echo "code: $prev -> ${now:0:7} ($now)"
+  echo "code: ${prev:0:12} -> ${now:0:12} ($now)"
 
   # Every image is labelled with the commit it was built from (compose.prod.yaml).
   GIT_REVISION="$now" docker compose -f deploy/compose.prod.yaml up -d --build --remove-orphans
-  bad=0
-  for container in $(docker compose -f deploy/compose.prod.yaml ps -q); do
-    built="$(docker inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$container")"
-    name="$(docker inspect --format '{{ index .Config.Labels "com.docker.compose.service" }}' "$container")"
-    case "$name" in gateway|gateway-worker|simulator|merchant|caddy) ;; *) continue ;; esac
-    if [ "$built" != "$now" ]; then
-      echo "MISMATCH: $name is running an image built from ${built:-an unknown commit}, not $now"; bad=1
-    fi
-  done
-  [ $bad -eq 0 ] || { echo "=== deploy of $now FAILED the revision check"; exit 1; }
+  if ! bash deploy/release-record.sh check "$now"; then
+    bash deploy/release-record.sh record deploy-failed "$now" "$prev" >/dev/null || true
+    echo "=== deploy of $now FAILED the revision check"; exit 1
+  fi
   echo "$now" > "$HOME/deployed-revision"
-  echo "every app container runs $now"
+  # Revision and image digest of every service, for rollback.sh and the release notes.
+  bash deploy/release-record.sh record deploy "$now" "$prev"
   # Old image layers fill the 30 GB disk after a few dozen deploys.
   docker image prune -f >/dev/null
 
