@@ -44,10 +44,10 @@ export function Approved({ session }: { session: Session }) {
       <h1>Payment successful</h1>
       <p className="muted">{money(session.amount)} paid to {session.merchant.name}</p>
       <dl className="box">
-        <Row label="Reference">{session.reference}</Row>
+        <Row label="Payment reference">{session.reference}</Row>
         {session.authorised_at && <Row label="Date">{formatDate(session.authorised_at)}</Row>}
         {session.card && <Row label="Card">{brandName(session.card.brand)} •••• {session.card.last4}</Row>}
-        <Row label="Status"><span className="badge dark">Authorised</span></Row>
+        <Row label="Status"><span className="badge dark">Paid</span></Row>
       </dl>
       {session.customer_email_masked && (
         <p className="muted small">A receipt is on its way to {session.customer_email_masked}.</p>
@@ -89,8 +89,9 @@ const NOT_COMPLETED: Record<string, { icon: "cross" | "warn" | "clock"; title: s
   },
   pending: {
     icon: "clock",
-    title: "We're confirming your payment",
-    text: (m) => `We didn't hear back from the bank in time. Please don't pay again. This page updates as soon as we know the result, and ${m} will confirm it too.`,
+    // The bank's reply was lost. The payment is not failed: never invite a second one.
+    title: "We're checking your payment",
+    text: (m) => `We didn't hear back from the bank in time, so we're checking with it now. Please don't pay again: this payment may still go through. This page updates as soon as we know, and ${m} will confirm it too.`,
     button: (m) => `Return to ${m}`,
     badge: "Awaiting bank confirmation",
   },
@@ -127,7 +128,13 @@ export function NotCompleted({ session }: { session: Session }) {
         {v.title}
       </h1>
       <p className="muted">{v.text(m)}</p>
-      {session.reference && <p className="muted small">Reference {session.reference}</p>}
+      {session.reference && <p className="muted small">Payment reference {session.reference}</p>}
+      {session.result === "pending" && session.reference && (
+        // The same reference and status page as the receipt email (apps/guest/receipts.py).
+        <p className="small">
+          <a href={`/guest/status?ref=${encodeURIComponent(session.reference)}`}>Check this payment's status later</a>
+        </p>
+      )}
       <a className={`btn ${session.result === "declined" ? "primary" : "secondary"}`} href={session.return_url}>
         {v.button(m)}
       </a>

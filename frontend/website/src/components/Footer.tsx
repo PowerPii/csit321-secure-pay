@@ -64,11 +64,11 @@ export function Footer() {
                 {col.links.map((l) => (
                   <li key={l.label}>
                     {"href" in l && l.href ? (
-                      <Link href={l.href} target="_blank" rel="noopener" sx={{ color: "inherit", fontSize: 14.5 }}>
+                      <Link href={l.href} target="_blank" rel="noopener" underline="hover" sx={{ color: "inherit", fontSize: 14.5 }}>
                         {l.label}
                       </Link>
                     ) : (
-                      <Link component={RouterLink} to={(l as { to: string }).to} sx={{ color: "inherit", fontSize: 14.5 }}>
+                      <Link component={RouterLink} to={(l as { to: string }).to} underline="hover" sx={{ color: "inherit", fontSize: 14.5 }}>
                         {l.label}
                       </Link>
                     )}
@@ -93,7 +93,7 @@ export function Footer() {
               ["Terms", "/terms"],
               ["Status", "/status"],
             ].map(([label, to]) => (
-              <Link key={to} component={RouterLink} to={to} sx={{ color: "rgba(255,255,255,0.75)", fontSize: "inherit" }}>
+              <Link key={to} component={RouterLink} to={to} underline="hover" sx={{ color: "rgba(255,255,255,0.75)", fontSize: "inherit" }}>
                 {label}
               </Link>
             ))}

@@ -195,6 +195,7 @@ function Operations({ p }: { p: Detail }) {
                 </TableCell>
                 <TableCell>
                   {o.reconciliation_checks}
+                  {o.last_checked_at && <Typography variant="caption" color="text.secondary" display="block">last {timeOnly(o.last_checked_at)}</Typography>}
                   {o.next_check_at && <Typography variant="caption" color="text.secondary" display="block">next {timeOnly(o.next_check_at)}</Typography>}
                 </TableCell>
                 <TableCell align="right">
@@ -356,7 +357,7 @@ export default function PaymentDetail({ refund = false }: { refund?: boolean }) 
       <Box sx={{ display: "grid", gap: 2.5, gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: "minmax(0, 1.6fr) minmax(0, 1fr)" }, alignItems: "start" }}>
         <Stack gap={2.5} minWidth={0}>
           <Section title="Summary">
-            <Row label="Reference" value={p.reference} />
+            <Row label="Payment reference" value={p.reference} />
             <Row label="Merchant" value={p.merchant.name} />
             {p.card && <Row label="Card" value={cardLabel(p.card)} />}
             {p.card && <Row label="Card token" value={<Box component="span" sx={{ fontFamily: "monospace", fontSize: 12 }}>{p.card.token}</Box>} />}

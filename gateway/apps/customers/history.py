@@ -1,6 +1,7 @@
 """Read-only customer payment history; every query is scoped to its owner."""
 from apps.common.errors import not_found
 from apps.customers.models import CustomerAccount
+from apps.payments.labels import customer_label
 from apps.payments.models import Payment
 from apps.payments.states import PaymentStatus
 
@@ -8,17 +9,6 @@ from apps.payments.states import PaymentStatus
 
 # Payments still on the card form were never submitted by the customer.
 HIDDEN = (PaymentStatus.CREATED, PaymentStatus.EXPIRED)
-STATUS_LABELS = {
-    PaymentStatus.SCREENING: "Processing",
-    PaymentStatus.VERIFICATION_REQUIRED: "Awaiting code",
-    PaymentStatus.PROCESSING: "Processing",
-    PaymentStatus.AUTHORISED: "Authorised",
-    PaymentStatus.CAPTURED: "Captured",
-    PaymentStatus.DECLINED: "Declined",
-    PaymentStatus.BLOCKED: "Declined",  # no screening detail for customers
-    PaymentStatus.UNRESOLVED: "Being checked",
-    PaymentStatus.CANCELLED: "Cancelled",
-}
 
 
 def visible_history(customer: CustomerAccount):
@@ -27,9 +17,10 @@ def visible_history(customer: CustomerAccount):
 
 
 def _label(payment: Payment, refunded: int) -> str:
-    if refunded and payment.captured_amount:
-        return "Refunded" if refunded >= payment.captured_amount else "Partly refunded"
-    return STATUS_LABELS.get(PaymentStatus(payment.status), "Processing")
+    # The same words as the guest status page and the receipt's status link (one vocabulary
+    # for customers; completion audit, 19 Nov 2026). Blocked reads "Not charged": no
+    # screening detail for customers.
+    return customer_label(payment.status, refunded, payment.captured_amount)
 
 
 def history(customer: CustomerAccount, limit: int = 100) -> dict:

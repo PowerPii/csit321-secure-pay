@@ -304,7 +304,7 @@ def test_payment_made_while_signed_in_is_in_the_history(customer, shop, fake_sim
     (row,) = history["data"]
     assert row["reference"] == payment.reference
     assert row["merchant_name"] == shop.merchant.name
-    assert row["amount"] == payment.amount and row["status_label"] == "Authorised"
+    assert row["amount"] == payment.amount and row["status_label"] == "Paid"
     detail = browser.get(f"/customer/payments/{payment.reference.lower()}").json()
     assert detail["card"]["last4"] == "4242"
     assert detail["order_reference"] == payment.order_reference
@@ -348,11 +348,11 @@ def test_a_signed_out_payment_does_not_join_the_history(customer, shop, fake_sim
     assert payment.customer_id is None
 
 
-def test_declined_payment_is_listed_as_declined(customer, shop, fake_sim):
+def test_declined_payment_is_listed_as_not_charged(customer, shop, fake_sim):
     browser, _ = sign_in()
     pay(shop, browser, "4000000000000002")
     (row,) = browser.get("/customer/payments").json()["data"]
-    assert row["status_label"] == "Declined"
+    assert row["status_label"] == "Not charged"
 
 
 # --- idle warning, consent, personal data (FR-ACC-10 to FR-ACC-13) ------------------------

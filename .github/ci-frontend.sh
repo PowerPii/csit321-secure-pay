@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # One front-end app's CI checks (.github/workflows/ci.yml, job `frontend`): clean install,
-# type check, lint (checkout and dashboard), tests (JUnit for the test report), the website's build, and the audit.
+# type check, lint (checkout and dashboard), tests (JUnit for the test report; the website's
+# public-site journey too), the website's build, and the audit.
 # Usage: bash .github/ci-frontend.sh checkout|dashboard|website|sdk
 # `sdk` is the Node.js SDK in sdk/node (published to npm as securepaysg).
 set -euo pipefail
@@ -21,7 +22,8 @@ cd "$(dirname "$0")/../frontend/$app"
 npm ci --no-audit --no-fund
 npx tsc --noEmit
 if [ "$app" = website ]; then
-  npm test
+  # The public-site journey (src/journey.test.tsx): routes, status states, axe WCAG scan.
+  npm test -- --reporter=default --reporter=junit --outputFile.junit="junit-$app.xml"
   npm run build
 else
   npm run lint

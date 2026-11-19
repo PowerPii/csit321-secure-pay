@@ -23,8 +23,8 @@ from apps.common.timefmt import rfc3339
 from apps.events.emails import queue
 from apps.events.models import EventType, OutboundEmail, OutboxEvent
 from apps.guest.models import StatusChallenge, StatusLock, StatusSession
+from apps.payments.labels import customer_label
 from apps.payments.models import Payment
-from apps.payments.states import PaymentStatus
 from apps.refunds.models import refund_totals
 
 RULES = settings.GATEWAY_RULES
@@ -232,9 +232,6 @@ def end_session(token: str | None) -> None:
 
 # --- the read-only view (GuestPaymentView) -----------------------------------------------
 
-PAID = {PaymentStatus.AUTHORISED, PaymentStatus.CAPTURED}
-NOT_CHARGED = {PaymentStatus.DECLINED, PaymentStatus.BLOCKED, PaymentStatus.CANCELLED,
-               PaymentStatus.EXPIRED}
 EVENT_LABELS = {
     EventType.PAYMENT_VERIFICATION_REQUIRED: "Checked",
     EventType.PAYMENT_PROCESSING: "Checked",
@@ -249,14 +246,8 @@ EVENT_LABELS = {
 
 
 def status_label(status: str) -> str:
-    status = PaymentStatus(status)
-    if status in PAID:
-        return "Paid"
-    if status in NOT_CHARGED:
-        return "Not charged"
-    if status == PaymentStatus.UNRESOLVED:
-        return "Being checked - do not pay again"
-    return "In progress"
+    """The customer wording (apps.payments.labels), the same as the account history's."""
+    return customer_label(status)
 
 
 def _money(cents: int) -> str:

@@ -1,6 +1,6 @@
 import { Alert, Box, Button, Card, Link, Skeleton, Tooltip, Typography } from "@mui/material";
 import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link as RouterLink } from "react-router-dom";
 import { Section } from "../components/Section";
 import { StatusChip, type Tone } from "../components/StatusChip";
@@ -13,13 +13,15 @@ import { brand, fonts } from "../theme";
    be reached at all, the page says so: that is the outage the server can't report itself. */
 
 type State = "operational" | "outage" | "unknown";
-type Overall = "operational" | "partial_outage" | "major_outage";
+type Overall = "operational" | "partial_outage" | "major_outage" | "unknown";
 interface Day { date: string; uptime: number | null }
 interface Component { id: string; name: string; description: string; status: State; uptime: number | null; days: Day[] }
 interface Incident { component: string; title: string; started_at: string; ended_at: string | null; minutes: number }
 interface StatusData {
   status: Overall;
   updated_at: string;
+  /** When the worker last checked every part (the newest sample); null before the first. */
+  checked_at?: string | null;
   notice: string;
   time_zone: string;
   check_every_minutes: number;
@@ -32,14 +34,42 @@ interface StatusData {
 
 const STATUS_URL = `${GATEWAY_URL}/status.json`;
 const REFRESH_MS = 60_000;
+// A request that has not answered in this time counts as "can't reach" (it can't hang the page).
+const FETCH_TIMEOUT_MS = 10_000;
+// The worker checks every few minutes. An answer whose checks are older than this many check
+// intervals is shown as possibly out of date, not as a fresh "all operational".
+const STALE_INTERVALS = 3;
 const TZ = "Asia/Singapore";
 
-const HEADLINE: Record<Overall | "unreachable", { text: string; tone: Tone }> = {
+type HeadlineKey = Overall | "unreachable" | "checking" | "stale";
+const HEADLINE: Record<HeadlineKey, { text: string; tone: Tone }> = {
   operational: { text: "All systems operational", tone: "allow" },
   partial_outage: { text: "Some parts are down", tone: "verify" },
   major_outage: { text: "Payments are down", tone: "block" },
+  // Some part has no recent check and nothing is known to be down: not the same as healthy.
+  unknown: { text: "Some parts have no recent check", tone: "neutral" },
   unreachable: { text: "We can’t reach SecurePay", tone: "block" },
+  // Before the first answer: never an optimistic headline.
+  checking: { text: "Checking status", tone: "neutral" },
+  stale: { text: "Status may be out of date", tone: "neutral" },
 };
+
+/** The headline for what the page knows now. Exported for the tests. */
+export function headlineFor(data: StatusData | null, failed: boolean, now = Date.now()): HeadlineKey {
+  if (failed) return "unreachable";
+  if (!data) return "checking";
+  // A part known to be down is news even when other checks are old.
+  if (data.status === "major_outage" || data.status === "partial_outage") return data.status;
+  const age = now - new Date(lastChecked(data)).getTime();
+  if (!(age <= STALE_INTERVALS * data.check_every_minutes * 60_000)) return "stale";
+  if (data.status !== "operational" || data.components.some((c) => c.status === "unknown")) return "unknown";
+  return "operational";
+}
+
+/** The time of the newest check (older gateways send only the answer's own time). */
+function lastChecked(data: StatusData): string {
+  return data.checked_at ?? data.updated_at;
+}
 const CHIP: Record<State, { text: string; tone: Tone }> = {
   operational: { text: "Operational", tone: "allow" },
   outage: { text: "Down", tone: "block" },
@@ -74,6 +104,7 @@ function Bars({ days, label }: { days: Day[]; label: string }) {
           title={`${dayOnly.format(new Date(d.date))}: ${d.uptime === null ? "no data" : `${d.uptime}% up`}`}
           placement="top"
           arrow
+          describeChild
         >
           <Box
             sx={{
@@ -97,7 +128,7 @@ function ComponentRow({ c, first, historyDays }: { c: Component; first: boolean;
     <Box sx={{ px: { xs: 2.5, md: 3.5 }, py: 3, borderTop: first ? "none" : `1px solid ${brand.line}` }}>
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 2 }}>
         <Box sx={{ minWidth: 0 }}>
-          <Typography component="h3" sx={{ fontWeight: 600, fontSize: 17, color: brand.navy }}>
+          <Typography component="h2" sx={{ fontWeight: 600, fontSize: 17, color: brand.navy }}>
             {c.name}
           </Typography>
           <Typography sx={{ color: "text.secondary", fontSize: 14.5, lineHeight: 1.55, mt: 0.25 }}>{c.description}</Typography>
@@ -159,18 +190,26 @@ export default function Status() {
   const [data, setData] = useState<StatusData | null>(null);
   const [failed, setFailed] = useState(false);
   const [loading, setLoading] = useState(true);
+  // Only the newest request may change the page: a slow older answer never overwrites a newer one.
+  const latest = useRef(0);
 
   const load = useCallback(async () => {
+    const id = ++latest.current;
     setLoading(true);
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
     try {
-      const response = await fetch(STATUS_URL, { cache: "no-store", credentials: "omit" });
+      const response = await fetch(STATUS_URL, { cache: "no-store", credentials: "omit", signal: controller.signal });
       if (!response.ok) throw new Error(String(response.status));
-      setData((await response.json()) as StatusData);
+      const body = (await response.json()) as StatusData;
+      if (id !== latest.current) return;
+      setData(body);
       setFailed(false);
     } catch {
-      setFailed(true);
+      if (id === latest.current) setFailed(true);
     } finally {
-      setLoading(false);
+      window.clearTimeout(timer);
+      if (id === latest.current) setLoading(false);
     }
   }, []);
 
@@ -180,7 +219,8 @@ export default function Status() {
     return () => window.clearInterval(timer);
   }, [load]);
 
-  const headline = HEADLINE[failed ? "unreachable" : data?.status ?? "operational"];
+  const key = headlineFor(data, failed);
+  const headline = HEADLINE[key];
 
   return (
     <>
@@ -189,21 +229,19 @@ export default function Status() {
           <Typography variant="overline" component="p" sx={{ color: "text.secondary", mb: 2 }}>
             System status
           </Typography>
-          {data || failed ? (
-            <Box sx={{ display: "flex", alignItems: "center", gap: 2 }} role="status" aria-live="polite">
-              <Box component="span" aria-hidden sx={{ width: 18, height: 18, borderRadius: "50%", flex: "none", bgcolor: { allow: brand.allow, verify: brand.verify, block: brand.block, neutral: brand.muted }[headline.tone], boxShadow: `0 0 0 6px ${brand.mist}` }} />
-              <Typography variant="h1" sx={{ fontSize: { xs: 32, md: 48 }, color: brand.navy }}>
-                {headline.text}
-              </Typography>
-            </Box>
-          ) : (
-            <Skeleton variant="text" sx={{ fontSize: 48, maxWidth: 480 }} />
-          )}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }} role="status" aria-live="polite">
+            <Box component="span" aria-hidden sx={{ width: 18, height: 18, borderRadius: "50%", flex: "none", bgcolor: { allow: brand.allow, verify: brand.verify, block: brand.block, neutral: brand.muted }[headline.tone], boxShadow: `0 0 0 6px ${brand.mist}` }} />
+            <Typography variant="h1" sx={{ fontSize: { xs: 32, md: 48 }, color: brand.navy }}>
+              {headline.text}
+            </Typography>
+          </Box>
           <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 2, mt: 2.5 }}>
             <Typography sx={{ color: "text.secondary", fontSize: 16 }}>
               {data
-                ? `Every part is checked every ${data.check_every_minutes} minutes. Updated ${time.format(new Date(data.updated_at))} SGT.`
-                : "Checking the server…"}
+                ? `Every part is checked every ${data.check_every_minutes} minutes. Last checked ${(key === "stale" ? dayTime : time).format(new Date(lastChecked(data)))} SGT.`
+                : failed
+                  ? "No answer from the server yet."
+                  : "Asking the server for its latest checks…"}
             </Typography>
             <Button size="small" variant="outlined" startIcon={<RefreshRoundedIcon />} onClick={() => void load()} disabled={loading}>
               Check again
@@ -237,7 +275,7 @@ export default function Status() {
           ) : null}
           {failed && data && (
             <Typography sx={{ color: "text.secondary", fontSize: 14, mt: 1.5 }}>
-              Showing the last answer, from {time.format(new Date(data.updated_at))} SGT.
+              Showing the last answer, checked {dayTime.format(new Date(lastChecked(data)))} SGT.
             </Typography>
           )}
 

@@ -7,6 +7,9 @@ import { Field, invalidProps } from "../ui";
 import { LockIcon } from "./icons";
 import { useSessionExpiry, type SessionFormProps } from "./session";
 
+const LOST_REPLY =
+  "We lost the connection while sending your payment, so it may still go through. Reload this page to see the result before you do anything else. Paying again on this page won't charge you twice.";
+
 export function CardForm({
   sessionId,
   session,
@@ -84,10 +87,14 @@ export function CardForm({
       onUpdate(await submit(sessionId));
     } catch (err) {
       const e = err instanceof ApiError ? err : new ApiError(0, "unknown_error", "Something went wrong.");
-      // Reload: the payment may have gone ahead even if this reply was lost.
+      // Reload: the payment may have gone ahead even if this reply was lost. If we can't tell,
+      // say so: "try again" here would read as an invitation to pay twice. (Submitting this
+      // checkout again is safe, it is the same payment, but the customer can't know that.)
+      const unsure = e.status === 0 || e.status >= 500;
+      const message = unsure ? LOST_REPLY : e.message;
       getSession(sessionId)
-        .then((s) => onUpdate(s, false, s.result === "open" ? e.message : undefined))
-        .catch(() => onUpdate(current, false, e.message));
+        .then((s) => onUpdate(s, false, s.result === "open" ? message : undefined))
+        .catch(() => onUpdate(current, false, message));
     }
   }
 

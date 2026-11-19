@@ -19,7 +19,7 @@
     {% if attempt.status == "verification_required" %}
     <p class="muted">SecurePay emailed you a verification code. Enter it on the payment page to finish paying.</p>
     {% else %}
-    <p class="muted">We're waiting for SecurePay to confirm your payment. This page updates automatically.</p>
+    <p class="muted">We're waiting for SecurePay to confirm your payment. Please don't pay again: this page updates automatically.</p>
     {% endif %}
   {% elif state == "declined" or state == "blocked" or state == "cancelled" or state == "expired" %}
     <h1>Order #{{ order.number }}</h1>
@@ -49,7 +49,7 @@
     {% endfor %}
     <div class="row total small"><span class="muted">{% if state == "paid" %}Paid{% else %}Total{% endif %}</span><strong>{{ order.total_cents|money }}</strong></div>
     <div class="row small"><span class="muted">Includes GST</span><span>{{ order.total_cents|gst_included|money }}</span></div>
-    {% if attempt.reference %}<div class="row small"><span class="muted">Payment ref</span><span>{{ attempt.reference }}</span></div>{% endif %}
+    {% if attempt.reference %}<div class="row small"><span class="muted">Payment reference</span><span>{{ attempt.reference }}</span></div>{% endif %}
   </div>
 
   <div class="box deliver">
@@ -61,7 +61,7 @@
     <a class="btn primary block" href="{{ attempt.checkout_url }}">Continue to payment</a>
   {% elif state != "paid" and state != "waiting" and not order.paid_at %}
     <form method="post" action="{% url 'shop-order-pay' order.number %}">{% csrf_token %}
-      <button class="btn primary block" type="submit">{% if state == "declined" %}Try another card{% elif state == "not_started" %}Try again{% else %}Pay {{ order.total_cents|money }} with SecurePay{% endif %}</button>
+      <button class="btn primary block" type="submit">{% if state == "declined" %}Try another card{% elif state == "not_started" %}Continue to payment{% else %}Pay {{ order.total_cents|money }} with SecurePay{% endif %}</button>
     </form>
   {% elif state == "paid" %}
     <a class="btn block" href="{% url 'shop-home' %}">Continue shopping</a>
