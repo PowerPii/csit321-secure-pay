@@ -12,8 +12,9 @@ info:
     \ every reply to a valid key, and every webhook, carries\n  `SecurePay-Signature: t=<unix seconds>,v1=<hex\
     \ HMAC-SHA256 of \"t.\" + raw body>`, made with\n  your webhook signing secret (`whsec_...`).\n- **Money**:\
     \ integer cents in SGD (50 to 1,000,000).\n\nGuides (lifecycle, retries, errors, test cards): https://www.securepaysg.me/developers.\n\
-    A TypeScript client is on npm as `securepaysg`.\n\nSecurePay is a student project (CSIT321, University\
-    \ of Wollongong). It is not a licensed\npayment service and must never be used with real card data.\n"
+    A TypeScript client is on npm as `securepaysg`.\n\nSecurePay is a student project (CSIT321 group FYP-26-S4-36,\
+    \ University of Wollongong). It is not a licensed\npayment service and must never be used with real\
+    \ card data.\n"
   contact:
     name: SecurePay developers
     url: https://www.securepaysg.me/developers

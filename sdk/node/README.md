@@ -7,7 +7,7 @@ Server-side TypeScript client for the [SecurePay](https://www.securepaysg.me) me
 - Adds an `Idempotency-Key` to every `POST` and retries timeouts, `429` and `5xx` replies with that same key, so a retry never charges twice.
 - Checks the `SecurePay-Signature` on every reply and every webhook when you give it your signing secret.
 
-> SecurePay is a university final-year project (CSIT321). It is not a licensed payment service. The live gateway at `gateway.securepaysg.me` is a demo: every payment is simulated and no real money moves. Never send real card data.
+> SecurePay is a university final-year project (CSIT321, group FYP-26-S4-36). It is not a licensed payment service. The live gateway at `gateway.securepaysg.me` is a demo: every payment is simulated and no real money moves. Never send real card data.
 
 ## Install
 

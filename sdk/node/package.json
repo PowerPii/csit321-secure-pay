@@ -12,7 +12,7 @@
   ],
   "homepage": "https://www.securepaysg.me/developers#sdk",
   "license": "MIT",
-  "author": "SecurePay team (CSIT321)",
+  "author": "SecurePay team (CSIT321 group FYP-26-S4-36)",
   "type": "module",
   "exports": {
     ".": {

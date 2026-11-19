@@ -59,7 +59,7 @@ then capture, cancel or refund it, and receive signed webhooks as its status cha
 Guides (lifecycle, retries, errors, test cards): {GUIDES}.
 A TypeScript client is on npm as `securepaysg`.
 
-SecurePay is a student project (CSIT321, University of Wollongong). It is not a licensed
+SecurePay is a student project (CSIT321 group FYP-26-S4-36, University of Wollongong). It is not a licensed
 payment service and must never be used with real card data.
 """
 
