@@ -94,7 +94,12 @@ jobs:
             caddy:2.11.9@sha256:4851e54a46b206517c574821bb5cc67f170d2156041e9fbc4c9193b45e84a75b caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
           docker build -f deploy/caddy/Dockerfile -t securepay-caddy .
           # bash -n checks only its first file, so check each script on its own.
-          for f in deploy/*.sh deploy/backup/*.sh; do bash -n "$f" || exit 1; done
+          for f in deploy/*.sh deploy/backup/*.sh deploy/tests/*.sh deploy/postgres/init/*.sh; do bash -n "$f" || exit 1; done
+          # The database image (initialiser baked in at a fixed mode) builds.
+          docker build -q -t securepay-db:ci deploy/postgres >/dev/null
+          # backup.sh is all-or-nothing, here and on the macOS system Bash 3.2.
+          bash deploy/tests/backup-test.sh
+          docker run --rm -v "$PWD:/repo:ro" bash:3.2@sha256:2556c2da19c32c1614d318645c73a7bf64d38be21cf69e98e3ca51f053983719 bash /repo/deploy/tests/backup-test.sh
 
   # Gateway, simulator and merchant, one after another in one job (each in its own virtual
   # environment, as before; steps in .github/ci-python.sh). One failing service does not stop

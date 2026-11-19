@@ -14,14 +14,16 @@ x-django: &django
 
 services:
   db:
-    image: postgres:17.12-trixie@sha256:0d938e975177bef9f1f61f3f9dbcf2e0aa0a139568f66d3415ed8892eb97f6ac
+    # postgres/Dockerfile: the pinned PostgreSQL image with postgres/init baked in at a fixed
+    # mode, so a fresh volume starts the same way on Linux and Docker Desktop.
+    build: ./postgres
+    image: securepay-db:local
     restart: unless-stopped
     environment:
       POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
     secrets: [postgres_password, gateway_db_password, vault_db_password, simulator_db_password, merchant_db_password]
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./postgres/init:/docker-entrypoint-initdb.d:ro
     networks: [data]
     healthcheck:
       # Healthy only once postgres/init/01-databases.sh has made all 4 roles, all 3 databases
@@ -32,7 +34,10 @@ services:
 
   gateway:
     <<: *django
-    build: ../gateway
+    build:
+      context: ../gateway
+      labels:
+        org.opencontainers.image.revision: "${GIT_REVISION:-unknown}"
     environment:
       <<: *django-env
       POSTGRES_DB: gateway
@@ -78,7 +83,10 @@ services:
   # blocks payments still waiting for a verification code).
   gateway-worker:
     <<: *django
-    build: ../gateway
+    build:
+      context: ../gateway
+      labels:
+        org.opencontainers.image.revision: "${GIT_REVISION:-unknown}"
     command: ["python", "manage.py", "run_worker"]
     environment:
       <<: *django-env
@@ -111,7 +119,10 @@ services:
 
   simulator:
     <<: *django
-    build: ../simulator
+    build:
+      context: ../simulator
+      labels:
+        org.opencontainers.image.revision: "${GIT_REVISION:-unknown}"
     environment:
       <<: *django-env
       POSTGRES_DB: simulator
@@ -138,7 +149,10 @@ services:
 
   merchant:
     <<: *django
-    build: ../merchant
+    build:
+      context: ../merchant
+      labels:
+        org.opencontainers.image.revision: "${GIT_REVISION:-unknown}"
     environment:
       <<: *django-env
       POSTGRES_DB: merchant

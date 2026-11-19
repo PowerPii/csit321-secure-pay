@@ -194,6 +194,11 @@ def count_kept(tokens) -> int:
     return StoredCard.objects.using(DB).filter(token__in=tokens).count() if tokens else 0
 
 
+def count_all() -> int:
+    """How many cards the vault holds now (recovery_check: zero right after a restore)."""
+    return StoredCard.objects.using(DB).count()
+
+
 def count_expired(before: datetime) -> int:
     """Cards whose checkout ended before `before` and that are still waiting to be deleted."""
     return StoredCard.objects.using(DB).filter(expires_at__lte=before).count()

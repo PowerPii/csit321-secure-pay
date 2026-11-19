@@ -285,7 +285,11 @@ crontab -e
 
 Backups never hold card data: `backup.sh` dumps the vault tables' definitions but not their
 rows (a payment in progress at 2:15 needs its card entered again after a restore), and
-`verify.sh` fails if a restored backup has a stored card in it. `verify.sh` restores each dump of the newest backup into a scratch database
+`verify.sh` fails if a restored backup has a stored card in it. A backup is written to a hidden
+`.incomplete-<time>` folder and appears as `<time>` only when all three dumps succeeded, with a
+`MANIFEST` (sizes, SHA-256, the commit running); `verify.sh` and `restore.sh` only use folders
+that have one. Folders from before 19 Nov 2026 have no MANIFEST and also lack the vault's
+migration history, so `verify.sh` fails them: let the nightly run make a new one. `verify.sh` restores each dump of the newest backup into a scratch database
 (`restorecheck_gateway` and so on), counts tables and rows, and drops the scratch copies; the
 live databases are not touched. `grep -E "ok|FAIL" ~/backup.log | tail` shows the last result.
 A backup nobody has restored is only a hope; run it by hand after any change to the schema.
@@ -296,8 +300,27 @@ A dump is only useful together with the secrets (step 4), which are not in it.
 The `vault_encryption_key` and `field_encryption_key` secrets are master keys: the data keys
 in the database are encrypted with them (rotate the data keys on the dashboard's Integrity and
 keys page, at least every 90 days). Never regenerate those two files on a running server, or
-card data in flight, signing secrets and queued emails can no longer be read. Restore one
-database: `$P exec -T db pg_restore -U postgres --clean -d gateway < gateway.dump`.
+card data in flight, signing secrets and queued emails can no longer be read.
+
+### 9b. Restoring a backup
+
+```bash
+bash deploy/backup/restore.sh                                  # laptop: newest complete backup
+bash deploy/backup/restore.sh --replace-live-data [<folder>]   # the public server
+bash deploy/recovery-check.sh                                  # then: payments agree with the simulator?
+```
+
+It verifies the backup first, takes a safety backup of the current data
+(`~/fyp-backups/safety/`), stops the apps, restores all three databases together, starts the
+apps, waits for `/readyz`, and fails if any card row came back. Everything written after the
+backup is gone (the safety backup keeps it). A checkout that was between card entry and
+submission asks for the card again. Rehearsed on a laptop with a checkout in flight:
+`tests/integration/test_recovery_drill.py` and `docs/RECOVERY.md`.
+
+A dump made before 19 Nov 2026 restored by hand leaves the gateway restarting with
+`relation "vault_storedcard" already exists` (the vault's migration history was not in it).
+Fix: `$P run --rm gateway python manage.py migrate vault --database vault --fake`, then
+`$P up -d`.
 
 **Server snapshot the day before a demo** (the whole disk: code, secrets, model, databases).
 Run `deploy/backup/backup.sh` first so the dumps inside the snapshot are fresh, then:
@@ -376,7 +399,9 @@ exact commit CI tested. That script fast-forwards the clone to that commit (neve
 `main` that has not passed its own checks, and never back to an older one), rebuilds with every
 image labelled with the commit, checks that every app container runs an image built from it,
 removes old image layers and runs the smoke check (up to 3 minutes while migrations run). The
-commit that is live is in `~/deployed-revision`. The Actions tab shows the result, and
+commit that is live is in `~/deployed-revision`; every deploy also appends the revision, the
+one before it and every service's image digest to `~/deploy-history.jsonl`
+(`bash deploy/release-record.sh show` prints the last few; `~/deployed-release.txt` has the newest). The Actions tab shows the result, and
 `~/deploy.log` on the server keeps every run. A run started by hand (Actions > deploy > Run
 workflow) takes an optional commit and refuses one whose CI run on `main` did not pass.
 
@@ -405,9 +430,7 @@ changing only through reviewed pull requests with CI green.
 A deploy stops without changing anything running if the server clone is not on `main` or has
 hand edits that clash with the new code (`git status` shows them). If the smoke check fails
 after a deploy, the new code is running: look at `docker compose -f deploy/compose.prod.yaml
-logs --tail 100 <service>`, then fix forward with a new PR, or go back by hand:
-`git checkout <previous commit>` and `up -d --build` (the previous commit is in
-`~/deploy.log`; return with `git checkout main` once fixed). Migrations are not undone.
+logs --tail 100 <service>`, then fix forward with a new PR, or roll back (section 10b).
 
 **By hand** (or if Actions is down):
 
@@ -432,6 +455,23 @@ exact version). Run the checks as for any change.
 Migrations run when the gateway, simulator and shop start. The integration tests are not part
 of a deploy because they make payments; run them by hand when a change touches the payment flow
 (step 8).
+
+## 10b. Rolling back a bad deploy
+
+```bash
+bash deploy/rollback.sh                 # the revision before the newest deploy
+bash deploy/rollback.sh <commit>        # an older commit on main (40 characters)
+bash deploy/freeze.sh on 24             # keep it there until the fix is merged
+```
+
+`rollback.sh` refuses a commit that is not older and on `main`, and refuses when migrations
+were added since that commit (old code would meet the newer schema); read them, and pass
+`--allow-migrations` only if they just add tables or nullable columns. Otherwise restore the
+backup taken before the bad deploy (step 9b). It checks out the target (detached; `main` is
+not moved), rebuilds, checks every app container runs it, records it in
+`~/deploy-history.jsonl` as a `rollback`, then runs the smoke check and `recovery_check`
+(recent payments still agree with the simulator). The next deploy returns the clone to `main`.
+Rehearsal steps for someone new: `docs/RECOVERY.md`.
 
 ## 10a. Merge freeze before a demo (sprint 16)
 

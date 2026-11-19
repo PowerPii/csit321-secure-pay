@@ -20,14 +20,38 @@ if [ -z "${COMPOSE_FILE:-}" ]; then
   fi
 fi
 root="${BACKUP_DIR:-$HOME/fyp-backups}"
-dir="${1:-$(ls -1d "$root"/*/ 2>/dev/null | sort | tail -1)}"
+# The newest complete backup: backup.sh writes MANIFEST last, after every dump succeeded, and
+# publishes the folder only then (hidden .incomplete-* folders are never picked).
+newest_complete() {
+  local d
+  for d in $(ls -1d "$root"/2*/ 2>/dev/null | sort -r); do
+    [ -f "${d}MANIFEST" ] && { echo "${d%/}"; return 0; }
+  done
+  return 0
+}
+dir="${1:-$(newest_complete)}"
 dir="${dir%/}"
-[ -n "$dir" ] && [ -d "$dir" ] || { echo "FAIL  no backup folder found in $root"; exit 1; }
+[ -n "$dir" ] && [ -d "$dir" ] || { echo "FAIL  no complete backup folder (with a MANIFEST) found in $root"; exit 1; }
 
 psql() { docker compose -f "$COMPOSE_FILE" exec -T -e PGOPTIONS='-c client_min_messages=warning' db psql -U postgres -v ON_ERROR_STOP=1 -qAt "$@"; }
 
 echo "== Restore test of $dir ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
 fail=0
+sha256() {
+  if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" | cut -d' ' -f1
+  else shasum -a 256 "$1" | cut -d' ' -f1; fi
+}
+if [ ! -f "$dir/MANIFEST" ]; then
+  echo "FAIL  $dir has no MANIFEST: it was not completed by backup.sh (or predates 19 Nov 2026)"; fail=1
+else
+  while read -r entry _ digest; do
+    name="${entry#dump=}"; digest="${digest#sha256=}"
+    if [ ! -f "$dir/$name" ] || [ "$(sha256 "$dir/$name")" != "$digest" ]; then
+      echo "FAIL  $name does not match its MANIFEST checksum"; fail=1
+    fi
+  done < <(grep '^dump=' "$dir/MANIFEST")
+  [ $fail -eq 0 ] && echo "ok    MANIFEST: $(grep -c '^dump=' "$dir/MANIFEST") dumps match their checksums ($(sed -n 's/^source_revision=//p' "$dir/MANIFEST" | cut -c1-12))"
+fi
 for db in gateway simulator merchant; do
   scratch="restorecheck_$db"
   if [ ! -s "$dir/$db.dump" ]; then
@@ -59,6 +83,15 @@ for db in gateway simulator merchant; do
         echo "FAIL  gateway: the backup holds $cards stored card(s); make backups with the current backup.sh"; fail=1
       else
         echo "ok    gateway: vault table present and empty (no card data in the backup)"
+      fi
+      # The vault's own migration history must be there, or the restored gateway tries to
+      # create the vault tables again and does not start.
+      vmig="$(psql -d "$scratch" -c "SELECT CASE WHEN to_regclass('vault.django_migrations') IS NULL
+        THEN 0 ELSE (SELECT count(*) FROM vault.django_migrations) END")"
+      if [ "$vmig" = 0 ]; then
+        echo "FAIL  gateway: the vault's migration history is missing; restore needs RUNBOOK.md step 9b's fix"; fail=1
+      else
+        echo "ok    gateway: vault migration history present ($vmig rows)"
       fi
     fi
   fi

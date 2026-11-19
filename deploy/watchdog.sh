@@ -109,9 +109,15 @@ main() {
     fi
   fi
 
-  newest="$(ls -1d "${BACKUP_DIR:-$HOME/fyp-backups}"/*/ 2>/dev/null | sort | tail -1)"
+  # Complete backups only: <time> folders with a MANIFEST (backup.sh), not .incomplete-* or safety/.
+  newest=""
+  for d in $(ls -1d "${BACKUP_DIR:-$HOME/fyp-backups}"/2*/ 2>/dev/null | sort -r); do
+    [ -f "${d}MANIFEST" ] && { newest="$d"; break; }
+  done
+  # Before the first backup.sh of 19 Nov 2026 no folder has one: use the newest folder.
+  [ -n "$newest" ] || newest="$(ls -1d "${BACKUP_DIR:-$HOME/fyp-backups}"/2*/ 2>/dev/null | sort | tail -1)"
   if [ -z "$newest" ]; then
-    [ "$domain" != localhost ] && problems+=("no database backup found (RUNBOOK.md step 9)")
+    [ "$domain" != localhost ] && problems+=("no complete database backup found (RUNBOOK.md step 9)")
   else
     age=$(( ($(date +%s) - $(stat -c %Y "$newest")) / 3600 ))
     [ "$age" -ge 36 ] && problems+=("newest backup is $age hours old: is the backup cron running?")
