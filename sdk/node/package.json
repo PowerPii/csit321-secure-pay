@@ -1,6 +1,6 @@
 {
   "name": "securepaysg",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Server-side TypeScript client for the SecurePay merchant API: payments, capture, cancel, refunds and signed webhooks.",
   "keywords": [
     "securepay",
@@ -12,7 +12,9 @@
   ],
   "homepage": "https://www.securepaysg.me/developers#sdk",
   "license": "MIT",
-  "author": "SecurePay team (CSIT321 group FYP-26-S4-36)",
+  "author": {
+    "name": "SecurePay team (CSIT321 group FYP-26-S4-36)"
+  },
   "type": "module",
   "exports": {
     ".": {

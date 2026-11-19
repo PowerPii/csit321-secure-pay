@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.0 (2026-11-19)
+
+Makes a first integration recoverable after a lost reply or a merchant restart (Codex completion audit, 19 Nov 2026).
+
+- Every error now has `idempotencyKey` (the key every attempt of that `POST` used) and `outcomeUnknown` (`true` when the gateway may have done the work: no answer, a `5xx` or `409 idempotency_request_in_progress` after the retries, or a reply that failed the signature check). `SecurePayConnectionError` also has `attempts`, and its message names the key to retry with.
+- README and examples: save one key with the order before `payments.create`, one key per refund, retry with the saved key after a restart, and the 24-hour key window with a reconciliation path after it.
+- `idempotencyKey` is checked before sending (8 to 255 printable ASCII characters, the gateway's rule).
+- **Breaking:** `baseUrl` must be `https://`. Plain `http://` is accepted only for `localhost`, `*.localhost`, `127.0.0.1` or `[::1]`, and only with the new option `allowInsecureHttp: true`. A URL with a user name, password, query string or fragment is refused.
+- **Breaking:** `timeoutMs` (1 to 600,000), `maxRetries` (whole number, 0 to 10) and the webhook `toleranceSeconds` (1 to 3,600) must be finite and within those limits; anything else throws a `RangeError`. A `toleranceSeconds` of 0 or `NaN` used to turn the freshness check off.
+- `author` in package.json is now an object, so npm shows the name correctly.
+
 ## 0.1.0 (2026-11-19)
 
 First release.

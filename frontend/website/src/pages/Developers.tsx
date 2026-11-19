@@ -90,7 +90,7 @@ export default function Developers() {
 
         <DocSection id="sdk" title="Node.js SDK">
           <P>
-            {`The \`${SDK_PACKAGE}\` package is a small, typed client for Node.js 20.19 or later, with no dependencies. It adds the \`Idempotency-Key\` to every \`POST\`, retries timeouts, \`429\` and \`5xx\` with that same key, checks the signature on every reply and webhook, and turns error replies into a \`SecurePayAPIError\` with the stable \`code\`. Its types are generated from the OpenAPI file.`}
+            {`The \`${SDK_PACKAGE}\` package is a small, typed client for Node.js 20.19 or later, with no dependencies. It sends an \`Idempotency-Key\` on every \`POST\` (pass the one you saved with the order or refund), retries timeouts, \`429\` and \`5xx\` with that same key, keeps the key on any error whose outcome is unknown, checks the signature on every reply and webhook, and turns error replies into a \`SecurePayAPIError\` with the stable \`code\`. Its types are generated from the OpenAPI file.`}
           </P>
           <Box sx={{ mb: 2, maxWidth: 640 }}>
             <CodeBlock snippets={SDK_INSTALL} />
@@ -165,6 +165,22 @@ export default function Developers() {
               A <code>5xx</code> reply is not stored, so retrying with the same key is safe and won’t charge twice.
             </li>
           </Box>
+          <DocSection id="idempotency-keys" title="Save the key before you call" level={3}>
+            <P>
+              A key only helps if you still have it after a crash. Create it when you create the order, save it in the same database row, then call the API. If the reply is lost
+              or your server restarts, read the saved key and send the same request again: you get the original payment back with `Idempotent-Replayed: true`. A key made
+              inside the call disappears with the process, and a new key is a new payment.
+            </P>
+            <P>
+              Each refund is its own operation. Save a refund record with its own key before calling, so two partial refunds use two keys and a retry of one never becomes a
+              second refund. Capture and cancel work the same way.
+            </P>
+          </DocSection>
+          <DocSection id="after-24-hours" title="Unresolved after 24 hours" level={3}>
+            <P>
+              {`A key is kept for ${RULES.idempotencyWindow} from its first use; after that the same key starts a new operation. So before sending anything for an older operation, find out what happened to the first one. A refund: \`GET /v1/payments/{id}/refunds\` lists every refund of the payment with the amount still refundable. A payment you never saw the ID of: search its order reference on the dashboard’s Payments page, and check your webhook log for its events. An unpaid payment expires when its checkout link does (${RULES.checkoutTtl}), so it can never be charged later. Only create a new payment or refund when the lookup shows the first one did not happen.`}
+            </P>
+          </DocSection>
         </DocSection>
 
         <DocSection id="webhooks" title="Webhooks">

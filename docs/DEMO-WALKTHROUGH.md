@@ -68,7 +68,7 @@ https://www.securepaysg.me/status shows each part of the live service (payments 
 
 ## API reference and SDK
 
-https://www.securepaysg.me/developers/api/explorer is the interactive reference built from the public OpenAPI file (`frontend/website/public/openapi/`). The Node.js SDK is on npm as `securepaysg` (`npm install securepaysg`); `sdk/node/scripts/live-check.mjs` runs a 14-step check through it (two payments paid with a test card, then capture, refund and cancel) against a gateway you point it at; use a test merchant only.
+https://www.securepaysg.me/developers/api/explorer is the interactive reference built from the public OpenAPI file (`frontend/website/public/openapi/`). The Node.js SDK is on npm as `securepaysg` (`npm install securepaysg`); `sdk/node/scripts/live-check.mjs` runs a 14-step check through it (two payments paid with fresh demo-range test cards, then capture, refund and cancel) against a gateway you point it at; with `MAILPIT_URL` set it adds a 15th step, a verification-required checkout whose code it reads from the inbox. `sdk/node/scripts/recovery-demo.mjs` is the recovery drill for the examiners: each step in a new process, it loses the reply to a create, restarts and recovers the same payment, pays through a verification step-up, loses the reply to a partial refund, restarts and recovers the same refund, and has a webhook handler receive one signed event twice. Use a test merchant only.
 
 ## More
 
