@@ -166,6 +166,7 @@ Package versions are locked. Python services install `requirements.lock` (the im
 - Cross-service tests for demo stories S1-S6, receipts, guest status and fault controls: [`tests/integration/README.md`](tests/integration/README.md).
 - Acceptance tests numbered after the URS are in `gateway/acceptance/`; the checkout load test is `tests/load/checkout_load.py`.
 - The non-functional test report (all 29 requirements in URS Section 4.4) is built from the test results and manual checks: [`docs/test-report/README.md`](docs/test-report/README.md). Security and accessibility results are in the same folder.
+- Release candidates and their notes (versions, digests, test results, URS dispositions, known limitations): [`docs/releases/`](docs/releases/v1.0.0-rc.1.md).
 - CI (`.github/workflows/ci.yml`) runs lint, type checks, tests on real PostgreSQL, dependency audits and gitleaks, only for the parts a change touches. `ci-ok` is the check to require.
 
 ## Deployment
