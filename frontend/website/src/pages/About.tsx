@@ -105,7 +105,7 @@ export default function About() {
               title="Built in the open"
               lead={
                 <>
-                  The code, the API contracts and the requirements live in one repository, which assessors can see on request.{" "}
+                  The code, the API contracts and the requirements live in one public repository.{" "}
                   <Link href={REPO_URL} target="_blank" rel="noopener" underline="always">
                     See it on GitHub
                   </Link>
