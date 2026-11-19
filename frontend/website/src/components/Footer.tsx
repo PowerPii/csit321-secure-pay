@@ -40,7 +40,7 @@ const COLUMNS = [
 
 export function Footer() {
   return (
-    <Box component="footer" sx={{ bgcolor: brand.inkDeep, color: "rgba(255,255,255,0.7)", pt: { xs: 8, md: 10 }, pb: 5 }}>
+    <Box component="footer" sx={{ bgcolor: brand.ink, color: "rgba(255,255,255,0.7)", pt: { xs: 8, md: 10 }, pb: 5 }}>
       <Container maxWidth="lg">
         <Grid container spacing={5}>
           <Grid size={{ xs: 12, md: 4 }}>
@@ -76,7 +76,7 @@ export function Footer() {
             licensed payment service provider, is not regulated by the Monetary Authority of Singapore, and does not accept, store or move real money or
             real card data. All payments are simulated and all card numbers are synthetic test numbers.
           </Typography>
-          <Typography sx={{ fontSize: "inherit", color: "rgba(255,255,255,0.45)" }}>
+          <Typography sx={{ fontSize: "inherit", color: "rgba(255,255,255,0.62)" }}>
             © {new Date().getFullYear()} The SecurePay project team. Product names of other companies mentioned on this site belong to their owners.
           </Typography>
         </Box>

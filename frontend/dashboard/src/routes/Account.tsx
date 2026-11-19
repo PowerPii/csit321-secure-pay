@@ -9,6 +9,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Link as RouterLink } from "react-router-dom";
 import { ApiError, post } from "../api/client";
 import { Card, CodeInput, message } from "./SignIn";
+import { Wordmark } from "../components/Wordmark";
 
 /** The link's token, read once; the fragment is then removed from the address bar. */
 function useLinkToken(): string {
@@ -89,7 +90,7 @@ export function Register() {
     <Card maxWidth={900}>
       <Box sx={{ display: "grid", gap: 4, gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "3fr 2fr" } }}>
         <Box>
-          <Typography variant="h6" component="p" fontWeight={700}>SecurePay</Typography>
+          <Wordmark />
           <Typography variant="h5" component="h1" mt={2}>Register your business</Typography>
           <Typography color="text.secondary" variant="body2" mt={0.5} mb={3}>
             Create a merchant account to accept test payments.
@@ -165,7 +166,7 @@ export function VerifyEmail() {
 
   return (
     <Card maxWidth={520}>
-      <Typography variant="h6" component="p" fontWeight={700}>SecurePay</Typography>
+      <Wordmark />
       {state.done ? (
         <>
           <Typography variant="h5" component="h1" mt={2}>Registration received</Typography>
@@ -220,7 +221,7 @@ export function ForgotPassword() {
 
   return (
     <Card>
-      <Typography variant="h6" component="p" fontWeight={700}>SecurePay</Typography>
+      <Wordmark />
       <Typography variant="h5" component="h1" mt={2}>Reset your password</Typography>
       {sent ? (
         <Stack gap={2} mt={2}>
@@ -337,7 +338,7 @@ export function ResetPassword() {
 
   return (
     <Card>
-      <Typography variant="h6" component="p" fontWeight={700}>SecurePay</Typography>
+      <Wordmark />
       <Typography variant="h5" component="h1" mt={2}>Choose a new password</Typography>
       {body}
     </Card>

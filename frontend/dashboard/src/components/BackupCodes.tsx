@@ -22,7 +22,7 @@ export function BackupCodeList({ codes, email }: { codes: string[]; email?: stri
   };
   return (
     <Box>
-      <Paper variant="outlined" sx={{ p: 2, bgcolor: "#FAF8F4" }}>
+      <Paper variant="outlined" sx={{ p: 2, bgcolor: "#ECEFF4" }}>
         <Box component="ol" aria-label="Backup codes" data-testid="backup-codes"
           sx={{ m: 0, pl: 3, columns: 2, columnGap: 4, fontFamily: "monospace", fontSize: 16, lineHeight: 1.9 }}>
           {codes.map((c) => <li key={c}>{c}</li>)}

@@ -1,7 +1,7 @@
 #!/bin/bash
 # Checks the public server from outside (RUNBOOK.md step 8). Run from a laptop or the server:
 #   bash deploy/smoke-check.sh 203-0-113-5.sslip.io
-#   bash deploy/smoke-check.sh securepay-demo.me          # a real domain: IP from DNS
+#   bash deploy/smoke-check.sh securepaysg.me             # a real domain: IP from DNS
 # Exit code 0 = every check passed.
 set -uo pipefail
 . "$(dirname "$0")/public-ip.sh"

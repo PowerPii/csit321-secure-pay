@@ -4,6 +4,8 @@ import { brand, fonts } from "../theme";
 export type Tone = "allow" | "verify" | "block" | "neutral";
 
 const COLORS: Record<Tone, string> = { allow: brand.allow, verify: brand.verify, block: brand.block, neutral: brand.muted };
+// Darker shades of the same hues for the label text on light chips (WCAG AA 4.5:1).
+const TEXT: Record<Tone, string> = { allow: "#146C44", verify: "#8A5A12", block: "#A82A31", neutral: brand.muted };
 
 export function StatusChip({ tone, children, dark = false }: { tone: Tone; children: React.ReactNode; dark?: boolean }) {
   const c = COLORS[tone];
@@ -21,7 +23,7 @@ export function StatusChip({ tone, children, dark = false }: { tone: Tone; child
         fontSize: 12.5,
         fontWeight: 500,
         whiteSpace: "nowrap",
-        color: dark ? "#fff" : c,
+        color: dark ? "#fff" : TEXT[tone],
         bgcolor: dark ? `${c}33` : `${c}14`,
         border: `1px solid ${c}${dark ? "88" : "40"}`,
       }}

@@ -22,13 +22,8 @@ export function CodeBlock({ snippets, title }: { snippets: Snippet[]; title?: st
   };
 
   return (
-    <Box sx={{ bgcolor: "#0B1424", borderRadius: 3, border: "1px solid rgba(255,255,255,0.08)", overflow: "hidden", boxShadow: "0 30px 60px -30px rgba(10,24,48,0.6)" }}>
+    <Box sx={{ bgcolor: brand.ink, borderRadius: 3, border: "1px solid rgba(255,255,255,0.08)", overflow: "hidden", boxShadow: "0 30px 60px -30px rgba(14,27,48,0.45)" }}>
       <Box sx={{ display: "flex", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.08)", pl: 2, pr: 1, minHeight: 44 }}>
-        <Box sx={{ display: "flex", gap: 0.75, mr: 2 }}>
-          {["#FF5F57", "#FEBC2E", "#28C840"].map((c) => (
-            <Box key={c} sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: c, opacity: 0.8 }} />
-          ))}
-        </Box>
         {snippets.length > 1 ? (
           <Tabs
             value={tab}
@@ -40,7 +35,7 @@ export function CodeBlock({ snippets, title }: { snippets: Snippet[]; title?: st
               flex: 1,
               "& .MuiTab-root": { minHeight: 44, color: "rgba(255,255,255,0.55)", fontFamily: fonts.mono, fontSize: 12.5, px: 1.5, minWidth: 0 },
               "& .Mui-selected": { color: "#fff !important" },
-              "& .MuiTabs-indicator": { bgcolor: brand.saffron },
+              "& .MuiTabs-indicator": { bgcolor: brand.brass },
             }}
           >
             {snippets.map((s) => (
@@ -58,6 +53,8 @@ export function CodeBlock({ snippets, title }: { snippets: Snippet[]; title?: st
       </Box>
       <Box
         component="pre"
+        tabIndex={0}
+        aria-label={`${title ?? current.label} code sample`}
         sx={{
           m: 0,
           p: { xs: 2, md: 2.5 },
@@ -66,10 +63,10 @@ export function CodeBlock({ snippets, title }: { snippets: Snippet[]; title?: st
           fontFamily: fonts.mono,
           fontSize: { xs: 12.5, md: 13.5 },
           lineHeight: 1.7,
-          "& .k": { color: brand.sky },
+          "& .k": { color: brand.brassLight },
           "& .s": { color: "#9BE3B4" },
-          "& .c": { color: "rgba(214,226,245,0.45)" },
-          "& .n": { color: brand.saffron },
+          "& .c": { color: "rgba(214,226,245,0.62)" },
+          "& .n": { color: brand.brassLight },
         }}
       >
         <code dangerouslySetInnerHTML={{ __html: highlight(current.code) }} />

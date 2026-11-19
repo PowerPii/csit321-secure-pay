@@ -48,7 +48,7 @@ export default function Security() {
             <Grid key={c.title} size={{ xs: 12, sm: 6, md: 3 }}>
               <Card sx={{ height: "100%" }}>
                 <CardContent sx={{ p: 3 }}>
-                  <Box sx={{ color: brand.ink, mb: 1.5 }}>{c.icon}</Box>
+                  <Box sx={{ color: brand.navy, mb: 1.5 }}>{c.icon}</Box>
                   <Typography variant="h6" sx={{ fontSize: 17, mb: 1 }}>
                     {c.title}
                   </Typography>
@@ -79,7 +79,7 @@ export default function Security() {
         </Grid>
       </Section>
       <Section>
-        <Box sx={{ p: { xs: 3, md: 5 }, borderRadius: 4, bgcolor: "#FFF6E5", border: "1px solid #F3D9A4", maxWidth: 860 }}>
+        <Box sx={{ p: { xs: 3, md: 5 }, borderRadius: 4, bgcolor: brand.mist, border: `1px solid ${brand.line}`, maxWidth: 860 }}>
           <Typography variant="h5" sx={{ mb: 1.5 }}>
             Never use real card details
           </Typography>

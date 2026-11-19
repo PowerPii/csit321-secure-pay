@@ -22,9 +22,9 @@ export const OUTCOME_LABELS: Record<OutcomeKey, string> = {
   not_screened: "Not screened",
 };
 
-const INK = "#5B6475";
-const GRID = "#ECE8E1";
-const AXIS = "#C9C3B8";
+const INK = "#4A5568";
+const GRID = "#E6EAF0";
+const AXIS = "#C3CBD6";
 
 function useWidth(fallback = 640) {
   const ref = useRef<HTMLDivElement>(null);
@@ -226,7 +226,7 @@ export function HorizontalBars({ rows, keys, ariaLabel }: { rows: BarRow[]; keys
           return (
             <g key={r.label}>
               <text x={narrow ? 0 : labelW - 10} y={narrow ? i * rowH + 15 : barY + barH - 3} fontSize="12"
-                textAnchor={narrow ? "start" : "end"} fill="#0A1830">{r.label}</text>
+                textAnchor={narrow ? "start" : "end"} fill="#0E1B30">{r.label}</text>
               {keys.map((k, j) => {
                 const v = r.values[k] ?? 0;
                 if (!v) return null;
@@ -235,7 +235,7 @@ export function HorizontalBars({ rows, keys, ariaLabel }: { rows: BarRow[]; keys
                 x = start + w;
                 return <rect key={k} x={start} y={barY} width={w} height={barH} rx={x >= labelW + (totals[i] / max) * plotW - 1 ? 3 : 0} fill={OUTCOME_COLORS[k]} />;
               })}
-              <text x={labelW + (totals[i] / max) * plotW + 6} y={barY + barH - 3} fontSize="12" fontWeight="700" fill="#0A1830">{totals[i]}</text>
+              <text x={labelW + (totals[i] / max) * plotW + 6} y={barY + barH - 3} fontSize="12" fontWeight="700" fill="#0E1B30">{totals[i]}</text>
               <rect x={0} y={i * rowH} width={width} height={rowH} fill="transparent"
                 onMouseMove={(e) => show(e, ref.current, { title: r.label, lines: keys.map(
                   (k) => [OUTCOME_LABELS[k], String(r.values[k] ?? 0), OUTCOME_COLORS[k]] as [string, string, string]) })} />
@@ -320,7 +320,7 @@ export function ScoreScatter({ points, from, to, yMax, lines, ariaLabel, timeLab
         {lines.filter((l) => l.value <= yMax).map((l) => (
           <g key={l.label}>
             <line x1={left} x2={width - right} y1={y(l.value)} y2={y(l.value)} stroke={l.color} strokeWidth={2} strokeDasharray="6 4" />
-            <text x={width - right - 2} y={y(l.value) - 5} fontSize="11" fontWeight="700" textAnchor="end" fill="#0A1830"
+            <text x={width - right - 2} y={y(l.value) - 5} fontSize="11" fontWeight="700" textAnchor="end" fill="#0E1B30"
               stroke="#fff" strokeWidth={3} paintOrder="stroke">{l.label}</text>
           </g>
         ))}

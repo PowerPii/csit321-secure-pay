@@ -112,7 +112,9 @@ def queue_refund_receipt(refund) -> OutboundEmail | None:
 
 # --- downloadable PDF receipt (demo sprint 17, Could item) ---------------------------------
 
-NAVY, INK, SAFFRON, MUTED, LINE = "#0F2240", "#0A1830", "#F5A524", "#5B6475", "#E6E1D8"
+# Brand colours, the same as frontend/brand/tokens.json (Slate rebrand).
+NAVY, INK, BRASS, BRASS_LIGHT, MUTED, MIST = (
+    "#13243F", "#0E1B30", "#B08A3E", "#D2AE63", "#4A5568", "#ECEFF4")
 
 
 def no_receipt():
@@ -143,9 +145,13 @@ def receipt_pdf(payment) -> bytes:
     left, right = 56, pdf.PAGE_W - 56
 
     page.rect(0, 0, pdf.PAGE_W, 92, fill=NAVY)
-    page.text(left, 52, "SecurePay", size=22, bold=True, colour="#FFFFFF")
+    # The securepay. wordmark: lowercase name, then the brass full stop.
+    page.text(left, 54, "securepay", size=24, bold=True, colour="#FFFFFF")
+    page.text(left + pdf.text_width("securepay", 24, bold=True), 54, ".", size=24, bold=True,
+              colour=BRASS_LIGHT)
     page.text(right, 50, "Payment receipt", size=13, colour="#FFFFFF", align="right")
-    page.rect(left, 112, 236, 20, fill=SAFFRON)
+    page.rect(0, 92, pdf.PAGE_W, 2, fill=BRASS)
+    page.rect(left, 112, 236, 20, fill=MIST)
     page.text(left + 8, 126, "TEST MODE  -  simulated payment, no real money", size=8.5,
               bold=True, colour=INK)
 

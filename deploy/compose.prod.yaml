@@ -5,7 +5,7 @@
 #
 # Needs deploy/.env (copy prod.env.example) and deploy/secrets/* (deploy/make-secrets.sh).
 # Differences from compose.yaml (local): DJANGO_DEBUG=0 and the Django admin off; real
-# sslip.io names with Let's Encrypt certificates; the simulator has no public name (Caddy
+# public names (a real domain or sslip.io) with Let's Encrypt certificates; the simulator has no public name (Caddy
 # serves it on port 8443, which is not published); webhooks go to the shop's public address,
 # so the gateway's private-address block stays fully on; Mailpit behind basic auth; the
 # checkout and dashboard bundles are built into the Caddy image; log files are capped.
@@ -66,7 +66,8 @@ services:
       TRUSTED_PROXY_HOPS: "1"
       EMAIL_HOST: mailpit
       EMAIL_PORT: "1025"
-      DEFAULT_FROM_EMAIL: SecurePay <no-reply@gateway.${DOMAIN}>
+      # The bare domain, so the mail provider verifies one name (SPF/DKIM, RUNBOOK.md 13b).
+      DEFAULT_FROM_EMAIL: SecurePay <no-reply@${DOMAIN}>
       RISK_MODEL_VERSION: ${RISK_MODEL_VERSION:-}
       RISK_MODEL_SHA256: ${RISK_MODEL_SHA256:-}
     command: ["sh", "-c", "python manage.py migrate --noinput && python manage.py migrate --database=vault --noinput && python manage.py seed_risk_lists && exec gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 30"]
@@ -103,7 +104,8 @@ services:
       # WEBHOOK_ALLOWED_PRIVATE_HOSTS: the shop is reached at its public name like any merchant.
       EMAIL_HOST: mailpit
       EMAIL_PORT: "1025"
-      DEFAULT_FROM_EMAIL: SecurePay <no-reply@gateway.${DOMAIN}>
+      # The bare domain, so the mail provider verifies one name (SPF/DKIM, RUNBOOK.md 13b).
+      DEFAULT_FROM_EMAIL: SecurePay <no-reply@${DOMAIN}>
       GUEST_STATUS_URL: https://gateway.${DOMAIN}/guest/status
       DASHBOARD_URL: https://gateway.${DOMAIN}/dashboard  # reset, verification and notice links
     volumes:
@@ -187,6 +189,9 @@ services:
     ports: ["80:80", "443:443", "443:443/udp"]
     environment:
       DOMAIN: ${DOMAIN}
+      # Set while moving to a new domain (deploy/change-domain.sh): the old names then answer
+      # with a permanent redirect to the new ones (deploy/caddy/old-domain.caddy.tmpl).
+      OLD_DOMAIN: ${OLD_DOMAIN:-}
       ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in deploy/.env}
       MAIL_USER: ${MAIL_USER:-team}
       MAIL_PASSWORD_HASH: ${MAIL_PASSWORD_HASH:?run deploy/make-secrets.sh}
@@ -200,6 +205,12 @@ services:
       - sh
       - -c
       - |
+        mkdir -p /etc/caddy/extra
+        if [ -n "$$OLD_DOMAIN" ]; then
+          cp /etc/caddy/old-domain.caddy.tmpl /etc/caddy/extra/old-domain.caddy
+        else
+          rm -f /etc/caddy/extra/old-domain.caddy
+        fi
         caddy run --config /etc/caddy/Caddyfile --adapter caddyfile &
         pid=$$!
         trap 'kill -TERM $$pid' TERM INT
@@ -217,11 +228,28 @@ services:
       merchant:
         aliases: ["gateway.${DOMAIN}"]
 
+  # Every email lands here first (the demo inbox at mail.<domain>). With MAIL_RELAY_HOST set
+  # in deploy/.env, Mailpit also passes a copy of each message whose recipient matches
+  # MAIL_RELAY_MATCHING on to a real provider (Resend or Brevo, RUNBOOK.md 13b), so it reaches
+  # a real inbox. MAIL_RELAY_HOST empty = Mailpit only, nothing leaves the server (the
+  # demo-day fallback). Recipients matching MAIL_RELAY_BLOCKED (made-up demo addresses)
+  # are never relayed, so the provider sees no bounces. The apps do not change either way.
   mailpit:
     image: axllent/mailpit:v1.34.0@sha256:23a2ef85bc50853ab3093645d1d64679afd8887e89da5e48a88940c172591a4e
     restart: unless-stopped
     logging: *logging
-    networks: [gateway]
+    environment:
+      MP_SMTP_RELAY_HOST: ${MAIL_RELAY_HOST:-}
+      MP_SMTP_RELAY_PORT: ${MAIL_RELAY_PORT:-587}
+      MP_SMTP_RELAY_STARTTLS: "true"
+      MP_SMTP_RELAY_AUTH: ${MAIL_RELAY_AUTH:-plain}
+      MP_SMTP_RELAY_USERNAME: ${MAIL_RELAY_USERNAME:-}
+      MP_SMTP_RELAY_PASSWORD: ${MAIL_RELAY_PASSWORD:-}
+      MP_SMTP_RELAY_MATCHING: ${MAIL_RELAY_MATCHING:-}
+      MP_SMTP_RELAY_ALLOWED_RECIPIENTS: ${MAIL_RELAY_MATCHING:-}
+      MP_SMTP_RELAY_BLOCKED_RECIPIENTS: ${MAIL_RELAY_BLOCKED:-(?i)@(example\.(com|org|net)|demoshop\.sg|securepay\.sg|[a-z0-9.-]+\.(test|invalid|localhost))$$}
+    # egress: only for the relay to the mail provider (port 587).
+    networks: [gateway, egress]
 
   # tests/integration against this server, from inside it (the simulator's test controls
   # and the demo inbox are private). Never starts with `up`; run it on demand:

@@ -11,3 +11,4 @@ FROM caddy:2.11.9@sha256:4851e54a46b206517c574821bb5cc67f170d2156041e9fbc4c9193b
 COPY --from=frontend /src/frontend/checkout/dist /srv/checkout
 COPY --from=frontend /src/frontend/dashboard/dist /srv/dashboard
 COPY deploy/Caddyfile.prod /etc/caddy/Caddyfile
+COPY deploy/caddy/old-domain.caddy.tmpl /etc/caddy/old-domain.caddy.tmpl

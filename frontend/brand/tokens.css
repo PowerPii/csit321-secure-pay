@@ -1,13 +1,15 @@
-/* SecurePay brand colours as CSS custom properties (sprint 12 branding kit).
+/* SecurePay brand colours as CSS custom properties (Slate rebrand).
    Source of truth: tokens.json in this folder. */
 :root {
-  --sp-navy: #0F2240;    /* primary: top bars, buttons, the mark's tile */
-  --sp-ink: #0A1830;     /* body text */
-  --sp-saffron: #F5A524; /* signal colour: the mark's shield, Test mode badge, focus rings */
-  --sp-paper: #FAF8F4;   /* warm page background */
-  --sp-line: #E6E1D8;    /* dividers */
-  --sp-muted: #5B6475;   /* secondary text */
-  --sp-allow: #1F9D63;   /* screening outcomes: allow */
-  --sp-verify: #D98A0B;  /* verify */
-  --sp-block: #D9434B;   /* block */
+  --sp-navy: #13243F;        /* primary: buttons, headings, the wordmark, the s. tile */
+  --sp-ink: #0E1B30;         /* body text */
+  --sp-brass: #B08A3E;       /* the one accent: the full stop, focus halo, Pay meter. Never text on white (3:1) */
+  --sp-brass-light: #D2AE63; /* the full stop and accents on navy */
+  --sp-slate: #DCE2EA;       /* page background behind white cards */
+  --sp-mist: #ECEFF4;        /* soft panels, table heads */
+  --sp-line: #E1E6ED;        /* dividers on white */
+  --sp-muted: #4A5568;       /* secondary text (AA on white, mist and slate) */
+  --sp-allow: #1F9D63;       /* screening outcomes: allow */
+  --sp-verify: #D98A0B;      /* verify */
+  --sp-block: #C2333B;       /* block */
 }

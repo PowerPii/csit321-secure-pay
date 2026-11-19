@@ -48,8 +48,8 @@ export default function About() {
         <Grid container spacing={2.5}>
           {BELIEFS.map((b, i) => (
             <Grid key={b.title} size={{ xs: 12, md: 4 }}>
-              <Box sx={{ borderTop: `2px solid ${brand.ink}`, pt: 3 }}>
-                <Typography sx={{ fontFamily: fonts.mono, color: "#B26F00", fontSize: 14, mb: 1.5 }}>0{i + 1}</Typography>
+              <Box sx={{ borderTop: `2px solid ${brand.navy}`, pt: 3 }}>
+                <Typography sx={{ fontFamily: fonts.mono, color: "text.secondary", fontSize: 14, mb: 1.5 }}>0{i + 1}</Typography>
                 <Typography variant="h5" sx={{ mb: 1.5 }}>
                   {b.title}
                 </Typography>
@@ -74,8 +74,8 @@ export default function About() {
                       borderRadius: "50%",
                       display: "grid",
                       placeItems: "center",
-                      bgcolor: brand.ink,
-                      color: brand.saffron,
+                      bgcolor: brand.navy,
+                      color: brand.brassLight,
                       fontFamily: fonts.heading,
                       fontWeight: 700,
                       fontSize: 20,
@@ -88,7 +88,7 @@ export default function About() {
                   <Typography variant="h6" sx={{ fontSize: 19 }}>
                     {m.name}
                   </Typography>
-                  <Typography sx={{ color: "#B26F00", fontWeight: 600, fontSize: 14.5, mb: 1.5 }}>{m.role}</Typography>
+                  <Typography sx={{ color: "text.secondary", fontWeight: 600, fontSize: 14.5, mb: 1.5 }}>{m.role}</Typography>
                   <Typography sx={{ color: "text.secondary", fontSize: 15, lineHeight: 1.6 }}>{m.text}</Typography>
                 </CardContent>
               </Card>
@@ -106,7 +106,7 @@ export default function About() {
               lead={
                 <>
                   The code, the API contracts and the requirements live in one repository.{" "}
-                  <Link href={REPO_URL} target="_blank" rel="noopener">
+                  <Link href={REPO_URL} target="_blank" rel="noopener" underline="always">
                     See it on GitHub
                   </Link>
                   .
@@ -130,7 +130,7 @@ export default function About() {
 
       <Section tone="white" id="disclaimer">
         <Box sx={{ maxWidth: 820 }}>
-          <Typography variant="overline" component="p" sx={{ color: "#B26F00", mb: 1.5 }}>
+          <Typography variant="overline" component="p" sx={{ color: "text.secondary", mb: 1.5 }}>
             Disclaimer
           </Typography>
           <Typography variant="h3" sx={{ fontSize: { xs: 26, md: 34 }, mb: 2.5 }}>

@@ -35,7 +35,7 @@ export default function Developers() {
           <Button href="#get-started" variant="contained" color="secondary" size="large">
             Get started
           </Button>
-          <Button component={RouterLink} to="/developers/api" size="large" endIcon={<ArrowForwardRoundedIcon />} sx={{ color: "#fff", border: "1px solid rgba(255,255,255,0.3)" }}>
+          <Button component={RouterLink} to="/developers/api" size="large" endIcon={<ArrowForwardRoundedIcon />} sx={{ color: brand.navy }}>
             API reference
           </Button>
         </Box>
@@ -50,7 +50,7 @@ export default function Developers() {
           <Box component="ol" sx={{ listStyle: "none", p: 0, m: 0, mb: 3, display: "grid", gap: 1.25, maxWidth: 760 }}>
             {STEPS.map((step, i) => (
               <Box component="li" key={step.title} sx={{ display: "grid", gridTemplateColumns: "36px 1fr", gap: 1.5, p: 2, borderRadius: 3, bgcolor: "#fff", border: `1px solid ${brand.line}` }}>
-                <Box sx={{ width: 32, height: 32, borderRadius: "50%", display: "grid", placeItems: "center", bgcolor: brand.inkDeep, color: "#fff", fontWeight: 700, fontSize: 14 }}>{i + 1}</Box>
+                <Box sx={{ width: 32, height: 32, borderRadius: "50%", display: "grid", placeItems: "center", bgcolor: brand.ink, color: "#fff", fontWeight: 700, fontSize: 14 }}>{i + 1}</Box>
                 <Box>
                   <Typography sx={{ fontWeight: 600, mb: 0.25 }}>{step.title}</Typography>
                   <Typography component="div" sx={{ color: "text.secondary", lineHeight: 1.6, fontSize: 15 }}>
@@ -69,7 +69,7 @@ export default function Developers() {
             </Button>
           </Box>
           <Box sx={{ p: 2, borderRadius: 3, bgcolor: "#fff", border: `1px solid ${brand.line}`, maxWidth: 760 }}>
-            <Typography sx={{ fontSize: 12.5, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "text.secondary", mb: 0.5 }}>Base URL</Typography>
+            <Typography sx={{ fontSize: 12.5, fontWeight: 600, color: "text.secondary", mb: 0.5 }}>Base URL</Typography>
             <Typography sx={{ fontFamily: fonts.mono, fontSize: 14.5, wordBreak: "break-all" }}>{API_BASE}</Typography>
           </Box>
         </DocSection>
@@ -170,7 +170,7 @@ export default function Developers() {
             <Inline
               text={`Verify the signature over the raw bytes before parsing, reject timestamps more than ${RULES.webhookTolerance} old, remember event IDs for at least 7 days, and confirm with \`GET /v1/payments/{id}\` before shipping. What each event means is in the `}
             />
-            <Link component={RouterLink} to="/developers/api#events">
+            <Link component={RouterLink} to="/developers/api#events" underline="always">
               API reference
             </Link>
             .
@@ -237,13 +237,13 @@ export default function Developers() {
                   target="_blank"
                   rel="noopener"
                   underline="none"
-                  sx={{ display: "block", height: "100%", p: 2.5, borderRadius: 3, bgcolor: "#fff", border: `1px solid ${brand.line}`, color: "inherit", "&:hover": { borderColor: brand.ink } }}
+                  sx={{ display: "block", height: "100%", p: 2.5, borderRadius: 3, bgcolor: "#fff", border: `1px solid ${brand.line}`, color: "inherit", "&:hover": { borderColor: brand.navy } }}
                 >
                   <Typography sx={{ fontWeight: 600, mb: 0.5, display: "flex", alignItems: "center", gap: 0.75 }}>
                     {r.t} <OpenInNewRoundedIcon sx={{ fontSize: 15, color: "text.secondary" }} />
                   </Typography>
                   <Typography sx={{ color: "text.secondary", fontSize: 14.5, mb: 1 }}>{r.d}</Typography>
-                  <Typography sx={{ fontFamily: fonts.mono, fontSize: 12.5, color: "#B26F00" }}>{r.p}</Typography>
+                  <Typography sx={{ fontFamily: fonts.mono, fontSize: 12.5, color: "text.secondary" }}>{r.p}</Typography>
                 </Link>
               </Grid>
             ))}

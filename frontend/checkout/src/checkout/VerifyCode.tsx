@@ -94,7 +94,7 @@ export function VerifyCode({
           {resendIn > 0 ? `Send a new code in ${Math.ceil(resendIn / 1000)} s` : "Send a new code"}
         </button>
       )}
-      <a className="btn secondary" href={session.return_url}>
+      <a className="cancel-link" href={session.return_url}>
         Cancel and return to {session.merchant.name}
       </a>
     </form>

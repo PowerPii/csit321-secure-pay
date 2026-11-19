@@ -46,7 +46,7 @@ export function DocSection({ id, title, children, level = 2 }: { id: string; tit
 }
 
 export function Callout({ children, tone = "warn" }: { children: ReactNode; tone?: "warn" | "info" }) {
-  const c = tone === "warn" ? { bg: "#FFF6E5", line: "#F3D9A4" } : { bg: "#EEF4FF", line: "#C9DBFA" };
+  const c = tone === "warn" ? { bg: "#FFF6E5", line: "#F3D9A4" } : { bg: brand.mist, line: brand.line };
   return (
     <Box sx={{ my: 2.5, p: 2.5, borderRadius: 3, bgcolor: c.bg, border: `1px solid ${c.line}`, maxWidth: 760 }}>
       <Typography component="div" sx={{ fontSize: 15, lineHeight: 1.6 }}>
@@ -106,7 +106,7 @@ export function FieldList({ fields, compact = false }: { fields: Field[]; compac
               {f.type}
             </Typography>
             {f.required && (
-              <Typography component="span" sx={{ fontSize: 11.5, fontWeight: 600, color: "#B26F00", ml: 1, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              <Typography component="span" sx={{ fontSize: 11.5, fontWeight: 600, color: "text.secondary", ml: 1, }}>
                 required
               </Typography>
             )}
@@ -194,7 +194,7 @@ export function DocsShell({ nav, children }: { nav: DocNavGroup[]; children: Rea
                 fontWeight: 600,
                 fontSize: 15,
                 color: on ? "text.primary" : "text.secondary",
-                borderBottom: `2px solid ${on ? brand.saffron : "transparent"}`,
+                borderBottom: `2px solid ${on ? brand.brass : "transparent"}`,
                 "&:hover": { color: "text.primary" },
               }}
             >
@@ -209,7 +209,7 @@ export function DocsShell({ nav, children }: { nav: DocNavGroup[]; children: Rea
           <Box component="nav" aria-label="Documentation" sx={{ position: "sticky", top: 100, maxHeight: "calc(100vh - 120px)", overflowY: "auto", pr: 1 }}>
             {nav.map((g) => (
               <Box key={g.base} sx={{ mb: 3 }}>
-                <Typography sx={{ fontSize: 12.5, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "text.secondary", mb: 1 }}>{g.title}</Typography>
+                <Typography sx={{ fontSize: 12.5, fontWeight: 600, color: "text.secondary", mb: 1 }}>{g.title}</Typography>
                 {g.items.map((t) => {
                   const on = g.base === here && active === t.id;
                   return (
@@ -223,7 +223,7 @@ export function DocsShell({ nav, children }: { nav: DocNavGroup[]; children: Rea
                         py: 0.6,
                         pl: 1.5,
                         fontSize: 14.5,
-                        borderLeft: `2px solid ${on ? brand.saffron : brand.line}`,
+                        borderLeft: `2px solid ${on ? brand.brass : brand.line}`,
                         color: on ? "text.primary" : "text.secondary",
                         fontWeight: on ? 600 : 400,
                         "&:hover": { color: "text.primary" },

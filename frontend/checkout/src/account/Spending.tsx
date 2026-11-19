@@ -12,8 +12,8 @@ import { getInsights, type Insights, type MerchantSpend, type MonthSpend } from 
 import { money } from "../format";
 import { asError } from "./forms";
 
-const BAR = "#0F2240"; // brand ink: 15:1 against white
-const GRID = "#e4e4e4";
+const BAR = "#13243F"; // brand navy: 15:1 against white
+const GRID = "#E1E6ED";
 const INK = "#4f4f4f"; // axis text, 8:1 against white
 
 export function monthLabel(key: string, style: "short" | "long" = "short"): string {

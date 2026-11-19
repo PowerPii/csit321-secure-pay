@@ -10,7 +10,7 @@ Student Pack domain, so the figures are measured where the demo runs. On the ser
 
 ```bash
 P="docker compose -f deploy/compose.prod.yaml"
-D=<the domain>                # e.g. securepay.example; today 35-213-144-96.sslip.io
+D=<the domain>                # e.g. securepay.example; today securepaysg.me (35-213-144-96.sslip.io before 19 Nov 2026)
 ```
 
 **Recording a result:** add an entry under the check's ID in `manual-results.yaml` (date, who,

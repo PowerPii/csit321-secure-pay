@@ -12,9 +12,9 @@ export function Badge({ label, tone = "neutral" }: { label: string; tone?: "dark
         fontWeight: 600,
         fontSize: 12,
         height: 22,
-        bgcolor: tone === "dark" ? "#0F2240" : "#EEEAE2",
-        color: tone === "dark" ? "#fff" : "#0F2240",
-        border: tone === "dark" ? "none" : "1px solid #D8D2C6",
+        bgcolor: tone === "dark" ? "#13243F" : "#E8ECF2",
+        color: tone === "dark" ? "#fff" : "#13243F",
+        border: tone === "dark" ? "none" : "1px solid #C9D1DC",
       }}
     />
   );
@@ -37,7 +37,7 @@ export function Section({ title, action, children }: { title: string; action?: R
 export function ScrollBox({ label, children }: { label: string; children: ReactNode }) {
   return (
     <Box tabIndex={0} role="region" aria-label={label}
-      sx={{ overflowX: "auto", position: "relative", "&:focus-visible": { outline: "2px solid #0F2240", outlineOffset: 2 } }}>
+      sx={{ overflowX: "auto", position: "relative", "&:focus-visible": { outline: "2px solid #13243F", outlineOffset: 2 } }}>
       {children}
     </Box>
   );
@@ -52,7 +52,7 @@ export function RowAction({ onClick, label, children }: { onClick: () => void; l
       onClick={(e: { stopPropagation: () => void }) => { e.stopPropagation(); onClick(); }}
       sx={{ font: "inherit", color: "inherit", fontWeight: "inherit", background: "none", border: 0, p: 0, m: 0,
         textAlign: "left", cursor: "pointer", "&:hover": { textDecoration: "underline" },
-        "&:focus-visible": { outline: "2px solid #0F2240", outlineOffset: 2, borderRadius: "2px" } }}>
+        "&:focus-visible": { outline: "2px solid #13243F", outlineOffset: 2, borderRadius: "2px" } }}>
       {children}
     </Box>
   );
@@ -95,7 +95,7 @@ export function ScoreBar({ score, width = 56 }: { score: number | null; width?: 
   return (
     <Stack direction="row" alignItems="center" gap={1}>
       <Box sx={{ width, height: 6, borderRadius: 3, bgcolor: "#ddd", overflow: "hidden" }}>
-        <Box sx={{ width: `${pct}%`, height: "100%", bgcolor: "#0F2240" }} />
+        <Box sx={{ width: `${pct}%`, height: "100%", bgcolor: "#13243F" }} />
       </Box>
       <Typography variant="body2" fontWeight={700}>{score === null ? "–" : score.toFixed(2)}</Typography>
     </Stack>
@@ -122,7 +122,7 @@ export function PageHeader({ title, subtitle, action }: { title: ReactNode; subt
 
 export function ShieldIcon() {
   return (
-    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#0F2240" strokeWidth="1.6"
+    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#13243F" strokeWidth="1.6"
       strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6l7-3z" />
       <path d="M9 12l2 2 4-4" />
@@ -130,13 +130,3 @@ export function ShieldIcon() {
   );
 }
 
-/** The SecurePay mark (same as the marketing site's logo). */
-export function BrandMark({ size = 30 }: { size?: number }) {
-  return (
-    <Box component="svg" viewBox="0 0 64 64" aria-hidden="true" sx={{ width: size, height: size, flexShrink: 0 }}>
-      <rect width="64" height="64" rx="14" fill="#0F2240" />
-      <path d="M32 12 48 18v12c0 11-7 19-16 22-9-3-16-11-16-22V18z" fill="none" stroke="#F5A524" strokeWidth="4" strokeLinejoin="round" />
-      <path d="m25 32 5 5 9-10" fill="none" stroke="#fff" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
-    </Box>
-  );
-}

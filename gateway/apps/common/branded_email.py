@@ -18,7 +18,7 @@ Formatting rules, all from the text itself:
 The body is HTML-escaped first, so nothing in it (a shop name, an item name) can inject
 markup.
 
-The header shows the SecurePay mark (frontend/brand, sprint 12 branding kit) as a small PNG
+The header shows the securepay. wordmark (frontend/brand, Slate rebrand) as a small PNG
 sent inside the email itself (multipart/related, cid:), so it shows without loading anything
 from the internet, also in Mailpit.
 """
@@ -32,15 +32,16 @@ from django.conf import settings
 from django.core.mail import EmailMultiAlternatives, get_connection
 from django.core.mail.backends.base import BaseEmailBackend
 
-NAVY, INK, SAFFRON, MUTED, LINE, PAPER = ("#0F2240", "#0A1830", "#F5A524", "#5B6475",
-                                          "#E6E1D8", "#FAF8F4")
+# Brand colours, the same as frontend/brand/tokens.json (Slate rebrand).
+NAVY, INK, BRASS, BRASS_LIGHT, MUTED, LINE, SLATE, MIST = (
+    "#13243F", "#0E1B30", "#B08A3E", "#D2AE63", "#4A5568", "#E1E6ED", "#DCE2EA", "#ECEFF4")
 _FIELD = re.compile(r"^([A-Z][\w ()/'-]{0,30}):\s{2,}(.+)$")
 _URL = re.compile(r"^https?://\S+$")
 _ITEM = re.compile(r"^\s{2,}\S.*\S\s{2,}\S+$")
 _CODE_SUBJECT = re.compile(r"^(\d{4,8}) is your ")
 
-LOGO_CID = "securepay-mark"
-LOGO_PATH = Path(__file__).resolve().parent / "brand" / "securepay-mark-56.png"
+LOGO_CID = "securepay-wordmark"
+LOGO_PATH = Path(__file__).resolve().parent / "brand" / "securepay-wordmark-email.png"
 
 FOOTER = ("SecurePay is a payment gateway built for the CSIT321 final-year project. Payments "
           "are simulated: no real money moves. We never ask for your card details or a code "
@@ -127,9 +128,10 @@ def _logo_bytes() -> bytes:
 
 def _logo(with_image: bool) -> str:
     if with_image:
-        return (f'<img src="cid:{LOGO_CID}" width="28" height="28" alt="" '
-                f'style="display:inline-block;vertical-align:middle;border:0;margin:-3px 8px 0 0">')
-    return f'<span style="color:{SAFFRON}">&#9670;</span> '
+        return (f'<img src="cid:{LOGO_CID}" width="128" height="24" alt="securepay." '
+                f'style="display:inline-block;vertical-align:middle;border:0">')
+    return (f'<span style="color:#ffffff;font-size:21px;font-weight:600;letter-spacing:-0.9px">'
+            f'securepay<span style="color:{BRASS_LIGHT}">.</span></span>')
 
 
 def html_for(subject: str, text: str, logo: bool = False) -> str:
@@ -153,7 +155,7 @@ def html_for(subject: str, text: str, logo: bool = False) -> str:
     if code:
         body = (f'<p style="margin:0 0 18px;text-align:center"><span style="display:inline-block;'
                 f'font-family:Menlo,Consolas,monospace;font-size:30px;font-weight:700;'
-                f'letter-spacing:8px;color:{INK};background:{PAPER};border:1px solid {LINE};'
+                f'letter-spacing:8px;color:{INK};background:{MIST};border:1px solid {LINE};'
                 f'border-radius:12px;padding:12px 22px">{escape(code.group(1))}</span></p>'
                 + body)
     body = headline + body
@@ -161,18 +163,17 @@ def html_for(subject: str, text: str, logo: bool = False) -> str:
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
 <title>{escape(subject)}</title></head>
-<body style="margin:0;padding:0;background:{PAPER};font-family:Inter,Segoe UI,Helvetica,Arial,sans-serif;color:{INK}">
-<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:{PAPER}">{escape(preview)}</div>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:{PAPER}">
+<body style="margin:0;padding:0;background:{SLATE};font-family:'Hanken Grotesk',Segoe UI,Helvetica,Arial,sans-serif;color:{INK}">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:{SLATE}">{escape(preview)}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:{SLATE}">
 <tr><td align="center" style="padding:28px 12px">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px">
 <tr><td style="background:{NAVY};border-radius:14px 14px 0 0;padding:18px 24px">
-<span style="color:#ffffff;font-size:19px;font-weight:700;letter-spacing:-0.2px">
-{_logo(logo)}SecurePay</span>
-<span style="float:right;background:{SAFFRON};color:{INK};font-size:11px;font-weight:700;
+{_logo(logo)}
+<span style="float:right;border:1px solid {BRASS_LIGHT};color:{BRASS_LIGHT};font-size:11px;font-weight:700;
 letter-spacing:.5px;border-radius:999px;padding:3px 10px;margin-top:2px">TEST MODE</span>
 </td></tr>
-<tr><td style="background:#ffffff;border:1px solid {LINE};border-top:0;border-radius:0 0 14px 14px;padding:26px 24px 10px;font-size:15px">
+<tr><td style="background:#ffffff;border-top:2px solid {BRASS};border-radius:0 0 14px 14px;padding:26px 24px 10px;font-size:15px">
 {body}
 </td></tr>
 <tr><td style="padding:16px 8px;font-size:12px;line-height:1.5;color:{MUTED};text-align:center">

@@ -14,7 +14,7 @@ import { brand, fonts } from "../theme";
 const ERROR_HTTP = Object.fromEntries(ERRORS.map((e) => [e.code, e.http]));
 
 function Label({ children }: { children: string }) {
-  return <Typography sx={{ fontSize: 12.5, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "text.secondary", mb: 1, mt: 3 }}>{children}</Typography>;
+  return <Typography sx={{ fontSize: 12.5, fontWeight: 600, color: "text.secondary", mb: 1, mt: 3 }}>{children}</Typography>;
 }
 
 function EndpointSection({ e }: { e: Endpoint }) {
@@ -68,7 +68,7 @@ function EndpointSection({ e }: { e: Endpoint }) {
                     component={RouterLink}
                     to={`/developers/api#err-${c}`}
                     underline="none"
-                    sx={{ fontFamily: fonts.mono, fontSize: 12.5, px: 1, py: 0.35, borderRadius: 1.5, bgcolor: "#fff", border: `1px solid ${brand.line}`, color: "text.primary", "&:hover": { borderColor: brand.ink } }}
+                    sx={{ fontFamily: fonts.mono, fontSize: 12.5, px: 1, py: 0.35, borderRadius: 1.5, bgcolor: "#fff", border: `1px solid ${brand.line}`, color: "text.primary", "&:hover": { borderColor: brand.navy } }}
                   >
                     <Box component="span" sx={{ color: "text.secondary", mr: 0.75 }}>
                       {ERROR_HTTP[c]}
@@ -112,7 +112,7 @@ export default function ApiReference() {
             rel="noopener"
             size="large"
             endIcon={<OpenInNewRoundedIcon />}
-            sx={{ color: "#fff", border: "1px solid rgba(255,255,255,0.3)" }}
+            sx={{ color: brand.navy }}
           >
             OpenAPI file
           </Button>
@@ -122,7 +122,7 @@ export default function ApiReference() {
       <DocsShell nav={DOCS_NAV}>
         <DocSection id="basics" title="Basics">
           <Box sx={{ p: 2, mb: 3, borderRadius: 3, bgcolor: "#fff", border: `1px solid ${brand.line}`, maxWidth: 760 }}>
-            <Typography sx={{ fontSize: 12.5, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "text.secondary", mb: 0.5 }}>Base URL</Typography>
+            <Typography sx={{ fontSize: 12.5, fontWeight: 600, color: "text.secondary", mb: 0.5 }}>Base URL</Typography>
             <Typography sx={{ fontFamily: fonts.mono, fontSize: 14.5, wordBreak: "break-all" }}>{API_BASE}</Typography>
           </Box>
           <SimpleTable
@@ -144,7 +144,7 @@ export default function ApiReference() {
           />
           <P>
             <Inline text="No account yet? " />
-            <Link href={REGISTER_URL} target="_blank" rel="noopener">
+            <Link href={REGISTER_URL} target="_blank" rel="noopener" underline="always">
               Register a merchant account
             </Link>
             <Inline text=" on the live demo gateway. All payments there are simulated." />
@@ -171,7 +171,7 @@ export default function ApiReference() {
             takes milliseconds.
           </P>
           <SimpleTable head={["Event", "data.object", "Sent when"]} monoCols={[0]} rows={EVENTS.map((e) => [e.type, e.object, e.when])} />
-          <Typography sx={{ fontSize: 12.5, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "text.secondary", mb: 1 }}>Event envelope</Typography>
+          <Typography sx={{ fontSize: 12.5, fontWeight: 600, color: "text.secondary", mb: 1 }}>Event envelope</Typography>
           <FieldList fields={EVENT_FIELDS} />
           <Callout tone="info">
             Delivery, headers, retries and signature checks are in the Webhooks guide. A `payment.authorised` webhook is the signal to fulfil, after you verify it.
@@ -196,7 +196,7 @@ export default function ApiReference() {
                   px: 2,
                   py: 1.25,
                   borderTop: i ? `1px solid ${brand.line}` : 0,
-                  "&:target": { bgcolor: "#FFF6E5" },
+                  "&:target": { bgcolor: "#F6EFE0" },
                 }}
               >
                 <Typography sx={{ fontFamily: fonts.mono, fontSize: 13.5 }}>{er.http}</Typography>

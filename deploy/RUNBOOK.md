@@ -1,14 +1,16 @@
 # Running SecurePay on the public server
 
-Sprint 9: the whole stack on one Ubuntu server in Fifa's account: a Google Cloud VM on the
-free trial for now (chosen 16 Nov 2026), then a DigitalOcean droplet on Student Pack credit
-before the trial ends (both covered below), with free
-`sslip.io` names and Let's Encrypt certificates. The marketing website stays on
+Sprint 9: the whole stack on one Ubuntu server in Fifa's account: a Google Cloud VM (chosen
+16 Nov 2026; it stays there through M6 on paid billing, Fifa's decision of 19 Nov 2026; a
+DigitalOcean droplet is also covered below), with Let's Encrypt certificates for its names:
+first free `sslip.io` names, since 19 Nov 2026 the domain `securepaysg.me` (section 13a). The marketing website stays on
 Vercel and does not link here (decided 14 Nov 2026). Share the addresses with the team and
 assessors directly.
 
-**Current server (16 Nov 2026):** Google Cloud project `securepay-demo`, VM `securepay`
-(e2-medium, asia-southeast1), static IP `35.213.144.96`, domain `35-213-144-96.sslip.io`.
+**Current server (19 Nov 2026):** Google Cloud project `securepay-demo`, VM `securepay`
+(e2-medium, asia-southeast1), static IP `35.213.144.96`, domain `securepaysg.me` (Namecheap,
+GitHub Student Pack; moved from `35-213-144-96.sslip.io` with section 13a, whose names
+redirect to the new ones for now). Real email through a provider: section 13b.
 First deploy: all smoke checks and all 11 integration tests passed on it.
 Automatic deploys are on (step 10) since 16 Nov 2026: the first run from GitHub Actions passed
 its smoke check.
@@ -20,9 +22,9 @@ its smoke check.
 | `https://mail.<domain>` | Demo inbox (Mailpit): verification codes, receipts, guest status codes | Team and assessors (basic auth) |
 | `simulator.securepay.internal:8443` | Payment simulator, including its fault controls | Inside the server only |
 
-`<domain>` is the droplet's IPv4 with dashes plus `.sslip.io`: for `203.0.113.5` it is
-`203-0-113-5.sslip.io`. A real domain works the same way (section 13): set `DOMAIN` to it and
-point `gateway`, `shop` and `mail` at the server in its DNS. The names follow the IP, so keep it stable: a DigitalOcean droplet
+`<domain>` is `securepaysg.me` on the live server. On a new server without a domain it can be
+the IPv4 with dashes plus `.sslip.io`: for `203.0.113.5` it is `203-0-113-5.sslip.io`. A real
+domain needs `gateway`, `shop` and `mail` pointed at the server in its DNS (section 13a). The names follow the IP, so keep it stable: a DigitalOcean droplet
 keeps its IP until it is destroyed; on Google Cloud, reserve a static external IP. Moving to another
 server later means new names, which is fine because nothing public links here.
 
@@ -349,7 +351,7 @@ fails twice:
 3. Alert contacts: the team email, and the Discord/Slack webhook or Telegram if you set one up.
 4. Optional: a public status page with the two monitors, to show at the demo.
 
-After the move to the new domain (section 13), change the two monitor URLs. A GitHub Actions
+After a move to a new domain (section 13 or 13a), change the two monitor URLs. A GitHub Actions
 schedule could do the same checks, but every 5 minutes it would use more than the private
 repository's free Actions minutes, so it is not used.
 
@@ -534,6 +536,126 @@ again. It does not invent past payments: the dashboard shows only what really we
 | Server slow or out of memory | `free -h`, `docker stats`; a droplet can be resized up without losing its IP; on Google Cloud, stop the VM, change the machine type (e2-standard-2, 8 GB) and start it (the static IP stays) |
 | Pages time out from outside | Google Cloud: the VM's "Allow HTTP/HTTPS traffic" boxes (network tags `http-server`, `https-server`); then `sudo ufw status` |
 | Need the Django admin for a one-off | Use `manage.py shell` through `$P exec` instead; the admin stays off on the public server |
+
+## 13a. New domain, same server (19 Nov 2026: securepaysg.me)
+
+The server stays where it is (Google Cloud through M6, Fifa's hosting decision of 19 Nov 2026);
+only the names change, from `*.35-213-144-96.sslip.io` to `*.securepaysg.me`. Nothing is
+copied and nothing in the databases changes except the shop's webhook URL.
+`deploy/change-domain.sh` does steps 2 and 3.
+
+**1. DNS (Fifa, at Namecheap).** Domain List > `securepaysg.me` > **Manage** > **Advanced DNS**.
+Under Host Records, delete the parking records Namecheap adds (`CNAME www
+parkingpage.namecheap.com` and the `URL Redirect @` record), then add:
+
+| Type | Host | Value | TTL |
+| --- | --- | --- | --- |
+| A Record | `gateway` | `35.213.144.96` | 5 min |
+| A Record | `shop` | `35.213.144.96` | 5 min |
+| A Record | `mail` | `35.213.144.96` | 5 min |
+
+Wait until `dig +short gateway.securepaysg.me` (and `shop.`, `mail.`) prints `35.213.144.96`
+from a laptop; Namecheap usually takes 5 to 30 minutes. The bare `securepaysg.me` and `www`
+are not used (the website stays on Vercel). The mail records come in section 13b.
+
+**2. Code.** Merge the pull request that adds `change-domain.sh`, then on the server
+`bash ~/csit321-secure-pay/deploy/auto-deploy.sh` (while GitHub Actions minutes are used up).
+
+**3. Switch, on the server** (about 3 minutes; checkout is down for under a minute while the
+apps restart):
+
+```bash
+cd ~/csit321-secure-pay
+bash deploy/change-domain.sh securepaysg.me
+```
+
+It refuses to start until all three names point at this server (so Let's Encrypt is not
+asked for certificates it cannot issue). Then it sets `DOMAIN=securepaysg.me` and
+`OLD_DOMAIN=35-213-144-96.sslip.io` in `deploy/.env` (a copy of the old file stays as
+`deploy/.env.before-securepaysg.me`), rebuilds and restarts the stack, Caddy gets the new
+certificates, `manage.py change_domain` points the demo shop's webhook URL at
+`shop.securepaysg.me` (audited as `merchant.webhook_url_moved`), and the smoke check runs on
+the new names. The old names answer with a 308 redirect to the same path on the new ones, so
+links already shared (and the old webhook URL of any other merchant) keep working.
+
+**4. After it** (Fifa):
+
+- `bash deploy/demo.sh preflight` on the server: one real payment, receipt in
+  `https://mail.securepaysg.me`.
+- UptimeRobot: change the two monitor URLs (section 9a).
+- Vercel project settings > Environment Variables: `VITE_GATEWAY_URL=https://gateway.securepaysg.me`
+  and `VITE_SHOP_URL=https://shop.securepaysg.me`, then redeploy (the code's fallback is the
+  new name already).
+- Claude cloud environment: add `gateway.securepaysg.me`, `shop.securepaysg.me` and
+  `mail.securepaysg.me` to the allowed domains, so Claude sessions can test the live server.
+- Tell the team and update shared links and bookmarks. Automatic deploys need nothing: they
+  sign in by IP.
+- In a few weeks, drop the redirects: set `OLD_DOMAIN=` in `deploy/.env`, then
+  `docker compose -f deploy/compose.prod.yaml up -d caddy`.
+
+To go back: `bash deploy/change-domain.sh 35-213-144-96.sslip.io --drop-old`.
+
+## 13b. Real email (provider relay, Mailpit kept)
+
+Decided by Fifa on 18 Nov 2026: once the domain exists, emails go to real inboxes through a
+provider, with Mailpit kept as the switchable fallback for demo day.
+
+How it works: the apps keep sending every email to Mailpit, unchanged, so the demo inbox at
+`https://mail.<domain>` still shows everything. When `MAIL_RELAY_HOST` is set in
+`deploy/.env`, Mailpit also passes a copy of each email whose recipient matches
+`MAIL_RELAY_MATCHING` to the provider, which delivers it as `SecurePay
+<no-reply@securepaysg.me>`. Made-up demo addresses (`example.com`, `demoshop.sg`,
+`securepay.sg`, `.test`) are never relayed (`MAIL_RELAY_BLOCKED` in `compose.prod.yaml`), so
+the provider sees no bounces. In the Mailpit page, an email can also be sent on by hand with
+**Release**.
+
+**1. Provider account (Fifa).** Resend is suggested (free plan: 3,000 emails a month, 100 a
+day, one domain; SMTP with the API key as password). Brevo's free plan (300 a day) works the
+same way. Sign up with a team address.
+
+**2. Domain and DNS.** Resend > Domains > **Add domain** `securepaysg.me`: region Tokyo
+(`ap-northeast-1`, the closest), Custom Return-Path `send`, click and open tracking **off**
+(click tracking would rewrite the links in reset and verification emails). It then shows four
+records (19 Nov 2026). **Go to Namecheap** can add them for you; by hand, at Namecheap >
+Advanced DNS, copy each value in full from Resend (the page shortens them with `[...]`):
+
+| Type | Host | Value | Why |
+| --- | --- | --- | --- |
+| TXT Record | `resend._domainkey` | `p=MIGfMA...QIDAQAB` (from Resend) | DKIM: signs every email |
+| CNAME Record | `rsend` | `rsend-ap...mta.net` (from Resend) | SPF for the return address |
+| CNAME Record | `send` | `send.for...mta.net` (from Resend) | Return-Path: bounces go back to Resend |
+| TXT Record | `_dmarc` | `v=DMARC1; p=none;` | DMARC. Change to `p=quarantine` once mail is seen to pass |
+
+Host without `.securepaysg.me` (Namecheap adds it), TTL Automatic, "Enable receiving" off.
+Then **I've already added the records** in Resend, and wait for Verified (usually minutes).
+
+**3. API key.** Resend > API Keys > **Create**: permission **Sending access**, domain
+`securepaysg.me` only. Copy it once (it is shown only then) into the team password manager.
+
+**4. On the server**, add to `deploy/.env` (`nano deploy/.env`):
+
+```bash
+MAIL_RELAY_HOST=smtp.resend.com
+MAIL_RELAY_PORT=587
+MAIL_RELAY_USERNAME=resend
+MAIL_RELAY_PASSWORD=re_...           # the API key
+MAIL_RELAY_MATCHING='.*'             # or only the team: '(?i)@(gmail\.com|uowmail\.edu\.au)$'
+```
+
+then `docker compose -f deploy/compose.prod.yaml up -d mailpit` and check
+`docker compose -f deploy/compose.prod.yaml logs mailpit | grep relay`: it prints the
+"auto-relaying new messages to recipients matching" line. Make a payment with your own email
+at the demo shop (or reset your staff password): the code lands in your inbox and in
+Mailpit. Gmail's **Show original** should say SPF, DKIM and DMARC: PASS.
+
+Real people need real addresses: staff and customer accounts made with `example.com` or
+`securepay.sg` addresses only get their email in Mailpit. Make demo accounts with the
+team's own addresses where a real inbox is wanted on the day.
+
+**Fallback (demo day, or when the free quota runs out):** set `MAIL_RELAY_HOST=` in
+`deploy/.env` and `docker compose -f deploy/compose.prod.yaml up -d mailpit`. Everything
+keeps working; emails are then only in Mailpit, as before. Recreating Mailpit empties the
+demo inbox (it keeps messages in memory), so switch before `demo.sh reset`, not after.
 
 ## 13. Moving to a new server or domain
 

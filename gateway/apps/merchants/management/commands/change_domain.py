@@ -1,6 +1,6 @@
 """Point merchants' webhook URLs at the server's new domain after a server move (sprint 12).
 
-    python manage.py change_domain --from 35-213-144-96.sslip.io --to securepay-demo.me
+    python manage.py change_domain --from 35-213-144-96.sslip.io --to securepaysg.me
     python manage.py change_domain --from ... --to ... --dry-run     # show, change nothing
 
 The demo shop's webhook URL is stored in the gateway database as https://shop.<domain>/...
