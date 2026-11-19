@@ -176,6 +176,7 @@ KEY, CUSTOMER = "api_key", "customer"
 MATRIX: dict[tuple[str, str], set[str] | str] = {
     ("healthz", "get"): "public",
     ("readyz", "get"): "public",
+    ("status.json", "get"): "public",
     ("api/schema/", "get"): "public",  # DEBUG only
     # Merchant API (API key)
     ("v1/payments", "post"): {KEY},

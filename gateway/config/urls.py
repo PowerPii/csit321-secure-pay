@@ -4,10 +4,12 @@ from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView
 
 from apps.common.views import HealthView, ReadinessView
+from apps.status.views import PublicStatusView
 
 urlpatterns = [
     path("healthz", HealthView.as_view(), name="health"),
     path("readyz", ReadinessView.as_view(), name="ready"),
+    path("status.json", PublicStatusView.as_view(), name="public-status"),
     path("v1/", include("apps.payments.urls")),
     path("v1/", include("apps.refunds.urls")),
     path("checkout/", include("apps.checkout.urls")),

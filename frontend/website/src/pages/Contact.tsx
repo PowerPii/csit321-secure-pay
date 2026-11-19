@@ -8,7 +8,7 @@ import { usePageTitle } from "../components/usePageTitle";
 import { CONTACT_EMAIL, REPO_URL } from "../content/site";
 import { brand } from "../theme";
 
-const TOPICS = ["Ask for a live demo", "Question about the project", "Developer or API question", "Report a security issue", "Something else"];
+const TOPICS = ["Ask for a live demo", "Question about the project", "Developer or API question", "Report a security issue", "Privacy or personal data request", "Something else"];
 
 const DEMO_COVERS = [
   "A purchase in the demo shop, paid on the hosted checkout",

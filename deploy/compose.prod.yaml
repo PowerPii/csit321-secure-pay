@@ -70,6 +70,8 @@ services:
       DEFAULT_FROM_EMAIL: SecurePay <no-reply@${DOMAIN}>
       RISK_MODEL_VERSION: ${RISK_MODEL_VERSION:-}
       RISK_MODEL_SHA256: ${RISK_MODEL_SHA256:-}
+      # One line at the top of the public status page, for planned work (deploy/.env).
+      STATUS_NOTICE: ${STATUS_NOTICE:-}
     command: ["sh", "-c", "python manage.py migrate --noinput && python manage.py migrate --database=vault --noinput && python manage.py seed_risk_lists && exec gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 30"]
     volumes:
       - caddy_ca:/caddy-ca:ro
@@ -108,6 +110,10 @@ services:
       DEFAULT_FROM_EMAIL: SecurePay <no-reply@${DOMAIN}>
       GUEST_STATUS_URL: https://gateway.${DOMAIN}/guest/status
       DASHBOARD_URL: https://gateway.${DOMAIN}/dashboard  # reset, verification and notice links
+      # Public status page: checked every five minutes through their public names, like an
+      # outside visitor (apps.status).
+      STATUS_GATEWAY_URL: https://gateway.${DOMAIN}
+      STATUS_SHOP_URL: https://shop.${DOMAIN}
     volumes:
       - caddy_ca:/caddy-ca:ro
     secrets:

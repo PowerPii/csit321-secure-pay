@@ -30,10 +30,18 @@ const COLUMNS = [
     title: "Project",
     links: [
       { label: "About the team", to: "/about" },
-      { label: "Security", to: "/security" },
       { label: "Pricing", to: "/pricing" },
       { label: "Contact", to: "/contact" },
       { label: "Source on GitHub", href: REPO_URL },
+    ],
+  },
+  {
+    title: "Trust",
+    links: [
+      { label: "System status", to: "/status" },
+      { label: "Security", to: "/security" },
+      { label: "Privacy policy", to: "/privacy" },
+      { label: "Terms of use", to: "/terms" },
     ],
   },
 ];
@@ -50,7 +58,7 @@ export function Footer() {
             </Typography>
           </Grid>
           {COLUMNS.map((col) => (
-            <Grid key={col.title} size={{ xs: 6, sm: 4, md: 8 / 3 }}>
+            <Grid key={col.title} size={{ xs: 6, sm: 3, md: 2 }}>
               <Typography sx={{ color: "#fff", fontWeight: 600, mb: 2, fontSize: 14 }}>{col.title}</Typography>
               <Box component="ul" sx={{ listStyle: "none", p: 0, m: 0, display: "grid", gap: 1.25 }}>
                 {col.links.map((l) => (
@@ -79,6 +87,17 @@ export function Footer() {
           <Typography sx={{ fontSize: "inherit", color: "rgba(255,255,255,0.62)" }}>
             © {new Date().getFullYear()} The SecurePay project team. Product names of other companies mentioned on this site belong to their owners.
           </Typography>
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2.5 }}>
+            {[
+              ["Privacy", "/privacy"],
+              ["Terms", "/terms"],
+              ["Status", "/status"],
+            ].map(([label, to]) => (
+              <Link key={to} component={RouterLink} to={to} sx={{ color: "rgba(255,255,255,0.75)", fontSize: "inherit" }}>
+                {label}
+              </Link>
+            ))}
+          </Box>
         </Box>
       </Container>
     </Box>
