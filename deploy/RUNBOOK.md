@@ -605,20 +605,21 @@ the provider sees no bounces. In the Mailpit page, an email can also be sent on 
 day, one domain; SMTP with the API key as password). Brevo's free plan (300 a day) works the
 same way. Sign up with a team address.
 
-**2. Domain and DNS.** Resend > Domains > **Add domain** `securepaysg.me` (region: Tokyo,
-`ap-northeast-1`, the closest). It shows three records; add each at Namecheap > Advanced DNS,
-copying the values exactly from Resend (the DKIM value is long and differs per account):
+**2. Domain and DNS.** Resend > Domains > **Add domain** `securepaysg.me`: region Tokyo
+(`ap-northeast-1`, the closest), Custom Return-Path `send`, click and open tracking **off**
+(click tracking would rewrite the links in reset and verification emails). It then shows four
+records (19 Nov 2026). **Go to Namecheap** can add them for you; by hand, at Namecheap >
+Advanced DNS, copy each value in full from Resend (the page shortens them with `[...]`):
 
 | Type | Host | Value | Why |
 | --- | --- | --- | --- |
-| TXT Record | `resend._domainkey` | `p=MIGfMA0...` (from Resend) | DKIM: signs every email |
-| MX Record | `send` | `feedback-smtp.ap-northeast-1.amazonses.com`, priority 10 | Bounces come back to Resend |
-| TXT Record | `send` | `v=spf1 include:amazonses.com ~all` | SPF for the return address |
-| TXT Record | `_dmarc` | `v=DMARC1; p=none;` | DMARC (ours, not from Resend). Change to `p=quarantine` once mail is seen to pass |
+| TXT Record | `resend._domainkey` | `p=MIGfMA...QIDAQAB` (from Resend) | DKIM: signs every email |
+| CNAME Record | `rsend` | `rsend-ap...mta.net` (from Resend) | SPF for the return address |
+| CNAME Record | `send` | `send.for...mta.net` (from Resend) | Return-Path: bounces go back to Resend |
+| TXT Record | `_dmarc` | `v=DMARC1; p=none;` | DMARC. Change to `p=quarantine` once mail is seen to pass |
 
-Namecheap only allows MX records once **Mail Settings** (further down the same page) is set
-to **Custom MX**; that does not change the A records. Back in Resend, press **Verify DNS
-Records** until the domain shows Verified (usually minutes).
+Host without `.securepaysg.me` (Namecheap adds it), TTL Automatic, "Enable receiving" off.
+Then **I've already added the records** in Resend, and wait for Verified (usually minutes).
 
 **3. API key.** Resend > API Keys > **Create**: permission **Sending access**, domain
 `securepaysg.me` only. Copy it once (it is shown only then) into the team password manager.
