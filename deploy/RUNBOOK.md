@@ -9,8 +9,8 @@ assessors directly.
 
 **Current server (19 Nov 2026):** Google Cloud project `securepay-demo`, VM `securepay`
 (e2-medium, asia-southeast1), static IP `35.213.144.96`, domain `securepaysg.me` (Namecheap,
-GitHub Student Pack; moved from `35-213-144-96.sslip.io` with section 13a, whose names
-redirect to the new ones for now). Real email through a provider: section 13b.
+GitHub Student Pack; moved from `35-213-144-96.sslip.io` with section 13a; the old names'
+redirects were dropped the same day). Real email through a provider: section 13b.
 First deploy: all smoke checks and all 11 integration tests passed on it.
 Automatic deploys are on (step 10) since 16 Nov 2026: the first run from GitHub Actions passed
 its smoke check.
@@ -580,7 +580,7 @@ links already shared (and the old webhook URL of any other merchant) keep workin
   `mail.securepaysg.me` to the allowed domains, so Claude sessions can test the live server.
 - Tell the team and update shared links and bookmarks. Automatic deploys need nothing: they
   sign in by IP.
-- In a few weeks, drop the redirects: set `OLD_DOMAIN=` in `deploy/.env`, then
+- Later, drop the redirects (done on the live server on 19 Nov 2026): set `OLD_DOMAIN=` in `deploy/.env`, then
   `docker compose -f deploy/compose.prod.yaml up -d caddy`.
 
 To go back: `bash deploy/change-domain.sh 35-213-144-96.sslip.io --drop-old`.
