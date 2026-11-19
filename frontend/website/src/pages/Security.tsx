@@ -85,7 +85,7 @@ export default function Security() {
           </Typography>
           <Typography sx={{ lineHeight: 1.7 }}>
             SecurePay runs against a simulated bank and accepts only published test card numbers. Please don’t enter a real card on any SecurePay page. If you find a security
-            problem in the project code, open an issue on GitHub or contact the team, and leave out any exploit details from public posts.
+            problem, tell the team through the contact page, and leave out any exploit details from public posts.
           </Typography>
         </Box>
       </Section>

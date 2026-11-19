@@ -24,7 +24,7 @@ const BELIEFS = [
 const PROJECT = [
   { k: "Subject", v: "CSIT321 Project" },
   { k: "University", v: "University of Wollongong, with the Singapore Institute of Management" },
-  { k: "Duration", v: "26 weeks, from the week of 5 October 2026" },
+  { k: "Duration", v: "20 weeks, from the week of 5 October 2026 to 20 February 2027" },
   { k: "Stack", v: "Django + DRF, PostgreSQL, React + TypeScript, scikit-learn" },
 ];
 
@@ -105,7 +105,7 @@ export default function About() {
               title="Built in the open"
               lead={
                 <>
-                  The code, the API contracts and the requirements live in one repository.{" "}
+                  The code, the API contracts and the requirements live in one repository, which assessors can see on request.{" "}
                   <Link href={REPO_URL} target="_blank" rel="noopener" underline="always">
                     See it on GitHub
                   </Link>

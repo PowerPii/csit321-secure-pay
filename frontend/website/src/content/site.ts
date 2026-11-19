@@ -21,6 +21,7 @@ export const OPENAPI_YAML = "/openapi/merchant-api.v1.yaml";
 
 /** The Node.js SDK (sdk/node in the repository), published to npm by Fifa. */
 export const SDK_PACKAGE = "securepaysg";
+export const SDK_VERSION = "0.2.0";
 export const SDK_NPM_URL = `https://www.npmjs.com/package/${SDK_PACKAGE}`;
 
 /** The Volt & Co. demo store on the same server. Set VITE_SHOP_URL in Vercel when the server moves. */
@@ -59,7 +60,9 @@ export const RULES = {
 
 /**
  * Measured results, not targets. Sources:
- * research/evaluation/hgb-fs02-2026-11-13.md (latency run and model scores) and the test suites in the repo.
+ * research/evaluation/hgb-fs02-2026-11-13.md (latency run and model scores) and the test suites in the repo
+ * (20 Nov 2026 on db8cacd: gateway 673, simulator 79, store 55, checkout 75, dashboard 62, website 13,
+ * SDK 32, integration 11 = 1,000; docs/test-report/evidence/2026-11-20-local).
  */
 export const MEASURED = {
   screeningP95: "21.6 ms",
@@ -67,7 +70,7 @@ export const MEASURED = {
   screeningRuns: "1,200",
   screeningRate: "20 per second",
   modelRocAuc: "0.738",
-  automatedTests: "500+",
+  automatedTests: "1,000",
 };
 
 /** Screenshots of the running system (demo store "Volt & Co.", test mode). Files in public/screens. */

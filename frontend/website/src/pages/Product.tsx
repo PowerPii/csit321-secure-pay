@@ -149,6 +149,14 @@ const ALSO = [
   { title: "Guest status check", text: "Guests look up a payment with its reference, their email and a one-time code, and can download a PDF receipt." },
   { title: "Fraud rules and reports", text: "Analysts edit rules without a deploy, with each version kept. Reports export to CSV, and new alerts show on the dashboard within seconds." },
   { title: "Integrity checks", text: "A worker re-checks payment hashes and seals the audit log in a chain, so an edited row shows up." },
+  { title: "Merchant self-registration", text: "A business registers with its UEN, verifies its email and waits for an administrator to approve it before any API key exists." },
+  { title: "Webhook delivery log", text: "Merchants see every webhook attempt with its status code and timing, and can resend an event that was not delivered." },
+  { title: "“Why was this blocked?”", text: "Analysts see the rules that fired and the features that pushed the model score up or down for each decision." },
+  { title: "Real email delivery", text: "Receipts, verification codes and password resets go to real inboxes through Resend, which reports back when a message is delivered or bounces." },
+  { title: "Public status page", text: "Each part of the system is checked every 5 minutes, and the page shows the result with simple payment measures." },
+  { title: "Node.js SDK", text: "The securepaysg package on npm wraps the API with types, safe retries and webhook signature checks." },
+  { title: "Fraud insights", text: "Charts of screening decisions over time and of model scores, for analysts and administrators." },
+  { title: "Backups and recovery", text: "Daily backups hold no card data, a weekly check restores the newest one, and a rollback script returns to the last good version." },
 ];
 
 export default function Product() {
@@ -209,7 +217,7 @@ export default function Product() {
       ))}
 
       <Section tone="dark">
-        <SectionHeading dark overline="Also built" title="Beyond the core payment path" lead="These came after the six parts above, and are all running on the demo server." />
+        <SectionHeading dark overline="Also built" title="Beyond the core payment path" lead="These came after the six core parts above, and are all running on the demo server." />
         <Grid container spacing={2}>
           {ALSO.map((l) => (
             <Grid key={l.title} size={{ xs: 12, sm: 6, md: 3 }}>

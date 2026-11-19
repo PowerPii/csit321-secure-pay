@@ -8,7 +8,7 @@ import { Screenshot } from "../components/Screenshot";
 import { Section, SectionHeading } from "../components/Section";
 import { StatusChip } from "../components/StatusChip";
 import { usePageTitle } from "../components/usePageTitle";
-import { MEASURED, RULES, SCREENS, SHOP_URL, TEAM } from "../content/site";
+import { MEASURED, RULES, SCREENS, SDK_PACKAGE, SDK_VERSION, SHOP_URL, TEAM } from "../content/site";
 import { CREATE_PAYMENT } from "../content/snippets";
 import { brand, fonts, shadows } from "../theme";
 
@@ -45,11 +45,22 @@ const PILLARS = [
   },
 ];
 
+const ALSO_RUNNING = [
+  "merchant self-registration with approval",
+  "customer accounts and payment history",
+  "full and partial refunds",
+  "receipts and codes emailed to real inboxes",
+  "a webhook delivery log with resend",
+  "“why was this blocked?” explanations",
+  "a public status page",
+  "daily card-free backups with a restore check",
+];
+
 const STATS = [
   { value: MEASURED.screeningP95, label: `95th-percentile screening time over ${MEASURED.screeningRuns} payments at ${MEASURED.screeningRate}. Our target is ${RULES.screeningP95}.` },
   { value: MEASURED.modelRocAuc, label: "ROC-AUC of the fraud model on days of data it never saw in training. Modest, so rules and email codes back it up." },
   { value: "0", label: "card numbers kept after a payment is submitted. The vault row is deleted." },
-  { value: MEASURED.automatedTests, label: "automated tests, run in CI on every pull request." },
+  { value: MEASURED.automatedTests, label: "automated tests across the gateway, bank simulator, demo store, checkout, dashboard, website and SDK. CI runs them on every pull request." },
 ];
 
 const STEPS = [
@@ -102,8 +113,8 @@ export default function Home() {
           <Grid size={{ xs: 12, md: 4 }}>
             <SectionHeading
               overline="What it does"
-              title="Six parts, all built and running"
-              lead="Screening runs before the bank is asked, so a blocked attempt never reaches the bank."
+              title="Six core parts, all built and running"
+              lead="Screening runs before the bank is asked, so a blocked attempt never reaches the bank. Around them we also built the pieces a real merchant and customer need."
             />
           </Grid>
           <Grid size={{ xs: 12, md: 8 }}>
@@ -134,6 +145,13 @@ export default function Home() {
                 </Box>
               ))}
             </Box>
+            <Typography sx={{ color: "text.secondary", fontSize: 15, lineHeight: 1.7, mt: 3 }}>
+              <Box component="span" sx={{ fontWeight: 600, color: brand.navy }}>Also running: </Box>
+              {ALSO_RUNNING.join(" · ")}.{" "}
+              <Box component={RouterLink} to="/product" sx={{ color: brand.navy }}>
+                See everything we built
+              </Box>
+            </Typography>
           </Grid>
         </Grid>
       </Section>
@@ -165,14 +183,15 @@ export default function Home() {
             <SectionHeading
               overline="For developers"
               title="Create a payment with one API call"
-              lead="A REST API with seven endpoints. Amounts are whole numbers in cents and the currency is SGD. Every POST takes an idempotency key, and every reply is signed."
+              lead="A REST API with seven endpoints and a typed Node.js SDK. Amounts are whole numbers in cents and the currency is SGD. Every POST takes an idempotency key, and every reply is signed."
             />
             <Stack spacing={1.5} sx={{ mb: 4 }}>
               {[
                 "Idempotency-Key on every POST, kept for 24 hours",
                 "Each reply signed with your secret (SecurePay-Signature)",
                 "30 documented error codes, each with a fixed name",
-                "OpenAPI 3.1 contract and JSON Schemas in the repo",
+                "Public OpenAPI 3.1 file with an interactive API reference",
+                `Node.js SDK on npm: ${SDK_PACKAGE} ${SDK_VERSION}`,
               ].map((t) => (
                 <Box key={t} sx={{ display: "flex", gap: 1.5, alignItems: "flex-start" }}>
                   <Box sx={{ mt: "9px", width: 6, height: 6, borderRadius: "50%", bgcolor: brand.brass, flexShrink: 0 }} />
@@ -258,7 +277,7 @@ export default function Home() {
             <SectionHeading
               overline="Who we are"
               title="Five students at UOW, through SIM"
-              lead="We are the CSIT321 project team, building SecurePay over 26 weeks from October 2026."
+              lead="We are the CSIT321 project team, building SecurePay over 20 weeks, from October 2026 to February 2027."
             />
             <Button component={RouterLink} to="/about#team" sx={{ px: 0 }} endIcon={<ArrowForwardRoundedIcon />}>
               Meet the team
