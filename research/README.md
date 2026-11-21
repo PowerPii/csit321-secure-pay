@@ -7,6 +7,7 @@ Training environment. Never deployed; it only produces versioned model artifacts
 | `notebooks/` | Exploration and experiment notebooks |
 | `features/` | `gateway_schema.py`: the gateway's screening features (fs-0.2) replayed over events in plain Python, the twin of the SQL in `gateway/apps/risk/features.py`. `gateway/apps/risk/test_parity.py` replays one event stream through both and requires the same values. |
 | `training/` | `train_gateway_model.py` (the model the gateway runs: IEEE-CIS days 0-146 mapped to fs-0.2, chronological split, HGB, policy thresholds) and `package_model.py` (writes the artefact + manifest) |
+| `experiments/` | Side studies that never produce a gateway artefact, e.g. `isolation_forest_comparison.py` (21 Nov 2026: Isolation Forest alone and as an HGB feature; result in `evaluation/isolation-forest-comparison-2026-11-21.md`) |
 | `evaluation/` | Result files per accepted run (metrics, thresholds, latency), e.g. `hgb-fs02-2026-11-13.md` |
 | `data/` | Local working copies / Parquet conversions. Raw IEEE-CIS CSVs stay in `../../03-data/ieee-cis/`. Git-ignored. |
 | `artifacts/<version>/` | `model.joblib` + `manifest.json` (SHA-256, feature schema version, scikit-learn version, threshold policy). Git-ignored. |
