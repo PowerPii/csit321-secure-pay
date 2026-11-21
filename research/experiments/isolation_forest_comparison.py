@@ -41,9 +41,17 @@ from sklearn.metrics import average_precision_score, roc_auc_score
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
-from research.training.train_gateway_model import (  # noqa: E402  same protocol as the live model
-    BLOCK_FPR, DAY, MODEL_FEATURES, SETTINGS, TRAIN_END, TUNE_END, VERIFY_FPR, load,
-    operating_point, threshold_at_fpr,
+from research.training.train_gateway_model import (
+    BLOCK_FPR,
+    DAY,
+    MODEL_FEATURES,
+    SETTINGS,
+    TRAIN_END,
+    TUNE_END,
+    VERIFY_FPR,
+    load,
+    operating_point,
+    threshold_at_fpr,
 )
 
 IF_GRID = {  # chosen by average precision on the tune days, like the HGB settings
@@ -183,7 +191,9 @@ def main() -> None:
         b_runs.append({"seed": seed, **b})
         # (c) HGB with the isolation score as a 10th feature (the forest never saw labels, so
         # scoring the fit rows with it does not leak fraud labels into the HGB).
-        add = lambda m, k: np.column_stack([x[m], s[k]])
+        def add(m, k, s=s):
+            return np.column_stack([x[m], s[k]])
+
         hgb_c, c_setting, _ = fit_hgb(add(fit, "fit"), y[fit], add(tune, "tune"), y[tune])
         c_tune, c_rep = hgb_c.predict_proba(add(tune, "tune"))[:, 1], hgb_c.predict_proba(add(rep, "rep"))[:, 1]
         c = evaluate(y[tune], c_tune, y[rep], c_rep)
